@@ -511,3 +511,13 @@ The following events are supported; every event handler takes the association, a
 \subsection{Paths and Path Properties}
 
 [EDITOR'S NOTE: provide api from which path properties can be read, extensible like handle().]
+
+# Acknowledgments
+
+Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH Zurich for contributions to the initial design of Post Sockets.
+
+This work is partially supported by the European Commission under Horizon 2020
+grant agreement no. 688421 Measurement and Architecture for a Middleboxed
+Internet (MAMI), and by the Swiss State Secretariat for Education, Research,
+and Innovation under contract no. 15.0268. This support does not imply
+endorsement.
