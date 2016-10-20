@@ -1,5 +1,5 @@
 ---
-title: Post Sockets: An Abstract Programming Interface for the Transport Layer
+title: Post Sockets, An Abstract Programming Interface for the Transport Layer
 abbrev: Post Sockets
 docname: draft-trammell-post-sockets-00
 date: 
