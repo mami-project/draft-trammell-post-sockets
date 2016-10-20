@@ -481,8 +481,7 @@ bytes = receive_next(association)
 
 [EDITOR'S NOTE: provide open_stream(), close_stream(), point out that these should be treated exactly like files in the platform.]
 
-\subsection{Events}
-\label{sec:event}
+## Events
 
 Message reception is a specific case of an event that can occur on an association. Other events are also available, and the application can register event handlers for each of these. Event handlers are registered via the handle() entry point:
 
