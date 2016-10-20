@@ -365,3 +365,149 @@ frames will yield to niceness 1 Object frames.
 The underlying transport protocol may make whatever use of
 the Paths and known properties of those Paths it sees fit when transporting a
 Stream.
+
+# Abstract Programming Interface
+
+We now turn to the design of an abstract programming interface to provide a simple interface to Post's abstractions, constrained by the following design principles:
+
+- Flexibility is paramount. So is simplicity. Applications must be
+given as many controls and as much information as they may need, but they must
+be able to ignore controls and information irrelevant to their operation. This
+implies that the "default" interface must be no more complicated than BSD
+sockets, and must do something reasonable.
+
+- A new API cannot be bound to a single transport protocol and expect
+wide deployment. As the API is transport-independent and may support runtime
+transport selection, it must impose the minimum possible set of constraints on
+its underlying transports, though some API features may require underlying
+transport features to work optimally. It must be possible to implement Post
+over vanilla TCP in the present Internet architecture.
+
+- Reception is an inherently asynchronous activity. While the API is
+designed to be as platform-independent as possible, one key insight it is
+based on is that an object receiver's behavior in a packet-switched network is
+inherently asynchronous, driven by the receipt of packets, and that this
+asynchronicity must be reflected in the API. The actual implementation of
+receive and event callbacks will need to be aligned to the method a given
+platform provides for asynchronous I/O.
+
+[EDITOR'S NOTE a little more frontmatter to introduce the API; maybe a list of calls?]
+
+## Address Resolution
+
+[EDITOR'S NOTE given the multiple-architecture focus of the API, this needs to be pretty opaque. turns names into resolved Remotes; there also needs to be a way to get a resolved Local given local address or interface specifier.]
+
+## Active Association Creation
+
+Associations can be created two ways: actively by a connection initiator, and passively by a Listener that accepts a connection. Connection initiation uses the associate() entry point:
+
+association = associate(local, remote, receive_handler)
+
+where: 
+
+- local: a resolved Local describing the local identity and interface(s) to use
+- remote: a resolved Remote to associate with
+- receive_handler: a callback to be invoked when new objects are received; see  {{receiving-objects}} 
+
+The returned association has the following additional properties:
+
+- paths: a set of Paths that the Association can currently use to transport Objects. When the underlying transport connection is closed, this set will be empty. For explicitly multipath architectures and transports, this set may change dynamically during the lifetime of an association, even while it remains connected.
+
+Since the existence of an association does not necessarily imply
+current connection state at both ends of the Association, these objects are
+durable, and can be cached, migrated, and restored, as long as the mappings to
+their event handlers are stable. An attempts to send an object or open a
+stream on a dormant, previously actively-opened association will cause the
+underlying transport connection state to be resumed.
+
+## Listener and Passive Association Creation
+
+In order to accept new Association requests from clients, a server must create a Listener object, using the listen() entry point:
+
+listener = listen(local, accept_handler)
+
+where: 
+
+- local: resolved Local describing the local identity and interface(s) to use for Associations created by this listener.
+- accept_handler: callback to be invoked each time an association is requested by a remote, to finalize setting the association up. Platforms may provide a default here for supporting synchronous association request handling via an object queue.
+
+The accept_handler has the following prototype:
+
+accepted = accept_handler(listener, local, remote)
+
+where:
+
+- local: a resolved Local on which the association request was received.
+- remote: a resolved Remote from which the association request was received. 
+- accepted: flag, true if the handler decided to accept the request, false otherwise.
+
+The accept_handler() calls the accept() entry point to finally create the association:
+
+association = accept(listener, local, remote, receive_handler)
+
+## Sending Objects 
+
+Objects are sent using the send() entry point:
+
+send(association, bytes, [lifetime], [niceness], [oid], [antecedent\_oids], [paths])}
+
+where:
+
+- association: the association to send the object on
+- bytes: sequence of bytes making up the object. For platforms without bounded byte arrays, this may be implemented as a pointer and a length.
+- lifetime: lifetime of the object in milliseconds. This parameter is optional and defaults to infinity (for fully reliable object transport).
+- niceness: the object's niceness class. This parameter is optional and defaults to zero (for lowest niceness / highest priority)
+- oid: opaque identifier for an object, assigned by the application. Used to refer to this object as a subsequently sent object's antecedent, or in an ack or expired handler (see {{events}}). Optional, defaults to null.
+- antecedent_oids: set of object identifiers on which this object depends and which must be sent before this object. Optional, defaults to empty, meaning this object has no antecedent constraints.
+- paths: set of paths, as a subset of those available to the association, to explicitly use for this object. Optional, defaults to empty, meaning all paths are acceptable.
+
+Calls to send are non-blocking; synchronous send which blocks on remote acknowledgment or expiry of a 
+
+## Receiving Objects
+
+An application receives objects via its receive_handler callback, registered at association creation time. This callback has the following prototype:
+
+receive_handler(association, bytes)
+
+where:
+- association: the association the object was received from.
+- bytes: the sequence of bytes making up the object.
+
+For ease of porting synchronous datagram applications, implementations may make a default receive handler available, which allows messages to be synchronously polled from a per-association object queue. If this default is available, the entry point for the polling call is:
+
+bytes = receive_next(association)
+
+\subsection{Creating and Destroying Streams}
+
+[EDITOR'S NOTE: provide open_stream(), close_stream(), point out that these should be treated exactly like files in the platform.]
+
+\subsection{Events}
+\label{sec:event}
+
+Message reception is a specific case of an event that can occur on an association. Other events are also available, and the application can register event handlers for each of these. Event handlers are registered via the handle() entry point:
+
+handle(association, event, handler) or
+
+handle(oid, event, handler)
+
+where
+
+- association: the association to register a handler on, or
+- oid: the object identifier to register a handler on
+- event: an identifier of the event to register a handler on
+- handler: a callback to be invoked when the event occurs, or null if the event should be ignored.
+
+The following events are supported; every event handler takes the association, as well as any additional arguments 
+
+
+- receive (bytes): an object has been received
+- path_up (path): a path is newly available
+- path_down (path): a path is no longer available
+- dormant: no more paths are available, the association is now dormant, and the connection will need to be resumed if further objects are to be sent
+- ack (oid): an object was successfully received by the remote
+- expired (oid): an object expired before being sent to the remote
+
+
+\subsection{Paths and Path Properties}
+
+[EDITOR'S NOTE: provide api from which path properties can be read, extensible like handle().]
