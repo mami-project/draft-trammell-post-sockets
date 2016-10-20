@@ -269,7 +269,23 @@ li, p {
 
   <link href="#rfc.toc" rel="Contents"/>
 <link href="#rfc.section.1" rel="Chapter" title="1 Introduction"/>
-<link href="#rfc.references" rel="Chapter" title="2 Informative References"/>
+<link href="#rfc.section.2" rel="Chapter" title="2 Abstractions and Terminology"/>
+<link href="#rfc.section.2.1" rel="Chapter" title="2.1 Association"/>
+<link href="#rfc.section.2.2" rel="Chapter" title="2.2 Listener"/>
+<link href="#rfc.section.2.3" rel="Chapter" title="2.3 Remote"/>
+<link href="#rfc.section.2.4" rel="Chapter" title="2.4 Local"/>
+<link href="#rfc.section.2.5" rel="Chapter" title="2.5 Path"/>
+<link href="#rfc.section.2.6" rel="Chapter" title="2.6 Object"/>
+<link href="#rfc.section.2.7" rel="Chapter" title="2.7 Stream"/>
+<link href="#rfc.section.3" rel="Chapter" title="3 Abstract Programming Interface"/>
+<link href="#rfc.section.3.1" rel="Chapter" title="3.1 Address Resolution"/>
+<link href="#rfc.section.3.2" rel="Chapter" title="3.2 Active Association Creation"/>
+<link href="#rfc.section.3.3" rel="Chapter" title="3.3 Listener and Passive Association Creation"/>
+<link href="#rfc.section.3.4" rel="Chapter" title="3.4 Sending Objects"/>
+<link href="#rfc.section.3.5" rel="Chapter" title="3.5 Receiving Objects"/>
+<link href="#rfc.section.3.6" rel="Chapter" title="3.6 Events"/>
+<link href="#rfc.section.4" rel="Chapter" title="4 Acknowledgments"/>
+<link href="#rfc.references" rel="Chapter" title="5 Informative References"/>
 <link href="#rfc.authors" rel="Chapter"/>
 
 
@@ -356,7 +372,23 @@ li, p {
   <ul class="toc">
 
   	<li>1.   <a href="#rfc.section.1">Introduction</a></li>
-<li>2.   <a href="#rfc.references">Informative References</a></li>
+<li>2.   <a href="#rfc.section.2">Abstractions and Terminology</a></li>
+<ul><li>2.1.   <a href="#rfc.section.2.1">Association</a></li>
+<li>2.2.   <a href="#rfc.section.2.2">Listener</a></li>
+<li>2.3.   <a href="#rfc.section.2.3">Remote</a></li>
+<li>2.4.   <a href="#rfc.section.2.4">Local</a></li>
+<li>2.5.   <a href="#rfc.section.2.5">Path</a></li>
+<li>2.6.   <a href="#rfc.section.2.6">Object</a></li>
+<li>2.7.   <a href="#rfc.section.2.7">Stream</a></li>
+</ul><li>3.   <a href="#rfc.section.3">Abstract Programming Interface</a></li>
+<ul><li>3.1.   <a href="#rfc.section.3.1">Address Resolution</a></li>
+<li>3.2.   <a href="#rfc.section.3.2">Active Association Creation</a></li>
+<li>3.3.   <a href="#rfc.section.3.3">Listener and Passive Association Creation</a></li>
+<li>3.4.   <a href="#rfc.section.3.4">Sending Objects</a></li>
+<li>3.5.   <a href="#rfc.section.3.5">Receiving Objects</a></li>
+<li>3.6.   <a href="#rfc.section.3.6">Events</a></li>
+</ul><li>4.   <a href="#rfc.section.4">Acknowledgments</a></li>
+<li>5.   <a href="#rfc.references">Informative References</a></li>
 <li><a href="#rfc.authors">Authors' Addresses</a></li>
 
 
@@ -380,7 +412,168 @@ li, p {
   <li>Long-lived Associations, whose lifetimes may not be bound to underlying \ transport connections. This allows associations to cache state and cryptographic key material to enable fast (0-rtt) resumption of communication.</li>
 </ul>
 <p id="rfc.section.1.p.10">This work is the synthesis of many years of Internet transport protocol research and development. It is heavily inspired by concepts from the Stream Control Transmission Protocol (SCTP) <a href="#RFC4960">[RFC4960]</a>, TCP Minion [EDITOR&#8217;S NOTE: cite], MinimaLT [EDITOR&#8217;S NOTE: cite, and various bulk object transports.  While much of the work for building parts of the protocols needed to implement Post are already ongoing in other IETF working groups (e.g. TAPS, MPTCP, QUIC, TLS), we argue that an abstract programming interface unifying access all these efforts is necessary to fully exploit their potential.</p>
-<h1 id="rfc.references"><a href="#rfc.references">2.</a> Informative References</h1>
+<h1 id="rfc.section.2"><a href="#rfc.section.2">2.</a> <a href="#abstractions-and-terminology" id="abstractions-and-terminology">Abstractions and Terminology</a></h1>
+<div id="rfc.figure.1"/>
+<div id="fig-abstractions"/>
+<pre>
+[gratuitously colorful SVG goes here]
+</pre>
+<p class="figure">Figure 1: Abstractions and relationships in Post Sockets</p>
+<p id="rfc.section.2.p.1">Post is based on a small set of abstractions, the relationships among which are shown in Figure <a href="#fig-abstractions">Figure 1</a> and detailed in this section.</p>
+<h1 id="rfc.section.2.1"><a href="#rfc.section.2.1">2.1.</a> <a href="#association" id="association">Association</a></h1>
+<p id="rfc.section.2.1.p.1">An Association is a container for all the state necessary for a local endpoint to communicate with a remote endpoint in an explicitly multipath environment. It contains a set of Paths, certificate(s) for identifying the remote endpoint, certificate(s) and key(s) for identifying the local endpoint to the remote endpoint, and any cached cryptographic state for the communication to the remote endpoint. An Association may have one or more Streams active at any given time. Objects are sent to Associations, as well.</p>
+<p id="rfc.section.2.1.p.2">Note that, in contrast to current SOCK_STREAM sockets, Associations are meant to be relatively long-lived. The lifetime of an Association is not bound to the lifetime of any transport-layer connection between the two endpoints; connections may be opened or closed as necessary to support the Streams and Object transmissions required by the application, and the application need not be bothered with the underlying connectivity state unless this is important to the application&#8217;s semantics.</p>
+<p id="rfc.section.2.1.p.3">Paths may be dynamically added or removed from an association, as well, as connectivity between the endpoints changes. Cryptographic identifiers and state for endpoints may also be added and removed as necessary due to certificate lifetimes, key rollover, and revocation.</p>
+<h1 id="rfc.section.2.2"><a href="#rfc.section.2.2">2.2.</a> <a href="#listener" id="listener">Listener</a></h1>
+<p id="rfc.section.2.2.p.1">In many applications, there is a distinction between the active opener (or connection initiator, often a client), and the passive opener (often a server). A Listener represents an endpoint&#8217;s willingness to start Associations in this passive opener/server role. It is, in essence, a one-sided, Path-less Association from which fully-formed Associations can be created.</p>
+<p id="rfc.section.2.2.p.2">Listeners work very much like sockets on which the listen(2) call has been called in the SOCK_STREAM API.</p>
+<h1 id="rfc.section.2.3"><a href="#rfc.section.2.3">2.3.</a> <a href="#remote" id="remote">Remote</a></h1>
+<p id="rfc.section.2.3.p.1">A Remote represents all the information required to establish and maintain a connection with the far end of an Association: network-layer address, transport-layer port, information about public keys or certificate authorities used to identify the remote on connection establishment, etc. Each Association is associated with a single Remote, either explicitly by the application (when created by active open) or by the Listener (when created by passive open). The resolution of Remotes from higher-layer information (URIs, hostnames) is architecture-dependent.</p>
+<h1 id="rfc.section.2.4"><a href="#rfc.section.2.4">2.4.</a> <a href="#local" id="local">Local</a></h1>
+<p id="rfc.section.2.4.p.1">A Local represents all the information about the local endpoint necessary to establish an Association or a Listener: interface and port designators, as well as certificates and associated private keys.</p>
+<h1 id="rfc.section.2.5"><a href="#rfc.section.2.5">2.5.</a> <a href="#path" id="path">Path</a></h1>
+<p id="rfc.section.2.5.p.1">A Path represents a local and remote endpoint address, an optional set of intermediary path elements between the local and remote endpoint addresses, and a set of properties associated with the path.</p>
+<p id="rfc.section.2.5.p.2">The set of available properties is a function of the underlying network-layer protocols used to expose the properties to the endpoint. However, the following core properties are generally useful for applications and transport layer protocols to choose among paths for specific Objects:</p>
+<p/>
+
+<ul>
+  <li>Maximum Transmission Unit (MTU): the maximum size of an Object&#8217;s payload (subtracting transport, network, and link layer overhead) which will likely fit into a single frame. Derived from signals sent by path elements, where available, and/or path MTU discovery processes run by the transport layer.</li>
+  <li>Latency Expectation: expected one-way delay along the Path. Generally provided by inline measurements performed by the transport layer, as opposed to signaled by path elements.</li>
+  <li>Loss Probability Expectation: expected probability of a loss of any given single frame along the Path. Generally provided by inline measurements performed by the transport layer, as opposed to signaled by path elements.</li>
+  <li>Available Data Rate Expectation: expected maximum data rate along the Path. May be derived from passive measurements by the transport layer, or from signals from path elements.</li>
+  <li>Reserved Data Rate: Committed, reserved data rate for the given Association along the Path. Requires a bandwidth reservation service in the underlying transport and network layer protocol.</li>
+  <li>Path Element Membership: Identifiers for some or all nodes along the path, depending on the capabilities of the underlying network layer protocol to provide this.</li>
+</ul>
+<p id="rfc.section.2.5.p.4">Path properties are generally read-only. MTU is a property of the underlying link-layer technology on each link in the path; latency, loss, and rate expectations are dynamic properties of the network configuration and network traffic conditions; path element membership is a function of network topology. In an explicitly multipath architecture, application and transport layer requirements are met by having multiple paths with different properties to select from. Post can also provide signaling to the path, but this signaling is derived from information provided to the Object abstraction, below.</p>
+<h1 id="rfc.section.2.6"><a href="#rfc.section.2.6">2.6.</a> <a href="#object" id="object">Object</a></h1>
+<p id="rfc.section.2.6.p.1">Post provides two ways to send data over an Association. We start with the Object abstraction, as a fundamental insight behind the interface is that most applications fundamentally deal in object transport.</p>
+<p id="rfc.section.2.6.p.2">An Object is an atomic unit of communication between applications; or in other words, an ordered collection of bytes B0..Bm, such that every byte Bn depends on every other byte in the Object. An object that cannot be delivered in its entirety within the constraints of the network connectivity and the requirements of the application is not delivered at all.</p>
+<p id="rfc.section.2.6.p.3">Objects can represent both relatively small structures, such as messages in application-layer protocols built around datagram or message exchange, as well as relatively large structures, such files of arbitrary size in a filesystem.  Objects larger than the MTU on the Path on which they are sent will be segmented into multiple frames. Multiple objects that will fit into a single frame may be concatenated into one frame. There is no preference for transmitting the multiple frames for a given Object in any particular order, or by default, that objects will be delivered in the order sent by the application. This implies that both the sending and receiving endpoint, whether in the application layer or the transport layer, must guarantee storage for the full size of an object.</p>
+<p id="rfc.section.2.6.p.4">Three object properties allow applications fine control ordering and reliability requirements in line with application semantics. An Object may have a &#8220;lifetime&#8221; &#8211; a wallclock duration before which the object must be available to the application layer at the remote end. If a lifetime cannot be met, the object is discarded as soon as possible; therefore, Objects with lifetimes are implicitly sent non-reliably, and lifetimes are used to prioritize Object delivery. Lifetimes may be signaled to path elements by the underlying transport, so that path elements that realize a lifetime cannot be met can discard frames containing the object instead of forwarding them.</p>
+<p id="rfc.section.2.6.p.5">Second, Objects may have a &#8220;niceness&#8221; &#8211; a category in an unbounded hierarchy most naturally represented as a non-negative integer. By default, Objects are in niceness class 0, or highest priority. Niceness class 1 Objects will yield to niceness class 0 objects, class 2 to class 1, and so on.  Niceness may be translated to a priority signal for exposure to path elements (e.g. DSCP codepoint) to allow prioritization along the path as well as at the sender and receiver. This inversion of normal schemes for expressing priority has a convenient property: priority increases as both niceness and deadline decrease.</p>
+<p id="rfc.section.2.6.p.6">An object may have both a niceness and a lifetime &#8211; objects with higher niceness classes will yield to lower classes if resource constraints mean only one can meet the lifetime.</p>
+<p id="rfc.section.2.6.p.7">Third, an Object may have &#8220;antecedents&#8221; &#8211; other Objects on which it depends, which must be delivered before it (the &#8220;successor&#8221;) is delivered.  The sending transport uses deadlines, niceness, and antecedents, along with information about the properties of the Paths available, to determine when to send which object down which Path.</p>
+<p id="rfc.section.2.6.p.8">When an application has hard semantic requirements that all the frames of a given object be sent down a given Path or Paths, these hard constraints can also be expressed by the application.</p>
+<p id="rfc.section.2.6.p.9">After calling the send function, the application can register event handlers to be informed of the transmission status of the object. Specifically, the following properties can be provided:</p>
+<p/>
+
+<ul>
+  <li>Expected delivery time: provides an estimation of the time when the transport expects to fully deliver the object, given the current conditions on the different paths. This applies to all objects.</li>
+  <li>Success probability: provides an estimation of the chances that an object gets fully delivered within its specified lifetime, given current conditions. This applies only to partially reliable objects (i.e., with a non-infinite lifetime).</li>
+</ul>
+<p id="rfc.section.2.6.p.11">These properties might not be available immediately. The corresponding event handlers will be called as soon as a first estimation is made and every time it is updated.</p>
+<h1 id="rfc.section.2.7"><a href="#rfc.section.2.7">2.7.</a> <a href="#stream" id="stream">Stream</a></h1>
+<p id="rfc.section.2.7.p.1">The Stream abstraction is provided for two reasons. First, since it is the most like the existing SOCK_STREAM interface, it is the simplest abstraction to be used by applications ported to Post to take advantages of Path primacy.  Second, some environments have connectivity so impaired (by local network operation policy and/or accidental middlebox interference) that only stream- based transport protocols are available, and applications should have the option to use streams directly in these situations.</p>
+<p id="rfc.section.2.7.p.2">A Stream is a sequence of bytes B0 .. Bm such that the reception (and delivery to the receiving application of) Bn always depends on Bn-1.  This property is inherited from the BSD UNIX file abstraction, which in turn inherited it from the physical limitations of sequential access media (stacks of punch cards, paper and/or magnetic tape).</p>
+<p id="rfc.section.2.7.p.3">A Stream is bound to an Association. Writing a byte to the stream will cause it to be received by the remote, in order, or will cause an error condition and termination of the stream if the byte cannot be delivered. Due to the strong sequential dependence on a stream, streams must always be reliable and ordered. If frames containing Stream data are lost, these must be retransmitted or reconstructed using an error correction technique. If frames containing Stream data arrive out of order, the remote end must buffer them until the unordered frames are received and reassembled.</p>
+<p id="rfc.section.2.7.p.4">As with Objects, Streams may have a niceness for prioritization. When mixing Stream and Object data on the same Path in an association, the niceness classes for Streams and Objects are interleaved; e.g. niceness 2 Stream frames will yield to niceness 1 Object frames.</p>
+<p id="rfc.section.2.7.p.5">The underlying transport protocol may make whatever use of the Paths and known properties of those Paths it sees fit when transporting a Stream.</p>
+<h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a> <a href="#abstract-programming-interface" id="abstract-programming-interface">Abstract Programming Interface</a></h1>
+<p id="rfc.section.3.p.1">We now turn to the design of an abstract programming interface to provide a simple interface to Post&#8217;s abstractions, constrained by the following design principles:</p>
+<p/>
+
+<ul>
+  <li>Flexibility is paramount. So is simplicity. Applications must be given as many controls and as much information as they may need, but they must be able to ignore controls and information irrelevant to their operation. This implies that the &#8220;default&#8221; interface must be no more complicated than BSD sockets, and must do something reasonable.</li>
+  <li>A new API cannot be bound to a single transport protocol and expect wide deployment. As the API is transport-independent and may support runtime transport selection, it must impose the minimum possible set of constraints on its underlying transports, though some API features may require underlying transport features to work optimally. It must be possible to implement Post over vanilla TCP in the present Internet architecture.</li>
+  <li>Reception is an inherently asynchronous activity. While the API is designed to be as platform-independent as possible, one key insight it is based on is that an object receiver&#8217;s behavior in a packet-switched network is inherently asynchronous, driven by the receipt of packets, and that this asynchronicity must be reflected in the API. The actual implementation of receive and event callbacks will need to be aligned to the method a given platform provides for asynchronous I/O.</li>
+</ul>
+<p id="rfc.section.3.p.3">[EDITOR&#8217;S NOTE a little more frontmatter to introduce the API; maybe a list of calls?]</p>
+<h1 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1.</a> <a href="#address-resolution" id="address-resolution">Address Resolution</a></h1>
+<p id="rfc.section.3.1.p.1">[EDITOR&#8217;S NOTE given the multiple-architecture focus of the API, this needs to be pretty opaque. turns names into resolved Remotes; there also needs to be a way to get a resolved Local given local address or interface specifier.]</p>
+<h1 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#active-association-creation" id="active-association-creation">Active Association Creation</a></h1>
+<p id="rfc.section.3.2.p.1">Associations can be created two ways: actively by a connection initiator, and passively by a Listener that accepts a connection. Connection initiation uses the associate() entry point:</p>
+<p id="rfc.section.3.2.p.2">association = associate(local, remote, receive_handler)</p>
+<p id="rfc.section.3.2.p.3">where:</p>
+<p/>
+
+<ul>
+  <li>local: a resolved Local describing the local identity and interface(s) to use</li>
+  <li>remote: a resolved Remote to associate with</li>
+  <li>receive_handler: a callback to be invoked when new objects are received; see  <a href="#receiving-objects">Section 3.5</a></li>
+</ul>
+<p id="rfc.section.3.2.p.5">The returned association has the following additional properties:</p>
+<p/>
+
+<ul>
+  <li>paths: a set of Paths that the Association can currently use to transport Objects. When the underlying transport connection is closed, this set will be empty. For explicitly multipath architectures and transports, this set may change dynamically during the lifetime of an association, even while it remains connected.</li>
+</ul>
+<p id="rfc.section.3.2.p.7">Since the existence of an association does not necessarily imply current connection state at both ends of the Association, these objects are durable, and can be cached, migrated, and restored, as long as the mappings to their event handlers are stable. An attempts to send an object or open a stream on a dormant, previously actively-opened association will cause the underlying transport connection state to be resumed.</p>
+<h1 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#listener-and-passive-association-creation" id="listener-and-passive-association-creation">Listener and Passive Association Creation</a></h1>
+<p id="rfc.section.3.3.p.1">In order to accept new Association requests from clients, a server must create a Listener object, using the listen() entry point:</p>
+<p id="rfc.section.3.3.p.2">listener = listen(local, accept_handler)</p>
+<p id="rfc.section.3.3.p.3">where:</p>
+<p/>
+
+<ul>
+  <li>local: resolved Local describing the local identity and interface(s) to use for Associations created by this listener.</li>
+  <li>accept_handler: callback to be invoked each time an association is requested by a remote, to finalize setting the association up. Platforms may provide a default here for supporting synchronous association request handling via an object queue.</li>
+</ul>
+<p id="rfc.section.3.3.p.5">The accept_handler has the following prototype:</p>
+<p id="rfc.section.3.3.p.6">accepted = accept_handler(listener, local, remote)</p>
+<p id="rfc.section.3.3.p.7">where:</p>
+<p/>
+
+<ul>
+  <li>local: a resolved Local on which the association request was received.</li>
+  <li>remote: a resolved Remote from which the association request was received.</li>
+  <li>accepted: flag, true if the handler decided to accept the request, false otherwise.</li>
+</ul>
+<p id="rfc.section.3.3.p.9">The accept_handler() calls the accept() entry point to finally create the association:</p>
+<p id="rfc.section.3.3.p.10">association = accept(listener, local, remote, receive_handler)</p>
+<h1 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4.</a> <a href="#sending-objects" id="sending-objects">Sending Objects</a></h1>
+<p id="rfc.section.3.4.p.1">Objects are sent using the send() entry point:</p>
+<p id="rfc.section.3.4.p.2">send(association, bytes, [lifetime], [niceness], [oid], [antecedent_oids], [paths])}</p>
+<p id="rfc.section.3.4.p.3">where:</p>
+<p/>
+
+<ul>
+  <li>association: the association to send the object on</li>
+  <li>bytes: sequence of bytes making up the object. For platforms without bounded byte arrays, this may be implemented as a pointer and a length.</li>
+  <li>lifetime: lifetime of the object in milliseconds. This parameter is optional and defaults to infinity (for fully reliable object transport).</li>
+  <li>niceness: the object&#8217;s niceness class. This parameter is optional and defaults to zero (for lowest niceness / highest priority)</li>
+  <li>oid: opaque identifier for an object, assigned by the application. Used to refer to this object as a subsequently sent object&#8217;s antecedent, or in an ack or expired handler (see <a href="#events">Section 3.6</a>). Optional, defaults to null.</li>
+  <li>antecedent_oids: set of object identifiers on which this object depends and which must be sent before this object. Optional, defaults to empty, meaning this object has no antecedent constraints.</li>
+  <li>paths: set of paths, as a subset of those available to the association, to explicitly use for this object. Optional, defaults to empty, meaning all paths are acceptable.</li>
+</ul>
+<p id="rfc.section.3.4.p.5">Calls to send are non-blocking; synchronous send which blocks on remote acknowledgment or expiry of a</p>
+<h1 id="rfc.section.3.5"><a href="#rfc.section.3.5">3.5.</a> <a href="#receiving-objects" id="receiving-objects">Receiving Objects</a></h1>
+<p id="rfc.section.3.5.p.1">An application receives objects via its receive_handler callback, registered at association creation time. This callback has the following prototype:</p>
+<p id="rfc.section.3.5.p.2">receive_handler(association, bytes)</p>
+<p id="rfc.section.3.5.p.3">where: - association: the association the object was received from.  - bytes: the sequence of bytes making up the object.</p>
+<p id="rfc.section.3.5.p.4">For ease of porting synchronous datagram applications, implementations may make a default receive handler available, which allows messages to be synchronously polled from a per-association object queue. If this default is available, the entry point for the polling call is:</p>
+<p id="rfc.section.3.5.p.5">bytes = receive_next(association)</p>
+<p id="rfc.section.3.5.p.6">\subsection{Creating and Destroying Streams}</p>
+<p id="rfc.section.3.5.p.7">[EDITOR&#8217;S NOTE: provide open_stream(), close_stream(), point out that these should be treated exactly like files in the platform.]</p>
+<h1 id="rfc.section.3.6"><a href="#rfc.section.3.6">3.6.</a> <a href="#events" id="events">Events</a></h1>
+<p id="rfc.section.3.6.p.1">Message reception is a specific case of an event that can occur on an association. Other events are also available, and the application can register event handlers for each of these. Event handlers are registered via the handle() entry point:</p>
+<p id="rfc.section.3.6.p.2">handle(association, event, handler) or</p>
+<p id="rfc.section.3.6.p.3">handle(oid, event, handler)</p>
+<p id="rfc.section.3.6.p.4">where</p>
+<p/>
+
+<ul>
+  <li>association: the association to register a handler on, or</li>
+  <li>oid: the object identifier to register a handler on</li>
+  <li>event: an identifier of the event to register a handler on</li>
+  <li>handler: a callback to be invoked when the event occurs, or null if the event should be ignored.</li>
+</ul>
+<p id="rfc.section.3.6.p.6">The following events are supported; every event handler takes the association, as well as any additional arguments</p>
+<p/>
+
+<ul>
+  <li>receive (bytes): an object has been received</li>
+  <li>path_up (path): a path is newly available</li>
+  <li>path_down (path): a path is no longer available</li>
+  <li>dormant: no more paths are available, the association is now dormant, and the connection will need to be resumed if further objects are to be sent</li>
+  <li>ack (oid): an object was successfully received by the remote</li>
+  <li>expired (oid): an object expired before being sent to the remote</li>
+</ul>
+<p id="rfc.section.3.6.p.8">\subsection{Paths and Path Properties}</p>
+<p id="rfc.section.3.6.p.9">[EDITOR&#8217;S NOTE: provide api from which path properties can be read, extensible like handle().]</p>
+<h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#acknowledgments" id="acknowledgments">Acknowledgments</a></h1>
+<p id="rfc.section.4.p.1">Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH Zurich for contributions to the initial design of Post Sockets.</p>
+<p id="rfc.section.4.p.2">This work is partially supported by the European Commission under Horizon 2020 grant agreement no. 688421 Measurement and Architecture for a Middleboxed Internet (MAMI), and by the Swiss State Secretariat for Education, Research, and Innovation under contract no. 15.0268. This support does not imply endorsement.</p>
+<h1 id="rfc.references"><a href="#rfc.references">5.</a> Informative References</h1>
 <table>
   <tbody>
     <tr>
