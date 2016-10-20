@@ -1,0 +1,280 @@
+
+
+
+
+TAPS Working Group                                           B. Trammell
+Internet-Draft                                                ETH Zurich
+Intended status: Informational                                C. Perkins
+Expires: April 23, 2017                            University of Glasgow
+                                                                T. Pauly
+                                                              Apple Inc.
+                                                           M. Kuehlewind
+                                                              ETH Zurich
+                                                        October 20, 2016
+
+
+Post Sockets, An Abstract Programming Interface for the Transport Layer
+                     draft-trammell-post-sockets-00
+
+Abstract
+
+   [EDITOR'S NOTE: write me]
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at http://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on April 23, 2017.
+
+Copyright Notice
+
+   Copyright (c) 2016 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+
+
+
+
+Trammell, et al.         Expires April 23, 2017                 [Page 1]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Informative References  . . . . . . . . . . . . . . . . . . .   4
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   5
+
+1.  Introduction
+
+   The BSD Unix Sockets API's SOCK_STREAM abstraction, by bringing
+   network sockets into the UNIX programming model, allowing anyone who
+   knew how to write programs that dealt with sequential-access files to
+   also write network applications, was a revolution in simplicity.  It
+   would not be an overstatement to say that this simple API is the
+   reason the Internet won the protocol wars of the 1980s.  SOCK_STREAM
+   is tied to the Transmission Control Protocol (TCP), specified in 1981
+   [RFC0793].  TCP has scaled remarkably well over the past three and a
+   half decades, but its total ubiquity has hidden an uncomfortable
+   fact: the network is not really a file, and stream abstractions are
+   too simplistic for many modern application programming models.
+
+   In the meantime, the nature of Internet access is evolving.  Many
+   end-user devices are connected to the Internet via multiple
+   interfaces, which suggests it is time to promote the "path" by which
+   a host is connected to a first-order object; we call this "path
+   primacy".
+
+   Implicit multipath communication is available for these multihomed
+   nodes in the present Internet architecture with the Multipath TCP
+   extension (MPTCP) [RFC6824].  Since many multihomed nodes are
+   connected to the Internet through access paths with widely different
+   properties with respect to bandwidth, latency and cost, adding
+   explicit path control to MPTCP's API would be useful in many
+   situations.  Path primacy for cooperation with path elements is also
+   useful in single-homed architectures, such as that proposed by the
+   Path Layer UDP Substrate (PLUS) effort (see
+   [I-D.trammell-plus-statefulness] and
+   [I-D.trammell-plus-abstract-mech]).
+
+   Another trend straining the traditional layering of the transport
+   stack associated with the SOCK_STREAM interface is the widespread
+   interest in ubiquitous deployment of encryption to guarantee
+   confidentiality, authenticity, and integrity, in the face of
+   pervasive surveillance [RFC7258].  Layering the most widely deployed
+   encryption technology, Transport Layer Security (TLS), strictly atop
+   TCP (i.e., via a TLS library such as OpenSSL that uses the sockets
+
+
+
+Trammell, et al.         Expires April 23, 2017                 [Page 2]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
+   API) requires the encryption-layer handshake to happen after the
+   transport-layer handshake, which increases connection setup latency
+   on the order of one or two round-trip times, an unacceptable delay
+   for many applications.  Integrating cryptographic state setup and
+   maintenance into the path abstraction naturally complements efforts
+   in new protocols (e.g.  QUIC [I-D.hamilton-quic-transport-protocol])
+   to mitigate this strict layering.
+
+   From these three starting points - more flexible abstraction, path
+   primacy, and encryption by default - we define the Post-Socket
+   Application Programming Interface (API), described in detail in this
+   work.  Post is designed to be language, transport protocol, and
+   architecture independent, allowing applications to be written to a
+   common abstract interface, easily ported among different platforms,
+   and used even in environments where transport protocol selection may
+   be done dynamically, as proposed in the IETF's Transport Services
+   wotking group (see https://datatracker.ietf.org/wg/taps/charter).
+
+   Post replaces the traditional SOCK_STREAM abstraction with an Object
+   abstraction.  Objects can be small (e.g. messages in message-oriented
+   protocols) or large (e.g. an HTTP response containing header and
+   body).  It replaces the notions of a socket address and connected
+   socket with an Association with a remote endpoint via set of Paths.
+   Implementation and wire format for transport protocol(s) implementing
+   the Post API are explicitly out of scope for this work; these
+   abstractions need not map directly to implementation-level concepts,
+   and indeed with various amounts of shimming and glue could be
+   implemented with varying success atop any sufficiently flexible
+   transport protocol.
+
+   For compatibility with situations where only strictly stream-oriented
+   transport protocols are available, applications with data streams
+   that cannot be easily split into Objects at the sender, and and for
+   easy porting of the great deal of existing stream-oriented
+   application code to Post, Post also provides a SOCK_STREAM compatible
+   abstraction, unimaginatively named Stream.
+
+   The key features of Post as compared with the existing sockets API
+   are:
+
+   o  Explicit Object orientation, with framing and atomicity guarantees
+      for Object transmission.
+
+   o  Asynchronous reception, allowing all receiver-side interactions to
+      be event-driven.
+
+   o  Explicit support for multipath transport protocols and network
+      architectures.
+
+
+
+Trammell, et al.         Expires April 23, 2017                 [Page 3]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
+   o  Long-lived Associations, whose lifetimes may not be bound to
+      underlying \ transport connections.  This allows associations to
+      cache state and cryptographic key material to enable fast (0-rtt)
+      resumption of communication.
+
+   This work is the synthesis of many years of Internet transport
+   protocol research and development.  It is heavily inspired by
+   concepts from the Stream Control Transmission Protocol (SCTP)
+   [RFC4960], TCP Minion [EDITOR'S NOTE: cite], MinimaLT [EDITOR'S NOTE:
+   cite, and various bulk object transports.  While much of the work for
+   building parts of the protocols needed to implement Post are already
+   ongoing in other IETF working groups (e.g.  TAPS, MPTCP, QUIC, TLS),
+   we argue that an abstract programming interface unifying access all
+   these efforts is necessary to fully exploit their potential.
+
+2.  Informative References
+
+   [I-D.hamilton-quic-transport-protocol]
+              Hamilton, R., Iyengar, J., Swett, I., and A. Wilk, "QUIC:
+              A UDP-Based Multiplexed and Secure Transport", draft-
+              hamilton-quic-transport-protocol-00 (work in progress),
+              July 2016.
+
+   [I-D.trammell-plus-abstract-mech]
+              Trammell, B., "Abstract Mechanisms for a Cooperative Path
+              Layer under Endpoint Control", draft-trammell-plus-
+              abstract-mech-00 (work in progress), September 2016.
+
+   [I-D.trammell-plus-statefulness]
+              Kuehlewind, M., Trammell, B., and J. Hildebrand,
+              "Transport-Independent Path Layer State Management",
+              draft-trammell-plus-statefulness-00 (work in progress),
+              October 2016.
+
+   [RFC0793]  Postel, J., "Transmission Control Protocol", STD 7,
+              RFC 793, DOI 10.17487/RFC0793, September 1981,
+              <http://www.rfc-editor.org/info/rfc793>.
+
+   [RFC4960]  Stewart, R., Ed., "Stream Control Transmission Protocol",
+              RFC 4960, DOI 10.17487/RFC4960, September 2007,
+              <http://www.rfc-editor.org/info/rfc4960>.
+
+   [RFC6824]  Ford, A., Raiciu, C., Handley, M., and O. Bonaventure,
+              "TCP Extensions for Multipath Operation with Multiple
+              Addresses", RFC 6824, DOI 10.17487/RFC6824, January 2013,
+              <http://www.rfc-editor.org/info/rfc6824>.
+
+
+
+
+
+Trammell, et al.         Expires April 23, 2017                 [Page 4]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
+   [RFC7258]  Farrell, S. and H. Tschofenig, "Pervasive Monitoring Is an
+              Attack", BCP 188, RFC 7258, DOI 10.17487/RFC7258, May
+              2014, <http://www.rfc-editor.org/info/rfc7258>.
+
+Authors' Addresses
+
+   Brian Trammell
+   ETH Zurich
+   Gloriastrasse 35
+   8092 Zurich
+   Switzerland
+
+   Email: ietf@trammell.ch
+
+
+   Colin Perkins
+   University of Glasgow
+   School of Computing Science
+   Glasgow  G12 8QQ
+   United Kingdom
+
+   Email: csp@cperkins.net
+
+
+   Tommy Pauly
+   Apple Inc.
+   1 Infinite Loop
+   Cupertino, California 95014
+   United States of America
+
+
+   Mirja Kuehlewind
+   ETH Zurich
+   Gloriastrasse 35
+   8092 Zurich
+   Switzerland
+
+   Email: mirja.kuehlewind@tik.ee.ethz.ch
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trammell, et al.         Expires April 23, 2017                 [Page 5]
