@@ -153,3 +153,215 @@ While much of the work for building parts of the protocols needed to implement
 Post are already ongoing in other IETF working groups (e.g. TAPS, MPTCP, QUIC,
 TLS), we argue that an abstract programming interface unifying access all
 these efforts is necessary to fully exploit their potential.
+
+# Abstractions and Terminology
+
+~~~~~~~~~~
+[gratuitously colorful SVG goes here]
+~~~~~~~~~~
+{: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
+
+Post is based on a small set of abstractions, the relationships among which
+are shown in Figure {{fig-abstractions}} and detailed in this section.
+
+## Association
+
+An Association is a container for all the state necessary for a local
+endpoint to communicate with a remote endpoint in an explicitly multipath
+environment. It contains a set of Paths, certificate(s) for identifying the
+remote endpoint, certificate(s) and key(s) for identifying the local endpoint
+to the remote endpoint, and any cached cryptographic state for the
+communication to the remote endpoint. An Association may have one or more
+Streams active at any given time. Objects are sent to Associations, as
+well. 
+
+Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
+to be relatively long-lived. The lifetime of an Association is not bound to
+the lifetime of any transport-layer connection between the two endpoints;
+connections may be opened or closed as necessary to support the Streams and
+Object transmissions required by the application, and the application need
+not be bothered with the underlying connectivity state unless this is
+important to the application's semantics.
+
+Paths may be dynamically added or removed from an association, as well, as
+connectivity between the endpoints changes. Cryptographic identifiers and
+state for endpoints may also be added and removed as necessary due to
+certificate lifetimes, key rollover, and revocation.
+
+## Listener
+
+In many applications, there is a distinction between the active opener (or
+connection initiator, often a client), and the passive opener (often a
+server). A Listener represents an endpoint's willingness to start
+Associations in this passive opener/server role. It is, in essence, a
+one-sided, Path-less Association from which fully-formed Associations can
+be created.
+
+Listeners work very much like sockets on which the listen(2) call has
+been called in the SOCK_STREAM API.
+
+## Remote
+
+A Remote represents all the information required to establish and maintain a
+connection with the far end of an Association: network-layer address,
+transport-layer port, information about public keys or certificate authorities
+used to identify the remote on connection establishment, etc. Each
+Association is associated with a single Remote, either explicitly by the
+application (when created by active open) or by the Listener (when created by
+passive open). The resolution of Remotes from higher-layer information (URIs,
+hostnames) is architecture-dependent.
+
+## Local
+
+A Local represents all the information about the local endpoint necessary to
+establish an Association or a Listener: interface and port designators, as
+well as certificates and associated private keys.
+
+## Path
+
+A Path represents a local and remote endpoint address, an optional set of
+intermediary path elements between the local and remote endpoint addresses,
+and a set of properties associated with the path.
+
+The set of available properties is a function of the underlying network-layer
+protocols used to expose the properties to the endpoint. However, the
+following core properties are generally useful for applications and transport
+layer protocols to choose among paths for specific Objects:
+
+- Maximum Transmission Unit (MTU): the maximum size of an Object's payload
+  (subtracting transport, network, and link layer overhead) which will likely
+  fit into a single frame. Derived from signals sent by path elements, where
+  available, and/or path MTU discovery processes run by the transport layer.
+- Latency Expectation: expected one-way delay along the Path. Generally
+  provided by inline measurements performed by the transport layer, as opposed
+  to signaled by path elements.
+- Loss Probability Expectation: expected probability of a loss of any
+  given single frame along the Path. Generally provided by inline measurements
+  performed by the transport layer, as opposed to signaled by path elements.
+- Available Data Rate Expectation: expected maximum data rate along the
+  Path. May be derived from passive measurements by the transport layer, or from
+  signals from path elements.
+- Reserved Data Rate: Committed, reserved data rate for the given
+  Association along the Path. Requires a bandwidth reservation service in the
+  underlying transport and network layer protocol.
+- Path Element Membership: Identifiers for some or all nodes along the
+  path, depending on the capabilities of the underlying network layer protocol
+  to provide this. 
+
+Path properties are generally read-only. MTU is a property of the
+underlying link-layer technology on each link in the path; latency, loss, and
+rate expectations are dynamic properties of the network configuration and
+network traffic conditions; path element membership is a function of network
+topology. In an explicitly multipath architecture, application and transport layer
+requirements are met by having multiple paths with different properties to
+select from. Post can also provide signaling to the path, but this
+signaling is derived from information provided to the Object abstraction,
+below.
+
+## Object
+
+Post provides two ways to send data over an Association. We start with the
+Object abstraction, as a fundamental insight behind the interface is that
+most applications fundamentally deal in object transport.
+
+An Object is an atomic unit of communication between applications; or in
+other words, an ordered collection of bytes B0..Bm, such that every byte
+Bn depends on every other byte in the Object. An object that cannot be
+delivered in its entirety within the constraints of the network connectivity
+and the requirements of the application is not delivered at all.
+
+Objects can represent both relatively small structures, such as messages in
+application-layer protocols built around datagram or message exchange, as well
+as relatively large structures, such files of arbitrary size in a filesystem.
+Objects larger than the MTU on the Path on which they are sent will be
+segmented into multiple frames. Multiple objects that will fit into a single
+frame may be concatenated into one frame. There is no preference for
+transmitting the multiple frames for a given Object in any particular order,
+or by default, that objects will be delivered in the order sent by the
+application. This implies that both the sending and receiving endpoint,
+whether in the application layer or the transport layer, must guarantee
+storage for the full size of an object.
+
+Three object properties allow applications fine control ordering and
+reliability requirements in line with application semantics. An Object may
+have a "lifetime" -- a wallclock duration before which the object must be
+available to the application layer at the remote end. If a lifetime cannot be
+met, the object is discarded as soon as possible; therefore, Objects with
+lifetimes are implicitly sent non-reliably, and lifetimes are used to
+prioritize Object delivery. Lifetimes may be signaled to path elements by the
+underlying transport, so that path elements that realize a lifetime cannot be
+met can discard frames containing the object instead of forwarding them.
+
+Second, Objects may have a "niceness" -- a category in an unbounded
+hierarchy most naturally represented as a non-negative integer. By default,
+Objects are in niceness class 0, or highest priority. Niceness class 1 Objects
+will yield to niceness class 0 objects, class 2 to class 1, and so on.
+Niceness may be translated to a priority signal for exposure to path elements
+(e.g. DSCP codepoint) to allow prioritization along the path as well as at the
+sender and receiver. This inversion of normal schemes for expressing
+priority has a convenient property: priority increases as both niceness and
+deadline decrease.
+
+An object may have both a niceness and a lifetime -- objects with higher
+niceness classes will yield to lower classes if resource constraints mean only
+one can meet the lifetime.
+
+Third, an Object may have "antecedents" -- other Objects on which it
+depends, which must be delivered before it (the "successor") is delivered.
+The sending transport uses deadlines, niceness, and antecedents, along with
+information about the properties of the Paths available, to determine when to
+send which object down which Path.
+
+When an application has hard semantic requirements that all the frames of a
+given object be sent down a given Path or Paths, these hard constraints can
+also be expressed by the application.
+
+After calling the send function, the application can register event handlers
+to be informed of the transmission status of the object. Specifically, the
+following properties can be provided:
+
+- Expected delivery time: provides an estimation of the time when
+  the transport expects to fully deliver the object, given the current
+  conditions on the different paths. This applies to all objects.
+- Success probability: provides an estimation of the chances that
+  an object gets fully delivered within its specified lifetime, given
+  current conditions. This applies only to partially reliable objects
+  (i.e., with a non-infinite lifetime).
+
+These properties might not be available immediately. The corresponding event
+handlers will be called as soon as a first estimation is made and every time
+it is updated.
+
+## Stream
+
+The Stream abstraction is provided for two reasons. First, since it is the
+most like the existing SOCK_STREAM interface, it is the simplest abstraction
+to be used by applications ported to Post to take advantages of Path primacy.
+Second, some environments have connectivity so impaired (by local network
+operation policy and/or accidental middlebox interference) that only stream-
+based transport protocols are available, and applications should have the
+option to use streams directly in these situations.
+
+A Stream is a sequence of bytes B0 .. Bm such that the reception (and
+delivery to the receiving application of) Bn always depends on Bn-1.
+This property is inherited from the BSD UNIX file abstraction, which in turn
+inherited it from the physical limitations of sequential access media (stacks
+of punch cards, paper and/or magnetic tape).
+
+A Stream is bound to an Association. Writing a byte to the stream will cause
+it to be received by the remote, in order, or will cause an error condition
+and termination of the stream if the byte cannot be delivered. Due to the
+strong sequential dependence on a stream, streams must always be reliable and
+ordered. If frames containing Stream data are lost, these must be
+retransmitted or reconstructed using an error correction technique. If frames
+containing Stream data arrive out of order, the remote end must buffer them
+until the unordered frames are received and reassembled.
+
+As with Objects, Streams may have a niceness for prioritization. When mixing
+Stream and Object data on the same Path in an association, the niceness
+classes for Streams and Objects are interleaved; e.g. niceness 2 Stream
+frames will yield to niceness 1 Object frames.
+
+The underlying transport protocol may make whatever use of
+the Paths and known properties of those Paths it sees fit when transporting a
+Stream.
