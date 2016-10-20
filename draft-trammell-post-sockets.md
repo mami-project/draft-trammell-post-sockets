@@ -56,8 +56,6 @@ informative:
     I-D.trammell-plus-abstract-mech:
     I-D.trammell-plus-statefulness:
     I-D.hamilton-quic-transport-protocol:
-    minimalt:
-    minion:
 
 --- abstract
 
