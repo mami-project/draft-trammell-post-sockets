@@ -489,7 +489,7 @@ where:
 
 Calls to send are non-blocking; a synchronous send which blocks on remote
 acknowledgment or expiry of an object can be implemented by a call to send()
-followed by a wait on the ack or expired events (see {{Events}}).
+followed by a wait on the ack or expired events (see {{events}}).
 
 ## Receiving Objects
 
