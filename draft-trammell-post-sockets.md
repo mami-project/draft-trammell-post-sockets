@@ -56,10 +56,32 @@ informative:
     I-D.trammell-plus-abstract-mech:
     I-D.trammell-plus-statefulness:
     I-D.hamilton-quic-transport-protocol:
+    I-D.iyengar-minion-protocol:
+    MinimaLT:
+      url: https://cr.yp.to/tcpip/minimalt-20130522.pdf
+      title: MinimaLT, Minimal-latency Networking Through Better Security
+      author:
+        -
+          ins: W. M. Petullo
+        - 
+          ins: X. Zhang 
+        - 
+          ins: J. A. Solworth
+        -
+          ins: D. J. Bernstein
+        - 
+          ins: T. Lange
+      date: 2013-05-22
 
 --- abstract
 
-[EDITOR'S NOTE: write me]
+This document describes Post Sockets, an asynchronous abstract programming
+interface for the atomic transmission of objects in an explicitly multipath
+environment. Post replaces connections with long-lived associations between
+endpoints, with the possibility to cache cryptographic state in order to
+reduce amortized connection latency. We present this abstract interface as an
+illustration of what is possible with present developments in transport
+protocols when freed from the strictures of the current sockets API.
 
 --- middle
 
@@ -87,9 +109,9 @@ the present Internet architecture with the Multipath TCP extension (MPTCP)
 access paths with widely different properties with respect to bandwidth,
 latency and cost, adding explicit path control to MPTCP's API would be useful
 in many situations. Path primacy for cooperation with path elements is also
-useful in single-homed architectures, such as that proposed by the Path Layer
-UDP Substrate (PLUS) effort (see {{I-D.trammell-plus-statefulness}} and 
-{{I-D.trammell-plus-abstract-mech}}).
+useful in single-homed architectures, such as the mechanism proposed by the
+Path Layer UDP Substrate (PLUS) effort (see {{I-D.trammell-plus-statefulness}}
+and {{I-D.trammell-plus-abstract-mech}}).
 
 Another trend straining the traditional layering of the transport stack
 associated with the SOCK_STREAM interface is the widespread interest in
@@ -115,15 +137,16 @@ selection may be done dynamically, as proposed in the IETF's Transport Services
 wotking group (see https://datatracker.ietf.org/wg/taps/charter).
 
 Post replaces the traditional SOCK_STREAM abstraction with an Object
-abstraction. Objects can be small (e.g. messages in message-oriented
-protocols) or large (e.g. an HTTP response containing header and body). It
-replaces the notions of a socket address and connected socket with an
-Association with a remote endpoint via set of Paths. Implementation and wire
-format for transport protocol(s) implementing the Post API are explicitly out
-of scope for this work; these abstractions need not map directly to
-implementation-level concepts, and indeed with various amounts of shimming and
-glue could be implemented with varying success atop any sufficiently flexible
-transport protocol.
+abstraction, which can be seen as a generalization of the Stream Control
+Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service.  Objects can be
+small (e.g. messages in message-oriented protocols) or large (e.g. an HTTP
+response containing header and body). It replaces the notions of a socket
+address and connected socket with an Association with a remote endpoint via
+set of Paths. Implementation and wire format for transport protocol(s)
+implementing the Post API are explicitly out of scope for this work; these
+abstractions need not map directly to implementation-level concepts, and
+indeed with various amounts of shimming and glue could be implemented with
+varying success atop any sufficiently flexible transport protocol.
 
 For compatibility with situations where only strictly stream-oriented
 transport protocols are available, applications with data streams that cannot
@@ -141,23 +164,33 @@ The key features of Post as compared with the existing sockets API are:
 
 - Explicit support for multipath transport protocols and network architectures. 
 
-- Long-lived Associations, whose lifetimes may not be bound to underlying \
+- Long-lived Associations, whose lifetimes may not be bound to underlying
   transport connections. This allows associations to cache state and 
   cryptographic key material to enable fast (0-rtt) resumption of communication.
 
 This work is the synthesis of many years of Internet transport protocol
 research and development. It is heavily inspired by concepts from the Stream
-Control Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion [EDITOR'S NOTE:
-cite], MinimaLT [EDITOR'S NOTE: cite, and various bulk object transports.
-While much of the work for building parts of the protocols needed to implement
-Post are already ongoing in other IETF working groups (e.g. TAPS, MPTCP, QUIC,
-TLS), we argue that an abstract programming interface unifying access all
-these efforts is necessary to fully exploit their potential.
+Control Transmission Protocol (SCTP) {{RFC4960}}, 
+TCP Minion {{I-D.iyengar-minion-protocol}}, MinimaLT{{MinimaLT}},
+and various bulk object transports.
+
+We present Post Sockets as an illustration of what is possible with present
+developments in transport protocols when freed from the strictures of the
+current sockets API. While much of the work for building parts of the
+protocols needed to implement Post are already ongoing in other IETF working
+groups (e.g. TAPS, MPTCP, QUIC, TLS), we argue that an abstract programming
+interface unifying access all these efforts is necessary to fully exploit
+their potential.
+
 
 # Abstractions and Terminology
 
 ~~~~~~~~~~
-[gratuitously colorful SVG goes here]
+gratuitously colorful SVG goes here; see slide six of
+
+https://www.ietf.org/proceedings/96/slides/slides-96-taps-2.pdf
+
+in the meantime
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
 
@@ -258,6 +291,9 @@ select from. Post can also provide signaling to the path, but this
 signaling is derived from information provided to the Object abstraction,
 below.
 
+Note that information about the path and signaling to path elements could be
+provided by a facility such as PLUS {{I-D.trammell-plus-abstract-mech}}.
+
 ## Object
 
 Post provides two ways to send data over an Association. We start with the
@@ -317,20 +353,9 @@ given object be sent down a given Path or Paths, these hard constraints can
 also be expressed by the application.
 
 After calling the send function, the application can register event handlers
-to be informed of the transmission status of the object. Specifically, the
-following properties can be provided:
-
-- Expected delivery time: provides an estimation of the time when
-  the transport expects to fully deliver the object, given the current
-  conditions on the different paths. This applies to all objects.
-- Success probability: provides an estimation of the chances that
-  an object gets fully delivered within its specified lifetime, given
-  current conditions. This applies only to partially reliable objects
-  (i.e., with a non-infinite lifetime).
-
-These properties might not be available immediately. The corresponding event
-handlers will be called as soon as a first estimation is made and every time
-it is updated.
+to be informed of the transmission status of the object; the object can either
+be acknowledged (i.e., it has been received in full by the remote endpoint) or
+expired (its lifetime ran out before it was acknowledged).
 
 ## Stream
 
@@ -368,7 +393,9 @@ Stream.
 
 # Abstract Programming Interface
 
-We now turn to the design of an abstract programming interface to provide a simple interface to Post's abstractions, constrained by the following design principles:
+We now turn to the design of an abstract programming interface to provide a
+simple interface to Post's abstractions, constrained by the following design
+principles:
 
 - Flexibility is paramount. So is simplicity. Applications must be
 given as many controls and as much information as they may need, but they must
@@ -391,11 +418,10 @@ asynchronicity must be reflected in the API. The actual implementation of
 receive and event callbacks will need to be aligned to the method a given
 platform provides for asynchronous I/O.
 
-[EDITOR'S NOTE a little more frontmatter to introduce the API; maybe a list of calls?]
-
-## Address Resolution
-
-[EDITOR'S NOTE given the multiple-architecture focus of the API, this needs to be pretty opaque. turns names into resolved Remotes; there also needs to be a way to get a resolved Local given local address or interface specifier.]
+The API we define consists of three classes (listener, association, and
+stream), four entry points (listen(), associate(), send(), and
+open_stream()) and a set of callbacks for handling events at each endpoint.
+The details are given in the subsections below.
 
 ## Active Association Creation
 
@@ -405,8 +431,8 @@ association = associate(local, remote, receive_handler)
 
 where: 
 
-- local: a resolved Local describing the local identity and interface(s) to use
-- remote: a resolved Remote to associate with
+- local: a resolved Local (see {{address-resolution}}) describing the local identity and interface(s) to use
+- remote: a resolved Remote (see {{address-resolution}}) to associate with
 - receive_handler: a callback to be invoked when new objects are received; see  {{receiving-objects}} 
 
 The returned association has the following additional properties:
@@ -428,7 +454,7 @@ listener = listen(local, accept_handler)
 
 where: 
 
-- local: resolved Local describing the local identity and interface(s) to use for Associations created by this listener.
+- local: resolved Local (see {{address-resolution}}) describing the local identity and interface(s) to use for Associations created by this listener.
 - accept_handler: callback to be invoked each time an association is requested by a remote, to finalize setting the association up. Platforms may provide a default here for supporting synchronous association request handling via an object queue.
 
 The accept_handler has the following prototype:
@@ -461,11 +487,14 @@ where:
 - antecedent_oids: set of object identifiers on which this object depends and which must be sent before this object. Optional, defaults to empty, meaning this object has no antecedent constraints.
 - paths: set of paths, as a subset of those available to the association, to explicitly use for this object. Optional, defaults to empty, meaning all paths are acceptable.
 
-Calls to send are non-blocking; synchronous send which blocks on remote acknowledgment or expiry of a 
+Calls to send are non-blocking; a synchronous send which blocks on remote
+acknowledgment or expiry of an object can be implemented by a call to send()
+followed by a wait on the ack or expired events (see {{Events}}).
 
 ## Receiving Objects
 
-An application receives objects via its receive_handler callback, registered at association creation time. This callback has the following prototype:
+An application receives objects via its receive_handler callback, registered
+at association creation time. This callback has the following prototype:
 
 receive_handler(association, bytes)
 
@@ -473,17 +502,35 @@ where:
 - association: the association the object was received from.
 - bytes: the sequence of bytes making up the object.
 
-For ease of porting synchronous datagram applications, implementations may make a default receive handler available, which allows messages to be synchronously polled from a per-association object queue. If this default is available, the entry point for the polling call is:
+For ease of porting synchronous datagram applications, implementations may
+make a default receive handler available, which allows messages to be
+synchronously polled from a per-association object queue. If this default is
+available, the entry point for the polling call is:
 
 bytes = receive_next(association)
 
-\subsection{Creating and Destroying Streams}
+## Creating and Destroying Streams
 
-[EDITOR'S NOTE: provide open_stream(), close_stream(), point out that these should be treated exactly like files in the platform.]
+A stream may be created on an association via the open_stream() entry point:
+
+stream = open_stream(association, [sid])
+
+where:
+
+- association: the association to open the stream on
+- sid: opaque identifier for a stream. For transport protocols which do not support multiple streaming, this argument has no effect.
+
+A stream with a given sid must be opened by both sides before it can be used.
+
+The stream object returned should act like a file descriptor or bidirectional
+I/O object, according to the conventions of the platform implementing Post.
 
 ## Events
 
-Message reception is a specific case of an event that can occur on an association. Other events are also available, and the application can register event handlers for each of these. Event handlers are registered via the handle() entry point:
+Message reception is a specific case of an event that can occur on an
+association. Other events are also available, and the application can register
+event handlers for each of these. Event handlers are registered via the
+handle() entry point:
 
 handle(association, event, handler) or
 
@@ -496,8 +543,8 @@ where
 - event: an identifier of the event to register a handler on
 - handler: a callback to be invoked when the event occurs, or null if the event should be ignored.
 
-The following events are supported; every event handler takes the association, as well as any additional arguments 
-
+The following events are supported; every event handler takes the association
+on which it is registered as well as any additional arguments listed:
 
 - receive (bytes): an object has been received
 - path_up (path): a path is newly available
@@ -506,10 +553,36 @@ The following events are supported; every event handler takes the association, a
 - ack (oid): an object was successfully received by the remote
 - expired (oid): an object expired before being sent to the remote
 
+Handlers for the ack and expired events can be registered on an association
+(in which case they are called for all objects sent on the association) or on
+an oid (in which case they are only called for the oid).
 
-\subsection{Paths and Path Properties}
+## Paths and Path Properties
 
-[EDITOR'S NOTE: provide api from which path properties can be read, extensible like handle().]
+As defined in {{path}}, the properties of a path include both the addresses of
+elements along the path as well as measurement-derived latency and capacity
+characteristics. The path_up and path_down events provide access to
+information about the paths available via the path argument to the event
+handler. This argument encapsulates these properties in a platform and
+transport-specific way, depending on the availability of information about the
+path.
+
+## Address Resolution
+
+Address resolution turns the name of a Remote into a resolved Remote object,
+which encapsulates all the information needed to connect (address, certificate
+parameters, cached cryptographic state, etc.); and an interface identifier on
+a local system to information needed to connect. Remote and local resolvers
+have the following entry points:
+
+remote = resolve(endpoint_name, configuration)
+
+local = resolve_local(endpoint_name, configuration)
+
+where:
+
+- endpoint_name: a name identifying the remote or local endpoint, including port
+- configuration: a platform-specific configuration object for configuring certificates, name resolution contexts, cached cryptographic state, etc. 
 
 # Acknowledgments
 
