@@ -7,7 +7,7 @@
 
   <title>Post Sockets, An Abstract Programming Interface for the Transport Layer</title>
 
-  <style type="text/css">/*<![CDATA[*/
+<style type="text/css">/*<![CDATA[*/
 @viewport {
   zoom: 1.0;
   width: extend-to-zoom;
@@ -265,7 +265,7 @@ li, p {
   .github-fork-ribbon-wrapper {
     position: fixed;
   }
-  /*]]>*/</style>
+/*]]>*/</style>
 
   <link href="#rfc.toc" rel="Contents"/>
 <link href="#rfc.section.1" rel="Chapter" title="1 Introduction"/>
@@ -278,12 +278,14 @@ li, p {
 <link href="#rfc.section.2.6" rel="Chapter" title="2.6 Object"/>
 <link href="#rfc.section.2.7" rel="Chapter" title="2.7 Stream"/>
 <link href="#rfc.section.3" rel="Chapter" title="3 Abstract Programming Interface"/>
-<link href="#rfc.section.3.1" rel="Chapter" title="3.1 Address Resolution"/>
-<link href="#rfc.section.3.2" rel="Chapter" title="3.2 Active Association Creation"/>
-<link href="#rfc.section.3.3" rel="Chapter" title="3.3 Listener and Passive Association Creation"/>
-<link href="#rfc.section.3.4" rel="Chapter" title="3.4 Sending Objects"/>
-<link href="#rfc.section.3.5" rel="Chapter" title="3.5 Receiving Objects"/>
+<link href="#rfc.section.3.1" rel="Chapter" title="3.1 Active Association Creation"/>
+<link href="#rfc.section.3.2" rel="Chapter" title="3.2 Listener and Passive Association Creation"/>
+<link href="#rfc.section.3.3" rel="Chapter" title="3.3 Sending Objects"/>
+<link href="#rfc.section.3.4" rel="Chapter" title="3.4 Receiving Objects"/>
+<link href="#rfc.section.3.5" rel="Chapter" title="3.5 Creating and Destroying Streams"/>
 <link href="#rfc.section.3.6" rel="Chapter" title="3.6 Events"/>
+<link href="#rfc.section.3.7" rel="Chapter" title="3.7 Paths and Path Properties"/>
+<link href="#rfc.section.3.8" rel="Chapter" title="3.8 Address Resolution"/>
 <link href="#rfc.section.4" rel="Chapter" title="4 Acknowledgments"/>
 <link href="#rfc.references" rel="Chapter" title="5 Informative References"/>
 <link href="#rfc.authors" rel="Chapter"/>
@@ -294,9 +296,9 @@ li, p {
 
   <meta name="dct.creator" content="Trammell, B., Perkins, C., Pauly, T., and M. Kuehlewind" />
   <meta name="dct.identifier" content="urn:ietf:id:draft-trammell-post-sockets-00" />
-  <meta name="dct.issued" scheme="ISO8601" content="2016-10-20" />
-  <meta name="dct.abstract" content="[EDITOR&#8217;S NOTE: write me]" />
-  <meta name="description" content="[EDITOR&#8217;S NOTE: write me]" />
+  <meta name="dct.issued" scheme="ISO8601" content="2016-10-27" />
+  <meta name="dct.abstract" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of objects in an explicitly multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
+  <meta name="description" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of objects in an explicitly multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
 
 </head>
 
@@ -318,7 +320,7 @@ li, p {
   <td class="right">C. Perkins</td>
 </tr>
 <tr>
-  <td class="left">Expires: April 23, 2017</td>
+  <td class="left">Expires: April 30, 2017</td>
   <td class="right">University of Glasgow</td>
 </tr>
 <tr>
@@ -339,7 +341,7 @@ li, p {
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">October 20, 2016</td>
+  <td class="right">October 27, 2016</td>
 </tr>
 
     	
@@ -352,14 +354,14 @@ li, p {
   <h1 id="rfc.abstract">
   <a href="#rfc.abstract">Abstract</a>
 </h1>
-<p>[EDITOR&#8217;S NOTE: write me]</p>
+<p>This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of objects in an explicitly multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API.</p>
 <h1 id="rfc.status">
   <a href="#rfc.status">Status of This Memo</a>
 </h1>
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on April 23, 2017.</p>
+<p>This Internet-Draft will expire on April 30, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -381,12 +383,14 @@ li, p {
 <li>2.6.   <a href="#rfc.section.2.6">Object</a></li>
 <li>2.7.   <a href="#rfc.section.2.7">Stream</a></li>
 </ul><li>3.   <a href="#rfc.section.3">Abstract Programming Interface</a></li>
-<ul><li>3.1.   <a href="#rfc.section.3.1">Address Resolution</a></li>
-<li>3.2.   <a href="#rfc.section.3.2">Active Association Creation</a></li>
-<li>3.3.   <a href="#rfc.section.3.3">Listener and Passive Association Creation</a></li>
-<li>3.4.   <a href="#rfc.section.3.4">Sending Objects</a></li>
-<li>3.5.   <a href="#rfc.section.3.5">Receiving Objects</a></li>
+<ul><li>3.1.   <a href="#rfc.section.3.1">Active Association Creation</a></li>
+<li>3.2.   <a href="#rfc.section.3.2">Listener and Passive Association Creation</a></li>
+<li>3.3.   <a href="#rfc.section.3.3">Sending Objects</a></li>
+<li>3.4.   <a href="#rfc.section.3.4">Receiving Objects</a></li>
+<li>3.5.   <a href="#rfc.section.3.5">Creating and Destroying Streams</a></li>
 <li>3.6.   <a href="#rfc.section.3.6">Events</a></li>
+<li>3.7.   <a href="#rfc.section.3.7">Paths and Path Properties</a></li>
+<li>3.8.   <a href="#rfc.section.3.8">Address Resolution</a></li>
 </ul><li>4.   <a href="#rfc.section.4">Acknowledgments</a></li>
 <li>5.   <a href="#rfc.references">Informative References</a></li>
 <li><a href="#rfc.authors">Authors' Addresses</a></li>
@@ -397,10 +401,10 @@ li, p {
   <h1 id="rfc.section.1"><a href="#rfc.section.1">1.</a> <a href="#introduction" id="introduction">Introduction</a></h1>
 <p id="rfc.section.1.p.1">The BSD Unix Sockets API&#8217;s SOCK_STREAM abstraction, by bringing network sockets into the UNIX programming model, allowing anyone who knew how to write programs that dealt with sequential-access files to also write network applications, was a revolution in simplicity. It would not be an overstatement to say that this simple API is the reason the Internet won the protocol wars of the 1980s. SOCK_STREAM is tied to the Transmission Control Protocol (TCP), specified in 1981 <a href="#RFC0793">[RFC0793]</a>. TCP has scaled remarkably well over the past three and a half decades, but its total ubiquity has hidden an uncomfortable fact: the network is not really a file, and stream abstractions are too simplistic for many modern application programming models.</p>
 <p id="rfc.section.1.p.2">In the meantime, the nature of Internet access is evolving. Many end-user devices are connected to the Internet via multiple interfaces, which suggests it is time to promote the &#8220;path&#8221; by which a host is connected to a first-order object; we call this &#8220;path primacy&#8221;.</p>
-<p id="rfc.section.1.p.3">Implicit multipath communication is available for these multihomed nodes in the present Internet architecture with the Multipath TCP extension (MPTCP) <a href="#RFC6824">[RFC6824]</a>. Since many multihomed nodes are connected to the Internet through access paths with widely different properties with respect to bandwidth, latency and cost, adding explicit path control to MPTCP&#8217;s API would be useful in many situations. Path primacy for cooperation with path elements is also useful in single-homed architectures, such as that proposed by the Path Layer UDP Substrate (PLUS) effort (see <a href="#I-D.trammell-plus-statefulness">[I-D.trammell-plus-statefulness]</a> and <a href="#I-D.trammell-plus-abstract-mech">[I-D.trammell-plus-abstract-mech]</a>).</p>
+<p id="rfc.section.1.p.3">Implicit multipath communication is available for these multihomed nodes in the present Internet architecture with the Multipath TCP extension (MPTCP) <a href="#RFC6824">[RFC6824]</a>. Since many multihomed nodes are connected to the Internet through access paths with widely different properties with respect to bandwidth, latency and cost, adding explicit path control to MPTCP&#8217;s API would be useful in many situations. Path primacy for cooperation with path elements is also useful in single-homed architectures, such as the mechanism proposed by the Path Layer UDP Substrate (PLUS) effort (see <a href="#I-D.trammell-plus-statefulness">[I-D.trammell-plus-statefulness]</a> and <a href="#I-D.trammell-plus-abstract-mech">[I-D.trammell-plus-abstract-mech]</a>).</p>
 <p id="rfc.section.1.p.4">Another trend straining the traditional layering of the transport stack associated with the SOCK_STREAM interface is the widespread interest in ubiquitous deployment of encryption to guarantee confidentiality, authenticity, and integrity, in the face of pervasive surveillance <a href="#RFC7258">[RFC7258]</a>. Layering the most widely deployed encryption technology, Transport Layer Security (TLS), strictly atop TCP (i.e., via a TLS library such as OpenSSL that uses the sockets API) requires the encryption-layer handshake to happen after the transport-layer handshake, which increases connection setup latency on the order of one or two round-trip times, an unacceptable delay for many applications. Integrating cryptographic state setup and maintenance into the path abstraction naturally complements efforts in new protocols (e.g. QUIC <a href="#I-D.hamilton-quic-transport-protocol">[I-D.hamilton-quic-transport-protocol]</a>) to mitigate this strict layering.</p>
 <p id="rfc.section.1.p.5">From these three starting points &#8211; more flexible abstraction, path primacy, and encryption by default &#8211; we define the Post-Socket Application Programming Interface (API), described in detail in this work. Post is designed to be language, transport protocol, and architecture independent, allowing applications to be written to a common abstract interface, easily ported among different platforms, and used even in environments where transport protocol selection may be done dynamically, as proposed in the IETF&#8217;s Transport Services wotking group (see https://datatracker.ietf.org/wg/taps/charter).</p>
-<p id="rfc.section.1.p.6">Post replaces the traditional SOCK_STREAM abstraction with an Object abstraction. Objects can be small (e.g. messages in message-oriented protocols) or large (e.g. an HTTP response containing header and body). It replaces the notions of a socket address and connected socket with an Association with a remote endpoint via set of Paths. Implementation and wire format for transport protocol(s) implementing the Post API are explicitly out of scope for this work; these abstractions need not map directly to implementation-level concepts, and indeed with various amounts of shimming and glue could be implemented with varying success atop any sufficiently flexible transport protocol.</p>
+<p id="rfc.section.1.p.6">Post replaces the traditional SOCK_STREAM abstraction with an Object abstraction, which can be seen as a generalization of the Stream Control Transmission Protocol&#8217;s <a href="#RFC4960">[RFC4960]</a> SOCK_SEQPACKET service.  Objects can be small (e.g. messages in message-oriented protocols) or large (e.g. an HTTP response containing header and body). It replaces the notions of a socket address and connected socket with an Association with a remote endpoint via set of Paths. Implementation and wire format for transport protocol(s) implementing the Post API are explicitly out of scope for this work; these abstractions need not map directly to implementation-level concepts, and indeed with various amounts of shimming and glue could be implemented with varying success atop any sufficiently flexible transport protocol.</p>
 <p id="rfc.section.1.p.7">For compatibility with situations where only strictly stream-oriented transport protocols are available, applications with data streams that cannot be easily split into Objects at the sender, and and for easy porting of the great deal of existing stream-oriented application code to Post, Post also provides a SOCK_STREAM compatible abstraction, unimaginatively named Stream.</p>
 <p id="rfc.section.1.p.8">The key features of Post as compared with the existing sockets API are:</p>
 <p/>
@@ -409,14 +413,19 @@ li, p {
   <li>Explicit Object orientation, with framing and atomicity guarantees for Object transmission.</li>
   <li>Asynchronous reception, allowing all receiver-side interactions to be event-driven.</li>
   <li>Explicit support for multipath transport protocols and network architectures.</li>
-  <li>Long-lived Associations, whose lifetimes may not be bound to underlying \ transport connections. This allows associations to cache state and cryptographic key material to enable fast (0-rtt) resumption of communication.</li>
+  <li>Long-lived Associations, whose lifetimes may not be bound to underlying transport connections. This allows associations to cache state and cryptographic key material to enable fast (0-rtt) resumption of communication.</li>
 </ul>
-<p id="rfc.section.1.p.10">This work is the synthesis of many years of Internet transport protocol research and development. It is heavily inspired by concepts from the Stream Control Transmission Protocol (SCTP) <a href="#RFC4960">[RFC4960]</a>, TCP Minion [EDITOR&#8217;S NOTE: cite], MinimaLT [EDITOR&#8217;S NOTE: cite, and various bulk object transports.  While much of the work for building parts of the protocols needed to implement Post are already ongoing in other IETF working groups (e.g. TAPS, MPTCP, QUIC, TLS), we argue that an abstract programming interface unifying access all these efforts is necessary to fully exploit their potential.</p>
+<p id="rfc.section.1.p.10">This work is the synthesis of many years of Internet transport protocol research and development. It is heavily inspired by concepts from the Stream Control Transmission Protocol (SCTP) <a href="#RFC4960">[RFC4960]</a>, TCP Minion <a href="#I-D.iyengar-minion-protocol">[I-D.iyengar-minion-protocol]</a>, MinimaLT<a href="#MinimaLT">[MinimaLT]</a>, and various bulk object transports.</p>
+<p id="rfc.section.1.p.11">We present Post Sockets as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API. While much of the work for building parts of the protocols needed to implement Post are already ongoing in other IETF working groups (e.g. TAPS, MPTCP, QUIC, TLS), we argue that an abstract programming interface unifying access all these efforts is necessary to fully exploit their potential.</p>
 <h1 id="rfc.section.2"><a href="#rfc.section.2">2.</a> <a href="#abstractions-and-terminology" id="abstractions-and-terminology">Abstractions and Terminology</a></h1>
 <div id="rfc.figure.1"/>
 <div id="fig-abstractions"/>
 <pre>
-[gratuitously colorful SVG goes here]
+gratuitously colorful SVG goes here; see slide six of
+
+https://www.ietf.org/proceedings/96/slides/slides-96-taps-2.pdf
+
+in the meantime
 </pre>
 <p class="figure">Figure 1: Abstractions and relationships in Post Sockets</p>
 <p id="rfc.section.2.p.1">Post is based on a small set of abstractions, the relationships among which are shown in Figure <a href="#fig-abstractions">Figure 1</a> and detailed in this section.</p>
@@ -445,6 +454,7 @@ li, p {
   <li>Path Element Membership: Identifiers for some or all nodes along the path, depending on the capabilities of the underlying network layer protocol to provide this.</li>
 </ul>
 <p id="rfc.section.2.5.p.4">Path properties are generally read-only. MTU is a property of the underlying link-layer technology on each link in the path; latency, loss, and rate expectations are dynamic properties of the network configuration and network traffic conditions; path element membership is a function of network topology. In an explicitly multipath architecture, application and transport layer requirements are met by having multiple paths with different properties to select from. Post can also provide signaling to the path, but this signaling is derived from information provided to the Object abstraction, below.</p>
+<p id="rfc.section.2.5.p.5">Note that information about the path and signaling to path elements could be provided by a facility such as PLUS <a href="#I-D.trammell-plus-abstract-mech">[I-D.trammell-plus-abstract-mech]</a>.</p>
 <h1 id="rfc.section.2.6"><a href="#rfc.section.2.6">2.6.</a> <a href="#object" id="object">Object</a></h1>
 <p id="rfc.section.2.6.p.1">Post provides two ways to send data over an Association. We start with the Object abstraction, as a fundamental insight behind the interface is that most applications fundamentally deal in object transport.</p>
 <p id="rfc.section.2.6.p.2">An Object is an atomic unit of communication between applications; or in other words, an ordered collection of bytes B0..Bm, such that every byte Bn depends on every other byte in the Object. An object that cannot be delivered in its entirety within the constraints of the network connectivity and the requirements of the application is not delivered at all.</p>
@@ -454,14 +464,7 @@ li, p {
 <p id="rfc.section.2.6.p.6">An object may have both a niceness and a lifetime &#8211; objects with higher niceness classes will yield to lower classes if resource constraints mean only one can meet the lifetime.</p>
 <p id="rfc.section.2.6.p.7">Third, an Object may have &#8220;antecedents&#8221; &#8211; other Objects on which it depends, which must be delivered before it (the &#8220;successor&#8221;) is delivered.  The sending transport uses deadlines, niceness, and antecedents, along with information about the properties of the Paths available, to determine when to send which object down which Path.</p>
 <p id="rfc.section.2.6.p.8">When an application has hard semantic requirements that all the frames of a given object be sent down a given Path or Paths, these hard constraints can also be expressed by the application.</p>
-<p id="rfc.section.2.6.p.9">After calling the send function, the application can register event handlers to be informed of the transmission status of the object. Specifically, the following properties can be provided:</p>
-<p/>
-
-<ul>
-  <li>Expected delivery time: provides an estimation of the time when the transport expects to fully deliver the object, given the current conditions on the different paths. This applies to all objects.</li>
-  <li>Success probability: provides an estimation of the chances that an object gets fully delivered within its specified lifetime, given current conditions. This applies only to partially reliable objects (i.e., with a non-infinite lifetime).</li>
-</ul>
-<p id="rfc.section.2.6.p.11">These properties might not be available immediately. The corresponding event handlers will be called as soon as a first estimation is made and every time it is updated.</p>
+<p id="rfc.section.2.6.p.9">After calling the send function, the application can register event handlers to be informed of the transmission status of the object; the object can either be acknowledged (i.e., it has been received in full by the remote endpoint) or expired (its lifetime ran out before it was acknowledged).</p>
 <h1 id="rfc.section.2.7"><a href="#rfc.section.2.7">2.7.</a> <a href="#stream" id="stream">Stream</a></h1>
 <p id="rfc.section.2.7.p.1">The Stream abstraction is provided for two reasons. First, since it is the most like the existing SOCK_STREAM interface, it is the simplest abstraction to be used by applications ported to Post to take advantages of Path primacy.  Second, some environments have connectivity so impaired (by local network operation policy and/or accidental middlebox interference) that only stream- based transport protocols are available, and applications should have the option to use streams directly in these situations.</p>
 <p id="rfc.section.2.7.p.2">A Stream is a sequence of bytes B0 .. Bm such that the reception (and delivery to the receiving application of) Bn always depends on Bn-1.  This property is inherited from the BSD UNIX file abstraction, which in turn inherited it from the physical limitations of sequential access media (stacks of punch cards, paper and/or magnetic tape).</p>
@@ -477,40 +480,38 @@ li, p {
   <li>A new API cannot be bound to a single transport protocol and expect wide deployment. As the API is transport-independent and may support runtime transport selection, it must impose the minimum possible set of constraints on its underlying transports, though some API features may require underlying transport features to work optimally. It must be possible to implement Post over vanilla TCP in the present Internet architecture.</li>
   <li>Reception is an inherently asynchronous activity. While the API is designed to be as platform-independent as possible, one key insight it is based on is that an object receiver&#8217;s behavior in a packet-switched network is inherently asynchronous, driven by the receipt of packets, and that this asynchronicity must be reflected in the API. The actual implementation of receive and event callbacks will need to be aligned to the method a given platform provides for asynchronous I/O.</li>
 </ul>
-<p id="rfc.section.3.p.3">[EDITOR&#8217;S NOTE a little more frontmatter to introduce the API; maybe a list of calls?]</p>
-<h1 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1.</a> <a href="#address-resolution" id="address-resolution">Address Resolution</a></h1>
-<p id="rfc.section.3.1.p.1">[EDITOR&#8217;S NOTE given the multiple-architecture focus of the API, this needs to be pretty opaque. turns names into resolved Remotes; there also needs to be a way to get a resolved Local given local address or interface specifier.]</p>
-<h1 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#active-association-creation" id="active-association-creation">Active Association Creation</a></h1>
-<p id="rfc.section.3.2.p.1">Associations can be created two ways: actively by a connection initiator, and passively by a Listener that accepts a connection. Connection initiation uses the associate() entry point:</p>
-<p id="rfc.section.3.2.p.2">association = associate(local, remote, receive_handler)</p>
-<p id="rfc.section.3.2.p.3">where:</p>
+<p id="rfc.section.3.p.3">The API we define consists of three classes (listener, association, and stream), four entry points (listen(), associate(), send(), and open_stream()) and a set of callbacks for handling events at each endpoint.  The details are given in the subsections below.</p>
+<h1 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1.</a> <a href="#active-association-creation" id="active-association-creation">Active Association Creation</a></h1>
+<p id="rfc.section.3.1.p.1">Associations can be created two ways: actively by a connection initiator, and passively by a Listener that accepts a connection. Connection initiation uses the associate() entry point:</p>
+<p id="rfc.section.3.1.p.2">association = associate(local, remote, receive_handler)</p>
+<p id="rfc.section.3.1.p.3">where:</p>
 <p/>
 
 <ul>
-  <li>local: a resolved Local describing the local identity and interface(s) to use</li>
-  <li>remote: a resolved Remote to associate with</li>
-  <li>receive_handler: a callback to be invoked when new objects are received; see  <a href="#receiving-objects">Section 3.5</a></li>
+  <li>local: a resolved Local (see <a href="#address-resolution">Section 3.8</a>) describing the local identity and interface(s) to use</li>
+  <li>remote: a resolved Remote (see <a href="#address-resolution">Section 3.8</a>) to associate with</li>
+  <li>receive_handler: a callback to be invoked when new objects are received; see  <a href="#receiving-objects">Section 3.4</a></li>
 </ul>
-<p id="rfc.section.3.2.p.5">The returned association has the following additional properties:</p>
+<p id="rfc.section.3.1.p.5">The returned association has the following additional properties:</p>
 <p/>
 
 <ul>
   <li>paths: a set of Paths that the Association can currently use to transport Objects. When the underlying transport connection is closed, this set will be empty. For explicitly multipath architectures and transports, this set may change dynamically during the lifetime of an association, even while it remains connected.</li>
 </ul>
-<p id="rfc.section.3.2.p.7">Since the existence of an association does not necessarily imply current connection state at both ends of the Association, these objects are durable, and can be cached, migrated, and restored, as long as the mappings to their event handlers are stable. An attempts to send an object or open a stream on a dormant, previously actively-opened association will cause the underlying transport connection state to be resumed.</p>
-<h1 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#listener-and-passive-association-creation" id="listener-and-passive-association-creation">Listener and Passive Association Creation</a></h1>
-<p id="rfc.section.3.3.p.1">In order to accept new Association requests from clients, a server must create a Listener object, using the listen() entry point:</p>
-<p id="rfc.section.3.3.p.2">listener = listen(local, accept_handler)</p>
-<p id="rfc.section.3.3.p.3">where:</p>
+<p id="rfc.section.3.1.p.7">Since the existence of an association does not necessarily imply current connection state at both ends of the Association, these objects are durable, and can be cached, migrated, and restored, as long as the mappings to their event handlers are stable. An attempts to send an object or open a stream on a dormant, previously actively-opened association will cause the underlying transport connection state to be resumed.</p>
+<h1 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#listener-and-passive-association-creation" id="listener-and-passive-association-creation">Listener and Passive Association Creation</a></h1>
+<p id="rfc.section.3.2.p.1">In order to accept new Association requests from clients, a server must create a Listener object, using the listen() entry point:</p>
+<p id="rfc.section.3.2.p.2">listener = listen(local, accept_handler)</p>
+<p id="rfc.section.3.2.p.3">where:</p>
 <p/>
 
 <ul>
-  <li>local: resolved Local describing the local identity and interface(s) to use for Associations created by this listener.</li>
+  <li>local: resolved Local (see <a href="#address-resolution">Section 3.8</a>) describing the local identity and interface(s) to use for Associations created by this listener.</li>
   <li>accept_handler: callback to be invoked each time an association is requested by a remote, to finalize setting the association up. Platforms may provide a default here for supporting synchronous association request handling via an object queue.</li>
 </ul>
-<p id="rfc.section.3.3.p.5">The accept_handler has the following prototype:</p>
-<p id="rfc.section.3.3.p.6">accepted = accept_handler(listener, local, remote)</p>
-<p id="rfc.section.3.3.p.7">where:</p>
+<p id="rfc.section.3.2.p.5">The accept_handler has the following prototype:</p>
+<p id="rfc.section.3.2.p.6">accepted = accept_handler(listener, local, remote)</p>
+<p id="rfc.section.3.2.p.7">where:</p>
 <p/>
 
 <ul>
@@ -518,12 +519,12 @@ li, p {
   <li>remote: a resolved Remote from which the association request was received.</li>
   <li>accepted: flag, true if the handler decided to accept the request, false otherwise.</li>
 </ul>
-<p id="rfc.section.3.3.p.9">The accept_handler() calls the accept() entry point to finally create the association:</p>
-<p id="rfc.section.3.3.p.10">association = accept(listener, local, remote, receive_handler)</p>
-<h1 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4.</a> <a href="#sending-objects" id="sending-objects">Sending Objects</a></h1>
-<p id="rfc.section.3.4.p.1">Objects are sent using the send() entry point:</p>
-<p id="rfc.section.3.4.p.2">send(association, bytes, [lifetime], [niceness], [oid], [antecedent_oids], [paths])}</p>
-<p id="rfc.section.3.4.p.3">where:</p>
+<p id="rfc.section.3.2.p.9">The accept_handler() calls the accept() entry point to finally create the association:</p>
+<p id="rfc.section.3.2.p.10">association = accept(listener, local, remote, receive_handler)</p>
+<h1 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#sending-objects" id="sending-objects">Sending Objects</a></h1>
+<p id="rfc.section.3.3.p.1">Objects are sent using the send() entry point:</p>
+<p id="rfc.section.3.3.p.2">send(association, bytes, [lifetime], [niceness], [oid], [antecedent_oids], [paths])}</p>
+<p id="rfc.section.3.3.p.3">where:</p>
 <p/>
 
 <ul>
@@ -535,15 +536,25 @@ li, p {
   <li>antecedent_oids: set of object identifiers on which this object depends and which must be sent before this object. Optional, defaults to empty, meaning this object has no antecedent constraints.</li>
   <li>paths: set of paths, as a subset of those available to the association, to explicitly use for this object. Optional, defaults to empty, meaning all paths are acceptable.</li>
 </ul>
-<p id="rfc.section.3.4.p.5">Calls to send are non-blocking; synchronous send which blocks on remote acknowledgment or expiry of a</p>
-<h1 id="rfc.section.3.5"><a href="#rfc.section.3.5">3.5.</a> <a href="#receiving-objects" id="receiving-objects">Receiving Objects</a></h1>
-<p id="rfc.section.3.5.p.1">An application receives objects via its receive_handler callback, registered at association creation time. This callback has the following prototype:</p>
-<p id="rfc.section.3.5.p.2">receive_handler(association, bytes)</p>
-<p id="rfc.section.3.5.p.3">where: - association: the association the object was received from.  - bytes: the sequence of bytes making up the object.</p>
-<p id="rfc.section.3.5.p.4">For ease of porting synchronous datagram applications, implementations may make a default receive handler available, which allows messages to be synchronously polled from a per-association object queue. If this default is available, the entry point for the polling call is:</p>
-<p id="rfc.section.3.5.p.5">bytes = receive_next(association)</p>
-<p id="rfc.section.3.5.p.6">\subsection{Creating and Destroying Streams}</p>
-<p id="rfc.section.3.5.p.7">[EDITOR&#8217;S NOTE: provide open_stream(), close_stream(), point out that these should be treated exactly like files in the platform.]</p>
+<p id="rfc.section.3.3.p.5">Calls to send are non-blocking; a synchronous send which blocks on remote acknowledgment or expiry of an object can be implemented by a call to send() followed by a wait on the ack or expired events (see <a href="#events">Section 3.6</a>).</p>
+<h1 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4.</a> <a href="#receiving-objects" id="receiving-objects">Receiving Objects</a></h1>
+<p id="rfc.section.3.4.p.1">An application receives objects via its receive_handler callback, registered at association creation time. This callback has the following prototype:</p>
+<p id="rfc.section.3.4.p.2">receive_handler(association, bytes)</p>
+<p id="rfc.section.3.4.p.3">where: - association: the association the object was received from.  - bytes: the sequence of bytes making up the object.</p>
+<p id="rfc.section.3.4.p.4">For ease of porting synchronous datagram applications, implementations may make a default receive handler available, which allows messages to be synchronously polled from a per-association object queue. If this default is available, the entry point for the polling call is:</p>
+<p id="rfc.section.3.4.p.5">bytes = receive_next(association)</p>
+<h1 id="rfc.section.3.5"><a href="#rfc.section.3.5">3.5.</a> <a href="#creating-and-destroying-streams" id="creating-and-destroying-streams">Creating and Destroying Streams</a></h1>
+<p id="rfc.section.3.5.p.1">A stream may be created on an association via the open_stream() entry point:</p>
+<p id="rfc.section.3.5.p.2">stream = open_stream(association, [sid])</p>
+<p id="rfc.section.3.5.p.3">where:</p>
+<p/>
+
+<ul>
+  <li>association: the association to open the stream on</li>
+  <li>sid: opaque identifier for a stream. For transport protocols which do not support multiple streaming, this argument has no effect.</li>
+</ul>
+<p id="rfc.section.3.5.p.5">A stream with a given sid must be opened by both sides before it can be used.</p>
+<p id="rfc.section.3.5.p.6">The stream object returned should act like a file descriptor or bidirectional I/O object, according to the conventions of the platform implementing Post.</p>
 <h1 id="rfc.section.3.6"><a href="#rfc.section.3.6">3.6.</a> <a href="#events" id="events">Events</a></h1>
 <p id="rfc.section.3.6.p.1">Message reception is a specific case of an event that can occur on an association. Other events are also available, and the application can register event handlers for each of these. Event handlers are registered via the handle() entry point:</p>
 <p id="rfc.section.3.6.p.2">handle(association, event, handler) or</p>
@@ -557,7 +568,7 @@ li, p {
   <li>event: an identifier of the event to register a handler on</li>
   <li>handler: a callback to be invoked when the event occurs, or null if the event should be ignored.</li>
 </ul>
-<p id="rfc.section.3.6.p.6">The following events are supported; every event handler takes the association, as well as any additional arguments</p>
+<p id="rfc.section.3.6.p.6">The following events are supported; every event handler takes the association on which it is registered as well as any additional arguments listed:</p>
 <p/>
 
 <ul>
@@ -568,8 +579,20 @@ li, p {
   <li>ack (oid): an object was successfully received by the remote</li>
   <li>expired (oid): an object expired before being sent to the remote</li>
 </ul>
-<p id="rfc.section.3.6.p.8">\subsection{Paths and Path Properties}</p>
-<p id="rfc.section.3.6.p.9">[EDITOR&#8217;S NOTE: provide api from which path properties can be read, extensible like handle().]</p>
+<p id="rfc.section.3.6.p.8">Handlers for the ack and expired events can be registered on an association (in which case they are called for all objects sent on the association) or on an oid (in which case they are only called for the oid).</p>
+<h1 id="rfc.section.3.7"><a href="#rfc.section.3.7">3.7.</a> <a href="#paths-and-path-properties" id="paths-and-path-properties">Paths and Path Properties</a></h1>
+<p id="rfc.section.3.7.p.1">As defined in <a href="#path">Section 2.5</a>, the properties of a path include both the addresses of elements along the path as well as measurement-derived latency and capacity characteristics. The path_up and path_down events provide access to information about the paths available via the path argument to the event handler. This argument encapsulates these properties in a platform and transport-specific way, depending on the availability of information about the path.</p>
+<h1 id="rfc.section.3.8"><a href="#rfc.section.3.8">3.8.</a> <a href="#address-resolution" id="address-resolution">Address Resolution</a></h1>
+<p id="rfc.section.3.8.p.1">Address resolution turns the name of a Remote into a resolved Remote object, which encapsulates all the information needed to connect (address, certificate parameters, cached cryptographic state, etc.); and an interface identifier on a local system to information needed to connect. Remote and local resolvers have the following entry points:</p>
+<p id="rfc.section.3.8.p.2">remote = resolve(endpoint_name, configuration)</p>
+<p id="rfc.section.3.8.p.3">local = resolve_local(endpoint_name, configuration)</p>
+<p id="rfc.section.3.8.p.4">where:</p>
+<p/>
+
+<ul>
+  <li>endpoint_name: a name identifying the remote or local endpoint, including port</li>
+  <li>configuration: a platform-specific configuration object for configuring certificates, name resolution contexts, cached cryptographic state, etc.</li>
+</ul>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#acknowledgments" id="acknowledgments">Acknowledgments</a></h1>
 <p id="rfc.section.4.p.1">Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH Zurich for contributions to the initial design of Post Sockets.</p>
 <p id="rfc.section.4.p.2">This work is partially supported by the European Commission under Horizon 2020 grant agreement no. 688421 Measurement and Architecture for a Middleboxed Internet (MAMI), and by the Swiss State Secretariat for Education, Research, and Innovation under contract no. 15.0268. This support does not imply endorsement.</p>
@@ -584,6 +607,12 @@ li, p {
     </tr>
     <tr>
       <td class="reference">
+        <b id="I-D.iyengar-minion-protocol">[I-D.iyengar-minion-protocol]</b>
+      </td>
+      <td class="top"><a>Jana, J.</a>, <a>Cheshire, S.</a> and <a>J. Graessley</a>, "<a href="http://tools.ietf.org/html/draft-iyengar-minion-protocol-02">Minion - Wire Protocol</a>", Internet-Draft draft-iyengar-minion-protocol-02, October 2013.</td>
+    </tr>
+    <tr>
+      <td class="reference">
         <b id="I-D.trammell-plus-abstract-mech">[I-D.trammell-plus-abstract-mech]</b>
       </td>
       <td class="top"><a>Trammell, B.</a>, "<a href="http://tools.ietf.org/html/draft-trammell-plus-abstract-mech-00">Abstract Mechanisms for a Cooperative Path Layer under Endpoint Control</a>", Internet-Draft draft-trammell-plus-abstract-mech-00, September 2016.</td>
@@ -593,6 +622,12 @@ li, p {
         <b id="I-D.trammell-plus-statefulness">[I-D.trammell-plus-statefulness]</b>
       </td>
       <td class="top"><a>Kuehlewind, M.</a>, <a>Trammell, B.</a> and <a>J. Hildebrand</a>, "<a href="http://tools.ietf.org/html/draft-trammell-plus-statefulness-00">Transport-Independent Path Layer State Management</a>", Internet-Draft draft-trammell-plus-statefulness-00, October 2016.</td>
+    </tr>
+    <tr>
+      <td class="reference">
+        <b id="MinimaLT">[MinimaLT]</b>
+      </td>
+      <td class="top"><a>Petullo, W.</a>, <a>Zhang, X.</a>, <a>Solworth, J.</a>, <a>Bernstein, D.</a> and <a>T. Lange</a>, "<a>MinimaLT, Minimal-latency Networking Through Better Security</a>", May 2013.</td>
     </tr>
     <tr>
       <td class="reference">

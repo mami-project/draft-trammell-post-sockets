@@ -5,12 +5,12 @@
 TAPS Working Group                                           B. Trammell
 Internet-Draft                                                ETH Zurich
 Intended status: Informational                                C. Perkins
-Expires: April 23, 2017                            University of Glasgow
+Expires: April 30, 2017                            University of Glasgow
                                                                 T. Pauly
                                                               Apple Inc.
                                                            M. Kuehlewind
                                                               ETH Zurich
-                                                        October 20, 2016
+                                                        October 27, 2016
 
 
 Post Sockets, An Abstract Programming Interface for the Transport Layer
@@ -18,7 +18,14 @@ Post Sockets, An Abstract Programming Interface for the Transport Layer
 
 Abstract
 
-   [EDITOR'S NOTE: write me]
+   This document describes Post Sockets, an asynchronous abstract
+   programming interface for the atomic transmission of objects in an
+   explicitly multipath environment.  Post replaces connections with
+   long-lived associations between endpoints, with the possibility to
+   cache cryptographic state in order to reduce amortized connection
+   latency.  We present this abstract interface as an illustration of
+   what is possible with present developments in transport protocols
+   when freed from the strictures of the current sockets API.
 
 Status of This Memo
 
@@ -35,12 +42,21 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on April 23, 2017.
+   This Internet-Draft will expire on April 30, 2017.
 
 Copyright Notice
 
    Copyright (c) 2016 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
+
+
+
+
+
+Trammell, et al.         Expires April 30, 2017                 [Page 1]
+
+Internet-Draft                Post Sockets                  October 2016
+
 
    This document is subject to BCP 78 and the IETF Trust's Legal
    Provisions Relating to IETF Documents
@@ -49,39 +65,32 @@ Copyright Notice
    carefully, as they describe your rights and restrictions with respect
    to this document.  Code Components extracted from this document must
    include Simplified BSD License text as described in Section 4.e of
-
-
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 1]
-
-Internet-Draft                Post Sockets                  October 2016
-
-
    the Trust Legal Provisions and are provided without warranty as
    described in the Simplified BSD License.
 
 Table of Contents
 
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
-   2.  Abstractions and Terminology  . . . . . . . . . . . . . . . .   4
-     2.1.  Association . . . . . . . . . . . . . . . . . . . . . . .   4
+   2.  Abstractions and Terminology  . . . . . . . . . . . . . . . .   5
+     2.1.  Association . . . . . . . . . . . . . . . . . . . . . . .   5
      2.2.  Listener  . . . . . . . . . . . . . . . . . . . . . . . .   5
-     2.3.  Remote  . . . . . . . . . . . . . . . . . . . . . . . . .   5
-     2.4.  Local . . . . . . . . . . . . . . . . . . . . . . . . . .   5
+     2.3.  Remote  . . . . . . . . . . . . . . . . . . . . . . . . .   6
+     2.4.  Local . . . . . . . . . . . . . . . . . . . . . . . . . .   6
      2.5.  Path  . . . . . . . . . . . . . . . . . . . . . . . . . .   6
      2.6.  Object  . . . . . . . . . . . . . . . . . . . . . . . . .   7
-     2.7.  Stream  . . . . . . . . . . . . . . . . . . . . . . . . .   8
+     2.7.  Stream  . . . . . . . . . . . . . . . . . . . . . . . . .   9
    3.  Abstract Programming Interface  . . . . . . . . . . . . . . .   9
-     3.1.  Address Resolution  . . . . . . . . . . . . . . . . . . .  10
-     3.2.  Active Association Creation . . . . . . . . . . . . . . .  10
-     3.3.  Listener and Passive Association Creation . . . . . . . .  11
-     3.4.  Sending Objects . . . . . . . . . . . . . . . . . . . . .  11
-     3.5.  Receiving Objects . . . . . . . . . . . . . . . . . . . .  12
+     3.1.  Active Association Creation . . . . . . . . . . . . . . .  10
+     3.2.  Listener and Passive Association Creation . . . . . . . .  11
+     3.3.  Sending Objects . . . . . . . . . . . . . . . . . . . . .  12
+     3.4.  Receiving Objects . . . . . . . . . . . . . . . . . . . .  12
+     3.5.  Creating and Destroying Streams . . . . . . . . . . . . .  13
      3.6.  Events  . . . . . . . . . . . . . . . . . . . . . . . . .  13
-   4.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  14
-   5.  Informative References  . . . . . . . . . . . . . . . . . . .  14
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  15
+     3.7.  Paths and Path Properties . . . . . . . . . . . . . . . .  14
+     3.8.  Address Resolution  . . . . . . . . . . . . . . . . . . .  14
+   4.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  15
+   5.  Informative References  . . . . . . . . . . . . . . . . . . .  15
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  16
 
 1.  Introduction
 
@@ -97,6 +106,14 @@ Table of Contents
    fact: the network is not really a file, and stream abstractions are
    too simplistic for many modern application programming models.
 
+
+
+
+Trammell, et al.         Expires April 30, 2017                 [Page 2]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
    In the meantime, the nature of Internet access is evolving.  Many
    end-user devices are connected to the Internet via multiple
    interfaces, which suggests it is time to promote the "path" by which
@@ -106,20 +123,12 @@ Table of Contents
    Implicit multipath communication is available for these multihomed
    nodes in the present Internet architecture with the Multipath TCP
    extension (MPTCP) [RFC6824].  Since many multihomed nodes are
-
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 2]
-
-Internet-Draft                Post Sockets                  October 2016
-
-
    connected to the Internet through access paths with widely different
    properties with respect to bandwidth, latency and cost, adding
    explicit path control to MPTCP's API would be useful in many
    situations.  Path primacy for cooperation with path elements is also
-   useful in single-homed architectures, such as that proposed by the
-   Path Layer UDP Substrate (PLUS) effort (see
+   useful in single-homed architectures, such as the mechanism proposed
+   by the Path Layer UDP Substrate (PLUS) effort (see
    [I-D.trammell-plus-statefulness] and
    [I-D.trammell-plus-abstract-mech]).
 
@@ -149,27 +158,28 @@ Internet-Draft                Post Sockets                  October 2016
    wotking group (see https://datatracker.ietf.org/wg/taps/charter).
 
    Post replaces the traditional SOCK_STREAM abstraction with an Object
-   abstraction.  Objects can be small (e.g. messages in message-oriented
-   protocols) or large (e.g. an HTTP response containing header and
-   body).  It replaces the notions of a socket address and connected
-   socket with an Association with a remote endpoint via set of Paths.
-   Implementation and wire format for transport protocol(s) implementing
-   the Post API are explicitly out of scope for this work; these
-   abstractions need not map directly to implementation-level concepts,
-   and indeed with various amounts of shimming and glue could be
-   implemented with varying success atop any sufficiently flexible
-   transport protocol.
-
-   For compatibility with situations where only strictly stream-oriented
-   transport protocols are available, applications with data streams
+   abstraction, which can be seen as a generalization of the Stream
+   Control Transmission Protocol's [RFC4960] SOCK_SEQPACKET service.
+   Objects can be small (e.g. messages in message-oriented protocols) or
+   large (e.g. an HTTP response containing header and body).  It
 
 
 
-Trammell, et al.         Expires April 23, 2017                 [Page 3]
+Trammell, et al.         Expires April 30, 2017                 [Page 3]
 
 Internet-Draft                Post Sockets                  October 2016
 
 
+   replaces the notions of a socket address and connected socket with an
+   Association with a remote endpoint via set of Paths.  Implementation
+   and wire format for transport protocol(s) implementing the Post API
+   are explicitly out of scope for this work; these abstractions need
+   not map directly to implementation-level concepts, and indeed with
+   various amounts of shimming and glue could be implemented with
+   varying success atop any sufficiently flexible transport protocol.
+
+   For compatibility with situations where only strictly stream-oriented
+   transport protocols are available, applications with data streams
    that cannot be easily split into Objects at the sender, and and for
    easy porting of the great deal of existing stream-oriented
    application code to Post, Post also provides a SOCK_STREAM compatible
@@ -188,23 +198,41 @@ Internet-Draft                Post Sockets                  October 2016
       architectures.
 
    o  Long-lived Associations, whose lifetimes may not be bound to
-      underlying \ transport connections.  This allows associations to
+      underlying transport connections.  This allows associations to
       cache state and cryptographic key material to enable fast (0-rtt)
       resumption of communication.
 
    This work is the synthesis of many years of Internet transport
    protocol research and development.  It is heavily inspired by
    concepts from the Stream Control Transmission Protocol (SCTP)
-   [RFC4960], TCP Minion [EDITOR'S NOTE: cite], MinimaLT [EDITOR'S NOTE:
-   cite, and various bulk object transports.  While much of the work for
+   [RFC4960], TCP Minion [I-D.iyengar-minion-protocol],
+   MinimaLT[MinimaLT], and various bulk object transports.
+
+   We present Post Sockets as an illustration of what is possible with
+   present developments in transport protocols when freed from the
+   strictures of the current sockets API.  While much of the work for
    building parts of the protocols needed to implement Post are already
    ongoing in other IETF working groups (e.g.  TAPS, MPTCP, QUIC, TLS),
    we argue that an abstract programming interface unifying access all
    these efforts is necessary to fully exploit their potential.
 
+
+
+
+
+
+Trammell, et al.         Expires April 30, 2017                 [Page 4]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
 2.  Abstractions and Terminology
 
-   [gratuitously colorful SVG goes here]
+   gratuitously colorful SVG goes here; see slide six of
+
+   https://www.ietf.org/proceedings/96/slides/slides-96-taps-2.pdf
+
+   in the meantime
 
          Figure 1: Abstractions and relationships in Post Sockets
 
@@ -218,14 +246,6 @@ Internet-Draft                Post Sockets                  October 2016
    multipath environment.  It contains a set of Paths, certificate(s)
    for identifying the remote endpoint, certificate(s) and key(s) for
    identifying the local endpoint to the remote endpoint, and any cached
-
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 4]
-
-Internet-Draft                Post Sockets                  October 2016
-
-
    cryptographic state for the communication to the remote endpoint.  An
    Association may have one or more Streams active at any given time.
    Objects are sent to Associations, as well.
@@ -253,6 +273,15 @@ Internet-Draft                Post Sockets                  October 2016
    It is, in essence, a one-sided, Path-less Association from which
    fully-formed Associations can be created.
 
+
+
+
+
+Trammell, et al.         Expires April 30, 2017                 [Page 5]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
    Listeners work very much like sockets on which the listen(2) call has
    been called in the SOCK_STREAM API.
 
@@ -274,13 +303,6 @@ Internet-Draft                Post Sockets                  October 2016
    necessary to establish an Association or a Listener: interface and
    port designators, as well as certificates and associated private
    keys.
-
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 5]
-
-Internet-Draft                Post Sockets                  October 2016
-
 
 2.5.  Path
 
@@ -309,6 +331,13 @@ Internet-Draft                Post Sockets                  October 2016
       inline measurements performed by the transport layer, as opposed
       to signaled by path elements.
 
+
+
+Trammell, et al.         Expires April 30, 2017                 [Page 6]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
    o  Available Data Rate Expectation: expected maximum data rate along
       the Path.  May be derived from passive measurements by the
       transport layer, or from signals from path elements.
@@ -331,12 +360,9 @@ Internet-Draft                Post Sockets                  October 2016
    can also provide signaling to the path, but this signaling is derived
    from information provided to the Object abstraction, below.
 
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 6]
-
-Internet-Draft                Post Sockets                  October 2016
-
+   Note that information about the path and signaling to path elements
+   could be provided by a facility such as PLUS
+   [I-D.trammell-plus-abstract-mech].
 
 2.6.  Object
 
@@ -360,6 +386,14 @@ Internet-Draft                Post Sockets                  October 2016
    frames.  Multiple objects that will fit into a single frame may be
    concatenated into one frame.  There is no preference for transmitting
    the multiple frames for a given Object in any particular order, or by
+
+
+
+Trammell, et al.         Expires April 30, 2017                 [Page 7]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
    default, that objects will be delivered in the order sent by the
    application.  This implies that both the sending and receiving
    endpoint, whether in the application layer or the transport layer,
@@ -385,15 +419,6 @@ Internet-Draft                Post Sockets                  October 2016
    priority signal for exposure to path elements (e.g.  DSCP codepoint)
    to allow prioritization along the path as well as at the sender and
    receiver.  This inversion of normal schemes for expressing priority
-
-
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 7]
-
-Internet-Draft                Post Sockets                  October 2016
-
-
    has a convenient property: priority increases as both niceness and
    deadline decrease.
 
@@ -412,22 +437,18 @@ Internet-Draft                Post Sockets                  October 2016
    hard constraints can also be expressed by the application.
 
    After calling the send function, the application can register event
-   handlers to be informed of the transmission status of the object.
-   Specifically, the following properties can be provided:
+   handlers to be informed of the transmission status of the object; the
+   object can either be acknowledged (i.e., it has been received in full
+   by the remote endpoint) or expired (its lifetime ran out before it
+   was acknowledged).
 
-   o  Expected delivery time: provides an estimation of the time when
-      the transport expects to fully deliver the object, given the
-      current conditions on the different paths.  This applies to all
-      objects.
 
-   o  Success probability: provides an estimation of the chances that an
-      object gets fully delivered within its specified lifetime, given
-      current conditions.  This applies only to partially reliable
-      objects (i.e., with a non-infinite lifetime).
 
-   These properties might not be available immediately.  The
-   corresponding event handlers will be called as soon as a first
-   estimation is made and every time it is updated.
+
+Trammell, et al.         Expires April 30, 2017                 [Page 8]
+
+Internet-Draft                Post Sockets                  October 2016
+
 
 2.7.  Stream
 
@@ -442,14 +463,6 @@ Internet-Draft                Post Sockets                  October 2016
 
    A Stream is a sequence of bytes B0 .. Bm such that the reception (and
    delivery to the receiving application of) Bn always depends on Bn-1.
-
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 8]
-
-Internet-Draft                Post Sockets                  October 2016
-
-
    This property is inherited from the BSD UNIX file abstraction, which
    in turn inherited it from the physical limitations of sequential
    access media (stacks of punch cards, paper and/or magnetic tape).
@@ -484,6 +497,15 @@ Internet-Draft                Post Sockets                  October 2016
       given as many controls and as much information as they may need,
       but they must be able to ignore controls and information
       irrelevant to their operation.  This implies that the "default"
+
+
+
+
+Trammell, et al.         Expires April 30, 2017                 [Page 9]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
       interface must be no more complicated than BSD sockets, and must
       do something reasonable.
 
@@ -498,31 +520,18 @@ Internet-Draft                Post Sockets                  October 2016
    o  Reception is an inherently asynchronous activity.  While the API
       is designed to be as platform-independent as possible, one key
       insight it is based on is that an object receiver's behavior in a
-
-
-
-Trammell, et al.         Expires April 23, 2017                 [Page 9]
-
-Internet-Draft                Post Sockets                  October 2016
-
-
       packet-switched network is inherently asynchronous, driven by the
       receipt of packets, and that this asynchronicity must be reflected
       in the API.  The actual implementation of receive and event
       callbacks will need to be aligned to the method a given platform
       provides for asynchronous I/O.
 
-   [EDITOR'S NOTE a little more frontmatter to introduce the API; maybe
-   a list of calls?]
+   The API we define consists of three classes (listener, association,
+   and stream), four entry points (listen(), associate(), send(), and
+   open_stream()) and a set of callbacks for handling events at each
+   endpoint.  The details are given in the subsections below.
 
-3.1.  Address Resolution
-
-   [EDITOR'S NOTE given the multiple-architecture focus of the API, this
-   needs to be pretty opaque. turns names into resolved Remotes; there
-   also needs to be a way to get a resolved Local given local address or
-   interface specifier.]
-
-3.2.  Active Association Creation
+3.1.  Active Association Creation
 
    Associations can be created two ways: actively by a connection
    initiator, and passively by a Listener that accepts a connection.
@@ -532,19 +541,27 @@ Internet-Draft                Post Sockets                  October 2016
 
    where:
 
-   o  local: a resolved Local describing the local identity and
-      interface(s) to use
+   o  local: a resolved Local (see Section 3.8) describing the local
+      identity and interface(s) to use
 
-   o  remote: a resolved Remote to associate with
+   o  remote: a resolved Remote (see Section 3.8) to associate with
 
    o  receive_handler: a callback to be invoked when new objects are
-      received; see Section 3.5
+      received; see Section 3.4
 
    The returned association has the following additional properties:
 
    o  paths: a set of Paths that the Association can currently use to
       transport Objects.  When the underlying transport connection is
       closed, this set will be empty.  For explicitly multipath
+
+
+
+Trammell, et al.         Expires April 30, 2017                [Page 10]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
       architectures and transports, this set may change dynamically
       during the lifetime of an association, even while it remains
       connected.
@@ -554,18 +571,10 @@ Internet-Draft                Post Sockets                  October 2016
    objects are durable, and can be cached, migrated, and restored, as
    long as the mappings to their event handlers are stable.  An attempts
    to send an object or open a stream on a dormant, previously actively-
-
-
-
-Trammell, et al.         Expires April 23, 2017                [Page 10]
-
-Internet-Draft                Post Sockets                  October 2016
-
-
    opened association will cause the underlying transport connection
    state to be resumed.
 
-3.3.  Listener and Passive Association Creation
+3.2.  Listener and Passive Association Creation
 
    In order to accept new Association requests from clients, a server
    must create a Listener object, using the listen() entry point:
@@ -574,8 +583,9 @@ Internet-Draft                Post Sockets                  October 2016
 
    where:
 
-   o  local: resolved Local describing the local identity and
-      interface(s) to use for Associations created by this listener.
+   o  local: resolved Local (see Section 3.8) describing the local
+      identity and interface(s) to use for Associations created by this
+      listener.
 
    o  accept_handler: callback to be invoked each time an association is
       requested by a remote, to finalize setting the association up.
@@ -600,9 +610,17 @@ Internet-Draft                Post Sockets                  October 2016
    The accept_handler() calls the accept() entry point to finally create
    the association:
 
+
+
+
+Trammell, et al.         Expires April 30, 2017                [Page 11]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
    association = accept(listener, local, remote, receive_handler)
 
-3.4.  Sending Objects
+3.3.  Sending Objects
 
    Objects are sent using the send() entry point:
 
@@ -610,13 +628,6 @@ Internet-Draft                Post Sockets                  October 2016
    [antecedent_oids], [paths])}
 
    where:
-
-
-
-Trammell, et al.         Expires April 23, 2017                [Page 11]
-
-Internet-Draft                Post Sockets                  October 2016
-
 
    o  association: the association to send the object on
 
@@ -645,14 +656,23 @@ Internet-Draft                Post Sockets                  October 2016
       association, to explicitly use for this object.  Optional,
       defaults to empty, meaning all paths are acceptable.
 
-   Calls to send are non-blocking; synchronous send which blocks on
-   remote acknowledgment or expiry of a
+   Calls to send are non-blocking; a synchronous send which blocks on
+   remote acknowledgment or expiry of an object can be implemented by a
+   call to send() followed by a wait on the ack or expired events (see
+   Section 3.6).
 
-3.5.  Receiving Objects
+3.4.  Receiving Objects
 
    An application receives objects via its receive_handler callback,
    registered at association creation time.  This callback has the
    following prototype:
+
+
+
+Trammell, et al.         Expires April 30, 2017                [Page 12]
+
+Internet-Draft                Post Sockets                  October 2016
+
 
    receive_handler(association, bytes)
 
@@ -667,17 +687,27 @@ Internet-Draft                Post Sockets                  October 2016
 
    bytes = receive_next(association)
 
+3.5.  Creating and Destroying Streams
 
+   A stream may be created on an association via the open_stream() entry
+   point:
 
-Trammell, et al.         Expires April 23, 2017                [Page 12]
-
-Internet-Draft                Post Sockets                  October 2016
+   stream = open_stream(association, [sid])
 
+   where:
 
-   \subsection{Creating and Destroying Streams}
+   o  association: the association to open the stream on
 
-   [EDITOR'S NOTE: provide open_stream(), close_stream(), point out that
-   these should be treated exactly like files in the platform.]
+   o  sid: opaque identifier for a stream.  For transport protocols
+      which do not support multiple streaming, this argument has no
+      effect.
+
+   A stream with a given sid must be opened by both sides before it can
+   be used.
+
+   The stream object returned should act like a file descriptor or
+   bidirectional I/O object, according to the conventions of the
+   platform implementing Post.
 
 3.6.  Events
 
@@ -692,6 +722,14 @@ Internet-Draft                Post Sockets                  October 2016
 
    where
 
+
+
+
+Trammell, et al.         Expires April 30, 2017                [Page 13]
+
+Internet-Draft                Post Sockets                  October 2016
+
+
    o  association: the association to register a handler on, or
 
    o  oid: the object identifier to register a handler on
@@ -702,7 +740,8 @@ Internet-Draft                Post Sockets                  October 2016
       if the event should be ignored.
 
    The following events are supported; every event handler takes the
-   association, as well as any additional arguments
+   association on which it is registered as well as any additional
+   arguments listed:
 
    o  receive (bytes): an object has been received
 
@@ -718,17 +757,50 @@ Internet-Draft                Post Sockets                  October 2016
 
    o  expired (oid): an object expired before being sent to the remote
 
-   \subsection{Paths and Path Properties}
+   Handlers for the ack and expired events can be registered on an
+   association (in which case they are called for all objects sent on
+   the association) or on an oid (in which case they are only called for
+   the oid).
 
-   [EDITOR'S NOTE: provide api from which path properties can be read,
-   extensible like handle().]
+3.7.  Paths and Path Properties
+
+   As defined in Section 2.5, the properties of a path include both the
+   addresses of elements along the path as well as measurement-derived
+   latency and capacity characteristics.  The path_up and path_down
+   events provide access to information about the paths available via
+   the path argument to the event handler.  This argument encapsulates
+   these properties in a platform and transport-specific way, depending
+   on the availability of information about the path.
+
+3.8.  Address Resolution
+
+   Address resolution turns the name of a Remote into a resolved Remote
+   object, which encapsulates all the information needed to connect
+   (address, certificate parameters, cached cryptographic state, etc.);
+   and an interface identifier on a local system to information needed
 
 
 
-Trammell, et al.         Expires April 23, 2017                [Page 13]
+Trammell, et al.         Expires April 30, 2017                [Page 14]
 
 Internet-Draft                Post Sockets                  October 2016
 
+
+   to connect.  Remote and local resolvers have the following entry
+   points:
+
+   remote = resolve(endpoint_name, configuration)
+
+   local = resolve_local(endpoint_name, configuration)
+
+   where:
+
+   o  endpoint_name: a name identifying the remote or local endpoint,
+      including port
+
+   o  configuration: a platform-specific configuration object for
+      configuring certificates, name resolution contexts, cached
+      cryptographic state, etc.
 
 4.  Acknowledgments
 
@@ -750,16 +822,36 @@ Internet-Draft                Post Sockets                  October 2016
               hamilton-quic-transport-protocol-00 (work in progress),
               July 2016.
 
+   [I-D.iyengar-minion-protocol]
+              Jana, J., Cheshire, S., and J. Graessley, "Minion - Wire
+              Protocol", draft-iyengar-minion-protocol-02 (work in
+              progress), October 2013.
+
    [I-D.trammell-plus-abstract-mech]
               Trammell, B., "Abstract Mechanisms for a Cooperative Path
               Layer under Endpoint Control", draft-trammell-plus-
               abstract-mech-00 (work in progress), September 2016.
+
+
+
+
+
+
+Trammell, et al.         Expires April 30, 2017                [Page 15]
+
+Internet-Draft                Post Sockets                  October 2016
+
 
    [I-D.trammell-plus-statefulness]
               Kuehlewind, M., Trammell, B., and J. Hildebrand,
               "Transport-Independent Path Layer State Management",
               draft-trammell-plus-statefulness-00 (work in progress),
               October 2016.
+
+   [MinimaLT]
+              Petullo, W., Zhang, X., Solworth, J., Bernstein, D., and
+              T. Lange, "MinimaLT, Minimal-latency Networking Through
+              Better Security", May 2013.
 
    [RFC0793]  Postel, J., "Transmission Control Protocol", STD 7,
               RFC 793, DOI 10.17487/RFC0793, September 1981,
@@ -777,14 +869,6 @@ Internet-Draft                Post Sockets                  October 2016
    [RFC7258]  Farrell, S. and H. Tschofenig, "Pervasive Monitoring Is an
               Attack", BCP 188, RFC 7258, DOI 10.17487/RFC7258, May
               2014, <http://www.rfc-editor.org/info/rfc7258>.
-
-
-
-
-Trammell, et al.         Expires April 23, 2017                [Page 14]
-
-Internet-Draft                Post Sockets                  October 2016
-
 
 Authors' Addresses
 
@@ -804,6 +888,14 @@ Authors' Addresses
    United Kingdom
 
    Email: csp@cperkins.net
+
+
+
+
+
+Trammell, et al.         Expires April 30, 2017                [Page 16]
+
+Internet-Draft                Post Sockets                  October 2016
 
 
    Tommy Pauly
@@ -837,4 +929,24 @@ Authors' Addresses
 
 
 
-Trammell, et al.         Expires April 23, 2017                [Page 15]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trammell, et al.         Expires April 30, 2017                [Page 17]
