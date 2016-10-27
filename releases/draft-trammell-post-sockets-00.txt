@@ -904,6 +904,8 @@ Internet-Draft                Post Sockets                  October 2016
    Cupertino, California 95014
    United States of America
 
+   Email: tpauly@apple.com
+
 
    Mirja Kuehlewind
    ETH Zurich
@@ -912,8 +914,6 @@ Internet-Draft                Post Sockets                  October 2016
    Switzerland
 
    Email: mirja.kuehlewind@tik.ee.ethz.ch
-
-
 
 
 

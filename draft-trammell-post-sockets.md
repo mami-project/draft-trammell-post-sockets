@@ -37,6 +37,7 @@ author:
     street: 1 Infinite Loop
     city: Cupertino, California 95014
     country: United States of America
+    email: tpauly@apple.com
   -
     ins: M. Kuehlewind
     name: Mirja Kuehlewind
