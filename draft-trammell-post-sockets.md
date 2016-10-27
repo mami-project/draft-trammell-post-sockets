@@ -29,7 +29,7 @@ author:
     street: School of Computing Science
     city: Glasgow  G12 8QQ
     country: United Kingdom
-    email: csp@cperkins.net
+    email: csp@csperkins.org
   -
     ins: T. Pauly
     name: Tommy Pauly
