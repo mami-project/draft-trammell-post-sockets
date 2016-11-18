@@ -1,7 +1,7 @@
 ---
 title: Post Sockets, An Abstract Programming Interface for the Transport Layer
 abbrev: Post Sockets
-docname: draft-trammell-post-sockets-00
+docname: draft-trammell-post-sockets-01
 date: 
 category: info
 
@@ -200,14 +200,14 @@ are shown in Figure {{fig-abstractions}} and detailed in this section.
 
 ## Association
 
-An Association is a container for all the state necessary for a local
-endpoint to communicate with a remote endpoint in an explicitly multipath
-environment. It contains a set of Paths, certificate(s) for identifying the
-remote endpoint, certificate(s) and key(s) for identifying the local endpoint
-to the remote endpoint, and any cached cryptographic state for the
-communication to the remote endpoint. An Association may have one or more
-Streams active at any given time. Objects are sent to Associations, as
-well. 
+An Association is a container for all the state necessary for a local endpoint
+to communicate with a remote endpoint in an explicitly multipath environment.
+It contains a set of Paths, a remote endpoint identity (allowing
+authentication of that endpoint), a local endpoint identity (allowing the
+local endpoint to authenticate itself to remotes), and any persistent
+cryptographic state for the communication to the remote endpoint. An
+Association may have one or more Streams active at any given time. Objects are
+sent to Associations, as well.
 
 Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
 to be relatively long-lived. The lifetime of an Association is not bound to
@@ -218,9 +218,10 @@ not be bothered with the underlying connectivity state unless this is
 important to the application's semantics.
 
 Paths may be dynamically added or removed from an association, as well, as
-connectivity between the endpoints changes. Cryptographic identifiers and
-state for endpoints may also be added and removed as necessary due to
-certificate lifetimes, key rollover, and revocation.
+connectivity between the endpoints changes. An Association may exist even if
+there are no currently active paths available between them. Cryptographic
+identifiers and state for endpoints may also be added and removed as necessary
+due to certificate lifetime, key rollover, revocation, and so on.
 
 ## Listener
 
@@ -587,7 +588,9 @@ where:
 
 # Acknowledgments
 
-Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH Zurich for contributions to the initial design of Post Sockets.
+Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at
+ETH Zurich for contributions to the initial design of Post Sockets. Thanks to
+Martin Thomson and Michael Welzl for comments which have improved the document.
 
 This work is partially supported by the European Commission under Horizon 2020
 grant agreement no. 688421 Measurement and Architecture for a Middleboxed
