@@ -1,7 +1,7 @@
 ---
 title: Post Sockets, An Abstract Programming Interface for the Transport Layer
 abbrev: Post Sockets
-docname: draft-trammell-post-sockets-01
+docname: draft-trammell-taps-post-sockets-01
 date: 
 category: info
 
@@ -586,14 +586,44 @@ where:
 - endpoint_name: a name identifying the remote or local endpoint, including port
 - configuration: a platform-specific configuration object for configuring certificates, name resolution contexts, cached cryptographic state, etc. 
 
+# Example Connection Patterns
+
+## Client-Server
+
+## Client-Server with Happy Eyeballs
+
+## Peer to Peer in the Global Addressing Context
+
+## Peer to Peer with Network Address Translation
+
+## Multicast
+
+haha no, we clearly need a completely different publish/subscribe (-like) API
+for this.
+
 # Acknowledgments
 
 Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at
 ETH Zurich for contributions to the initial design of Post Sockets. Thanks to
-Martin Thomson and Michael Welzl for comments which have improved the document.
+Joe Hildebrand, Martin Thomson and Michael Welzl for comments which have
+improved the document.
 
 This work is partially supported by the European Commission under Horizon 2020
 grant agreement no. 688421 Measurement and Architecture for a Middleboxed
 Internet (MAMI), and by the Swiss State Secretariat for Education, Research,
 and Innovation under contract no. 15.0268. This support does not imply
 endorsement.
+
+# Open Issues
+
+- This is all very client-server. We need to add an abstractions for discovery and rendezvous. Add a Pathfinder abstraction. 
+- Add a pathfind() call to ensure an association has paths.
+- send() should *not* bring a dormant path up by default, it should fail.
+
+- we need to decide whether Post works without object framing. yes it does, but it's stupid.
+- If there is no framing available in the underlying transport, send() fails.
+- If there are too many open streams, open_stream() fails.
+- transport protocol selection bound to local.
+- add calls for configurability, and make configuability consistent. system level and application level configuration. probably wrap all this in a configuration object.
+
+- We need a completely separate multicast API, since multicast has a different pattern. Multipost sockets?
