@@ -1,7 +1,7 @@
 ---
 title: Post Sockets, An Abstract Programming Interface for the Transport Layer
 abbrev: Post Sockets
-docname: draft-trammell-taps-post-sockets-01
+docname: draft-trammell-taps-post-sockets-00
 date: 
 category: info
 
@@ -167,7 +167,7 @@ The key features of Post as compared with the existing sockets API are:
 
 - Long-lived Associations, whose lifetimes may not be bound to underlying
   transport connections. This allows associations to cache state and 
-  cryptographic key material to enable fast (0-rtt) resumption of communication.
+  cryptographic key material to enable fast resumption of communication.
 
 This work is the synthesis of many years of Internet transport protocol
 research and development. It is heavily inspired by concepts from the Stream
@@ -178,20 +178,50 @@ and various bulk object transports.
 We present Post Sockets as an illustration of what is possible with present
 developments in transport protocols when freed from the strictures of the
 current sockets API. While much of the work for building parts of the
-protocols needed to implement Post are already ongoing in other IETF working
-groups (e.g. TAPS, MPTCP, QUIC, TLS), we argue that an abstract programming
-interface unifying access all these efforts is necessary to fully exploit
-their potential.
+protocols needed to implement Post are already ongoing in existing IETF
+working groups (e.g. TAPS, MPTCP, QUIC, TLS), we argue that an abstract
+programming interface unifying access all these efforts is necessary to fully
+exploit their potential.
 
 
 # Abstractions and Terminology
 
 ~~~~~~~~~~
-gratuitously colorful SVG goes here; see slide six of
-
-https://www.ietf.org/proceedings/96/slides/slides-96-taps-2.pdf
-
-in the meantime
+                                       +-------------+   
+         +---------------------------<>|  Listener   |<- listen() 
+         |                             +-------------+   
+         |   +-------------+                        |     
+         |   |    Local    |----------------+       V         
+         |   +-------------+                |   +====================+
+         |    |                             +-<>|                    |
+ +--------------+      +==================+     |    Association     | 
+ |  Bound Local |----<>|       Path       |     |                    | 
+ +--------------+      |                  |     |                    | 
+                       |   established    |---<>|                    | 
+ +--------------+      | ephemeral state  |     | durable end-to-end | 
+ | Bound Remote |----<>|                  |     |   state, cached    |
+ +--------------+      +==================+     | crypto parameters  | 
+         |    |                         ^   +-<>|                    |
+         |   +-------------+            |   |   +====================+
+         |   |   Remote    |------------|---+      |    ^  ^  ^
+         |   +-------------+            |          V    |  V  V
+         |                             +-------------+  |  |  |
+         +---------------------------<>| Pathfinder  |  |  |  |
+                                       +-------------+  |  |  |
+                                          pathfind()    |  |  |
+                                                        |  |  |
+                              +-------------+           |  |  |
+                     send() ->|   Object    |-----------+  |  |
+                              +-------------+              |  |
+                                                           |  |
+                              +-------------+              |  |
+              open_stream() ->|   Stream    |--------------+  |
+                              +-------------+                 |
+                                                              |
+                              +-------------+                 |
+                   handle() ->|    Event    |                 |
+                              |   Handler   |-----------------+
+                              +-------------+
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
 
@@ -201,13 +231,15 @@ are shown in Figure {{fig-abstractions}} and detailed in this section.
 ## Association
 
 An Association is a container for all the state necessary for a local endpoint
-to communicate with a remote endpoint in an explicitly multipath environment.
-It contains a set of Paths, a remote endpoint identity (allowing
-authentication of that endpoint), a local endpoint identity (allowing the
-local endpoint to authenticate itself to remotes), and any persistent
-cryptographic state for the communication to the remote endpoint. An
-Association may have one or more Streams active at any given time. Objects are
-sent to Associations, as well.
+to communicate with a remote endpoint. It contains a set of zero or more
+currently active  Paths, which encapsulate per-endpoint-pair ephemeral state;
+a Remote and a Local, which encapsulate identity and durable cryptographic
+parameters for each endpoint; and any persistent cryptographic state for the
+communication to the remote endpoint (e.g. parameters for fast resumption of a
+cryptographic protocol session).
+
+An Association with at least one active Path may have one or more Streams
+active at any given time. Objects are sent to Associations, as well.
 
 Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
 to be relatively long-lived. The lifetime of an Association is not bound to
@@ -223,18 +255,6 @@ there are no currently active paths available between them. Cryptographic
 identifiers and state for endpoints may also be added and removed as necessary
 due to certificate lifetime, key rollover, revocation, and so on.
 
-## Listener
-
-In many applications, there is a distinction between the active opener (or
-connection initiator, often a client), and the passive opener (often a
-server). A Listener represents an endpoint's willingness to start
-Associations in this passive opener/server role. It is, in essence, a
-one-sided, Path-less Association from which fully-formed Associations can
-be created.
-
-Listeners work very much like sockets on which the listen(2) call has
-been called in the SOCK_STREAM API.
-
 ## Remote
 
 A Remote represents all the information required to establish and maintain a
@@ -246,11 +266,23 @@ application (when created by active open) or by the Listener (when created by
 passive open). The resolution of Remotes from higher-layer information (URIs,
 hostnames) is architecture-dependent.
 
+### Bound Remote
+
+[EDITOR'S NOTE: write me, this is a remote with currently active addresses.
+half a socket.]
+
 ## Local
 
 A Local represents all the information about the local endpoint necessary to
 establish an Association or a Listener: interface and port designators, as
 well as certificates and associated private keys.
+
+[EDITOR'S NOTE: Transport protocol selection should be bound to Local.]
+
+### Bound Local
+
+[EDITOR'S NOTE: write me, this is a local with currently active addresses.
+half a socket.]
 
 ## Path
 
@@ -295,6 +327,34 @@ below.
 
 Note that information about the path and signaling to path elements could be
 provided by a facility such as PLUS {{I-D.trammell-plus-abstract-mech}}.
+
+## Listener
+
+[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
+and cryptographic state setup to create an Association from a Local and a
+not-previously-known Remote.]
+
+In many applications, there is a distinction between the active opener (or
+connection initiator, often a client), and the passive opener (often a
+server). A Listener represents an endpoint's willingness to start
+Associations in this passive opener/server role. It is, in essence, a
+one-sided, Path-less Association from which fully-formed Associations can
+be created.
+
+Listeners work very much like sockets on which the listen(2) call has
+been called in the SOCK_STREAM API.
+
+## Pathfinder
+
+[EDITOR'S NOTE: write me, encapsulates any re-establishment and rendezvous
+protocol. might be equivalent to connect(), might also need to use something
+like ICE. Connection racing also fits behind the Pathfinder. Notes from Seoul:
+add a Pathfinder abstraction for rendezvous, especially in peer-to-peer
+situations. A Pathfinder encapsulates a method for reconnecting to a specific
+remote (e.g., underlying transport connect() call in the case of client-
+server, something like ICE in peer-to-peer). Add a pathfind() call to ensure
+an association has paths; this *must* be called before objects can be sent.
+send() should *not* bring a dormant path up by default, it should fail. ]
 
 ## Object
 
@@ -394,6 +454,8 @@ the Paths and known properties of those Paths it sees fit when transporting a
 Stream.
 
 # Abstract Programming Interface
+
+[EDITOR'S NOTE: make sure this fits with the abstractions above after they're finished.]
 
 We now turn to the design of an abstract programming interface to provide a
 simple interface to Post's abstractions, constrained by the following design
@@ -586,6 +648,21 @@ where:
 - endpoint_name: a name identifying the remote or local endpoint, including port
 - configuration: a platform-specific configuration object for configuring certificates, name resolution contexts, cached cryptographic state, etc. 
 
+## Configuration
+
+[EDITOR'S NOTE: add entry points for configurability, and make configuability
+consistent. system level and application level configuration. probably wrap
+all this in a configuration object.]
+
+# Implementation Considerations
+
+[EDITOR'S NOTE: note what underlying transports must provide. Declare that
+Post works without object framing, but it's kind of useless. Necessary to
+show that you can port to Post even if your other endpoint is TCP-only. If
+there is no framing available in the underlying transport, send() fails. If
+there are too many open streams, open_stream() fails. Provide a deframe()
+handler to allow the application to turn a stream into objects over raw TCP.]
+
 # Example Connection Patterns
 
 ## Client-Server
@@ -598,32 +675,18 @@ where:
 
 ## Multicast
 
-haha no, we clearly need a completely different publish/subscribe (-like) API
-for this.
+[EDITOR'S NOTE: haha no, we clearly need a completely different
+publish/subscribe (-like) API for this.]
 
 # Acknowledgments
 
 Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at
 ETH Zurich for contributions to the initial design of Post Sockets. Thanks to
-Joe Hildebrand, Martin Thomson and Michael Welzl for comments which have
-improved the document.
+Joe Hildebrand, Martin Thomson and Michael Welzl for their feedback, which has
+improved the concept presented herein.
 
 This work is partially supported by the European Commission under Horizon 2020
 grant agreement no. 688421 Measurement and Architecture for a Middleboxed
 Internet (MAMI), and by the Swiss State Secretariat for Education, Research,
 and Innovation under contract no. 15.0268. This support does not imply
 endorsement.
-
-# Open Issues
-
-- This is all very client-server. We need to add an abstractions for discovery and rendezvous. Add a Pathfinder abstraction. 
-- Add a pathfind() call to ensure an association has paths.
-- send() should *not* bring a dormant path up by default, it should fail.
-
-- we need to decide whether Post works without object framing. yes it does, but it's stupid.
-- If there is no framing available in the underlying transport, send() fails.
-- If there are too many open streams, open_stream() fails.
-- transport protocol selection bound to local.
-- add calls for configurability, and make configuability consistent. system level and application level configuration. probably wrap all this in a configuration object.
-
-- We need a completely separate multicast API, since multicast has a different pattern. Multipost sockets?
