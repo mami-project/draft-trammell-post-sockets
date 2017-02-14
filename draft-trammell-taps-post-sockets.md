@@ -77,7 +77,7 @@ informative:
 --- abstract
 
 This document describes Post Sockets, an asynchronous abstract programming
-interface for the atomic transmission of objects in an explicitly multipath
+interface for the atomic transmission of messages in an explicitly multipath
 environment. Post replaces connections with long-lived associations between
 endpoints, with the possibility to cache cryptographic state in order to
 reduce amortized connection latency. We present this abstract interface as an
@@ -137,33 +137,36 @@ different platforms, and used even in environments where transport protocol
 selection may be done dynamically, as proposed in the IETF's Transport Services
 wotking group (see https://datatracker.ietf.org/wg/taps/charter).
 
-Post replaces the traditional SOCK_STREAM abstraction with an Object
+Post replaces the traditional SOCK_STREAM abstraction with an Message
 abstraction, which can be seen as a generalization of the Stream Control
-Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service.  Objects can be
-small (e.g. messages in message-oriented protocols) or large (e.g. an HTTP
-response containing header and body). It replaces the notions of a socket
-address and connected socket with an Association with a remote endpoint via
-set of Paths. Implementation and wire format for transport protocol(s)
-implementing the Post API are explicitly out of scope for this work; these
-abstractions need not map directly to implementation-level concepts, and
-indeed with various amounts of shimming and glue could be implemented with
-varying success atop any sufficiently flexible transport protocol.
+Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service.  Messages can be
+small (e.g. a typical HTTP request) or large (e.g. an HTTP response containing
+header and body). Messages are sent and received on Streams, which logically
+group Messages for transmission and reception. For compatibility with
+situations where only strictly stream-oriented transport protocols are
+available, applications with data streams that cannot be easily split into
+Messages at the sender, and and for easy porting of the great deal of existing
+stream-oriented application code to Post, these streams may also be opened as
+bytestreams, presenting a file-like interface to the network.
 
-For compatibility with situations where only strictly stream-oriented
-transport protocols are available, applications with data streams that cannot
-be easily split into Objects at the sender, and and for easy porting of the
-great deal of existing stream-oriented application code to Post, Post also
-provides a SOCK_STREAM compatible abstraction, unimaginatively named Stream.
+Post replaces the notions of a socket address and connected
+socket with an Association with a remote endpoint via set of Paths.
+Implementation and wire format for transport protocol(s) implementing the Post
+API are explicitly out of scope for this work; these abstractions need not map
+directly to implementation-level concepts, and indeed with various amounts of
+shimming and glue could be implemented with varying success atop any
+sufficiently flexible transport protocol.
 
 The key features of Post as compared with the existing sockets API are:
 
-- Explicit Object orientation, with framing and atomicity guarantees for
-  Object transmission.
+- Explicit Message orientation, with framing and atomicity guarantees for
+  Message transmission.
 
 - Asynchronous reception, allowing all receiver-side interactions to be 
   event-driven. 
 
-- Explicit support for multipath transport protocols and network architectures. 
+- Explicit support for multistreaming and multipath transport protocols and
+  network architectures.
 
 - Long-lived Associations, whose lifetimes may not be bound to underlying
   transport connections. This allows associations to cache state and 
@@ -187,41 +190,33 @@ exploit their potential.
 # Abstractions and Terminology
 
 ~~~~~~~~~~
-                                       +-------------+   
-         +---------------------------<>|  Listener   |<- listen() 
-         |                             +-------------+   
-         |   +-------------+                        |     
-         |   |    Local    |----------------+       V         
-         |   +-------------+                |   +====================+
-         |    |                             +-<>|                    |
- +--------------+      +==================+     |    Association     | 
- |  Bound Local |----<>|       Path       |     |                    | 
- +--------------+      |                  |     |                    | 
-                       |   established    |---<>|                    | 
- +--------------+      | ephemeral state  |     | durable end-to-end | 
- | Bound Remote |----<>|                  |     |   state, cached    |
- +--------------+      +==================+     | crypto parameters  | 
-         |    |                         ^   +-<>|                    |
-         |   +-------------+            |   |   +====================+
-         |   |   Remote    |------------|---+      |    ^  ^  ^
-         |   +-------------+            |          V    |  V  V
-         |                             +-------------+  |  |  |
-         +---------------------------<>| Pathfinder  |  |  |  |
-                                       +-------------+  |  |  |
-                                          pathfind()    |  |  |
-                                                        |  |  |
-                              +-------------+           |  |  |
-                     send() ->|   Object    |-----------+  |  |
-                              +-------------+              |  |
-                                                           |  |
-                              +-------------+              |  |
-              open_stream() ->|   Stream    |--------------+  |
-                              +-------------+                 |
-                                                              |
-                              +-------------+                 |
-                   handle() ->|    Event    |                 |
-                              |   Handler   |-----------------+
-                              +-------------+
+                      initiate()            listen()
+                          |                    |
+                          V                    V
+                  +================+  +================+
+       send(msg)->|                |  |                |->accept(stream)
+                  |     Stream     |  |    Listener    |
+ ready(receiver)->|                |  |                |
+                  +================+  +================+
+                        |        |      |
+   +================+   |        V      V
+   |     Source     |   | +====================+
+   +================+   | |                    | durable end-to-end 
+                        | |    Association     | state via many paths/ 
+   +================+   | |                    | policies and prefs
+   |      Sink      |   | +====================+
+   +================+   |                    |
+                        |                    |
+   +================+   |                    |
+   |    Responder   |   |                    |
+   +================+   |                    |
+                        V                    |
+                   +===========+           +==========+
+         ephemeral |           |           |          |  
+       transport & | Transient |---------->|   Path   | properties of
+      crypto state |           |           |          | address pair
+                   +===========+           +==========+
+
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
 
@@ -230,16 +225,7 @@ are shown in Figure {{fig-abstractions}} and detailed in this section.
 
 ## Association
 
-An Association is a container for all the state necessary for a local endpoint
-to communicate with a remote endpoint. It contains a set of zero or more
-currently active  Paths, which encapsulate per-endpoint-pair ephemeral state;
-a Remote and a Local, which encapsulate identity and durable cryptographic
-parameters for each endpoint; and any persistent cryptographic state for the
-communication to the remote endpoint (e.g. parameters for fast resumption of a
-cryptographic protocol session).
-
-An Association with at least one active Path may have one or more Streams
-active at any given time. Objects are sent to Associations, as well.
+An Association is... [EDITOR'S NOTE: work pointer]
 
 Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
 to be relatively long-lived. The lifetime of an Association is not bound to
@@ -266,10 +252,6 @@ application (when created by active open) or by the Listener (when created by
 passive open). The resolution of Remotes from higher-layer information (URIs,
 hostnames) is architecture-dependent.
 
-### Bound Remote
-
-[EDITOR'S NOTE: write me, this is a remote with currently active addresses.
-half a socket.]
 
 ## Local
 
@@ -279,10 +261,6 @@ well as certificates and associated private keys.
 
 [EDITOR'S NOTE: Transport protocol selection should be bound to Local.]
 
-### Bound Local
-
-[EDITOR'S NOTE: write me, this is a local with currently active addresses.
-half a socket.]
 
 ## Path
 
@@ -356,68 +334,70 @@ server, something like ICE in peer-to-peer). Add a pathfind() call to ensure
 an association has paths; this *must* be called before objects can be sent.
 send() should *not* bring a dormant path up by default, it should fail. ]
 
-## Object
+## Message
 
-Post provides two ways to send data over an Association. We start with the
-Object abstraction, as a fundamental insight behind the interface is that
-most applications fundamentally deal in object transport.
-
-An Object is an atomic unit of communication between applications; or in
+A Message is an atomic unit of communication between applications; or in
 other words, an ordered collection of bytes B0..Bm, such that every byte
-Bn depends on every other byte in the Object. An object that cannot be
+Bn depends on every other byte in the Message. A Message that cannot be
 delivered in its entirety within the constraints of the network connectivity
 and the requirements of the application is not delivered at all.
 
-Objects can represent both relatively small structures, such as messages in
-application-layer protocols built around datagram or message exchange, as well
-as relatively large structures, such files of arbitrary size in a filesystem.
-Objects larger than the MTU on the Path on which they are sent will be
-segmented into multiple frames. Multiple objects that will fit into a single
+Messages can represent both relatively small structures, such as HTTP requests, as well
+as relatively large structures, such as files of arbitrary size in a filesystem.
+Messages larger than the MTU on the Path on which they are sent will be
+segmented into multiple frames. Multiple Messages that will fit into a single
 frame may be concatenated into one frame. There is no preference for
-transmitting the multiple frames for a given Object in any particular order,
-or by default, that objects will be delivered in the order sent by the
+transmitting the multiple frames for a given Message in any particular order,
+or by default, that Messages will be delivered in the order sent by the
 application. This implies that both the sending and receiving endpoint,
 whether in the application layer or the transport layer, must guarantee
-storage for the full size of an object.
+storage for the full size of an Message.
 
-Three object properties allow applications fine control ordering and
-reliability requirements in line with application semantics. An Object may
-have a "lifetime" -- a wallclock duration before which the object must be
+Three Message properties allow applications fine control ordering and
+reliability requirements in line with application semantics. A Message may
+have a "lifetime" -- a wallclock duration before which the Message must be
 available to the application layer at the remote end. If a lifetime cannot be
-met, the object is discarded as soon as possible; therefore, Objects with
+met, the Message is discarded as soon as possible; therefore, Messages with
 lifetimes are implicitly sent non-reliably, and lifetimes are used to
-prioritize Object delivery. Lifetimes may be signaled to path elements by the
-underlying transport, so that path elements that realize a lifetime cannot be
-met can discard frames containing the object instead of forwarding them.
+prioritize Message delivery. There is however no guarantee that a Message will
+not be delivered after the end of its lifetime. Lifetimes may be signaled to
+path elements by the underlying transport, so that path elements that realize
+a lifetime cannot be met can discard frames containing the Messages instead of
+forwarding them.
 
-Second, Objects may have a "niceness" -- a category in an unbounded
+Second, Messages may have a "niceness" -- a category in an unbounded
 hierarchy most naturally represented as a non-negative integer. By default,
-Objects are in niceness class 0, or highest priority. Niceness class 1 Objects
-will yield to niceness class 0 objects, class 2 to class 1, and so on.
+Objects are in niceness class 0, or highest priority. Niceness class 1 Messages
+will yield to niceness class 0 Messages, class 2 to class 1, and so on.
 Niceness may be translated to a priority signal for exposure to path elements
 (e.g. DSCP codepoint) to allow prioritization along the path as well as at the
 sender and receiver. This inversion of normal schemes for expressing
 priority has a convenient property: priority increases as both niceness and
 deadline decrease.
 
-An object may have both a niceness and a lifetime -- objects with higher
+A Message may have both a niceness and a lifetime -- Messages with higher
 niceness classes will yield to lower classes if resource constraints mean only
 one can meet the lifetime.
 
-Third, an Object may have "antecedents" -- other Objects on which it
+Third, a Message may have "antecedents" -- other Messages on which it
 depends, which must be delivered before it (the "successor") is delivered.
 The sending transport uses deadlines, niceness, and antecedents, along with
 information about the properties of the Paths available, to determine when to
-send which object down which Path.
+send which Message down which Path.
 
 When an application has hard semantic requirements that all the frames of a
-given object be sent down a given Path or Paths, these hard constraints can
+given Message be sent down a given Path or Paths, these hard constraints can
 also be expressed by the application.
 
 After calling the send function, the application can register event handlers
-to be informed of the transmission status of the object; the object can either
-be acknowledged (i.e., it has been received in full by the remote endpoint) or
-expired (its lifetime ran out before it was acknowledged).
+to be informed of the transmission status of the Message; when the Message is
+sent (i.e., it has left the sender), when it is acknolwedged  (i.e., it has
+been received in full by the remote endpoint), or it has expired (its lifetime
+ran out before it was acknowledged).
+
+### Emulating Bytestreams
+
+
 
 ## Stream
 
@@ -682,11 +662,32 @@ publish/subscribe (-like) API for this.]
 
 Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at
 ETH Zurich for contributions to the initial design of Post Sockets. Thanks to
-Joe Hildebrand, Martin Thomson and Michael Welzl for their feedback, which has
-improved the concept presented herein.
+Joe Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well
+as the attendees of the Post Sockets Design Meeting in February 2017 in Zürich
+for the discussions, which have improved the design described herein.
 
 This work is partially supported by the European Commission under Horizon 2020
 grant agreement no. 688421 Measurement and Architecture for a Middleboxed
 Internet (MAMI), and by the Swiss State Secretariat for Education, Research,
 and Innovation under contract no. 15.0268. This support does not imply
 endorsement.
+
+--- back
+
+# Implementation Notes 
+
+[EDITOR'S NOTE: write me]
+
+## From Policies to Paths
+
+[EDITOR'S NOTE: write a section on the pathfinder]
+
+## Supporting Stack Agility
+
+[EDITOR'S NOTE: write a section on protocol stack instances]
+
+## Playing with PostSockets: Golang implementation
+
+[EDITOR'S NOTE: short howto on the Go implementation]
+
+
