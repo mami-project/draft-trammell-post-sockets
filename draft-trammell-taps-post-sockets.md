@@ -173,18 +173,17 @@ The key features of Post as compared with the existing sockets API are:
   cryptographic key material to enable fast resumption of communication.
 
 This work is the synthesis of many years of Internet transport protocol
-research and development. It is heavily inspired by concepts from the Stream
+research and development. It is inspired by concepts from the Stream
 Control Transmission Protocol (SCTP) {{RFC4960}}, 
-TCP Minion {{I-D.iyengar-minion-protocol}}, MinimaLT{{MinimaLT}},
-and various bulk object transports.
+TCP Minion {{I-D.iyengar-minion-protocol}}, and MinimaLT{{MinimaLT}}, among other.
 
 We present Post Sockets as an illustration of what is possible with present
 developments in transport protocols when freed from the strictures of the
 current sockets API. While much of the work for building parts of the
-protocols needed to implement Post are already ongoing in existing IETF
-working groups (e.g. TAPS, MPTCP, QUIC, TLS), we argue that an abstract
-programming interface unifying access all these efforts is necessary to fully
-exploit their potential.
+protocols needed to implement Post are already ongoing in other IETF working
+groups (e.g. MPTCP, QUIC, TLS), we argue that an abstract programming
+interface unifying access all these efforts is necessary to fully exploit
+their potential.
 
 
 # Abstractions and Terminology
@@ -196,32 +195,64 @@ exploit their potential.
                   +================+  +================+
        send(msg)->|                |  |                |->accept(stream)
                   |     Stream     |  |    Listener    |
- ready(receiver)->|                |  |                |
+ ready(receiver)->|    (Carrier)   |  |                |
                   +================+  +================+
                         |        |      |
    +================+   |        V      V
-   |     Source     |   | +====================+
-   +================+   | |                    | durable end-to-end 
-                        | |    Association     | state via many paths/ 
-   +================+   | |                    | policies and prefs
-   |      Sink      |   | +====================+
-   +================+   |                    |
-                        |                    |
-   +================+   |                    |
-   |    Responder   |   |                    |
-   +================+   |                    |
-                        V                    |
-                   +===========+           +==========+
-         ephemeral |           |           |          |  
-       transport & | Transient |---------->|   Path   | properties of
-      crypto state |           |           |          | address pair
-                   +===========+           +==========+
+   |     Source     |   | +=======================+
+   +================+   | |                       | durable end-to-end 
+                        | |      Association      | state via many paths/
+   +================+   | |                       | policies and prefs
+   |      Sink      |   | +=======================+
+   +================+   |                 |      |
+                        |                 |      |
+   +================+   |         +=========+  +=========+
+   |    Responder   |   |         |  Local  |  | Remote  |
+   +================+   |         +=========+  +=========+
+                        V                 |      |
+                   +===========+        +==========+
+         ephemeral |           |        |          |  
+       transport & | Transient |------->|   Path   | properties of
+      crypto state |           |        |          | address pair
+                   +===========+        +==========+
 
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
 
 Post is based on a small set of abstractions, the relationships among which
 are shown in Figure {{fig-abstractions}} and detailed in this section.
+
+
+## Stream
+
+[EDITOR'S NOTE: terminology question: is our "Stream" really a "Carrier" or a "Channel"? I like "carrier"; it doesn't collide in Layer 3 or 4 terminology and fits nicely with "Post" (i.e. "letter carrier"). "Bytestream" then turns back into "Stream". Thoughts?]
+
+Messages are sent and received over Streams, which represent a networks'  Messages sent on a Stream will be
+received at the other end, atomically, but not necessarily reliably or in
+order. An application may use one or more Streams to communicate with a remote
+application; the semantics of which Messages belong on which Streams are, in
+this case, application-specific.
+
+Streams may be created either actively (through the initiate() call),
+passively (by a Listener), or implicitly (by a Source, Sink, or Responder)
+
+
+## Listener
+
+[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
+and cryptographic state setup to create an Association from a Local and a
+not-previously-known Remote.]
+
+In many applications, there is a distinction between the active opener (or
+connection initiator, often a client), and the passive opener (often a
+server). A Listener represents an endpoint's willingness to start
+Associations in this passive opener/server role. It is, in essence, a
+one-sided, Path-less Association from which fully-formed Associations can
+be created.
+
+Listeners work very much like sockets on which the listen(2) call has
+been called in the SOCK_STREAM API.
+
 
 ## Association
 
@@ -235,13 +266,17 @@ Object transmissions required by the application, and the application need
 not be bothered with the underlying connectivity state unless this is
 important to the application's semantics.
 
-Paths may be dynamically added or removed from an association, as well, as
+Transients may be dynamically added or removed from an association, as well, as
 connectivity between the endpoints changes. An Association may exist even if
 there are no currently active paths available between them. Cryptographic
 identifiers and state for endpoints may also be added and removed as necessary
 due to certificate lifetime, key rollover, revocation, and so on.
 
 ## Remote
+
+[EDITOR'S NOTE: not quite right. note that remotes may be at various levels of
+resolution. resolving a remote gives you another remote. might also be URLs,
+etc, etc, etc.]
 
 A Remote represents all the information required to establish and maintain a
 connection with the far end of an Association: network-layer address,
@@ -255,12 +290,19 @@ hostnames) is architecture-dependent.
 
 ## Local
 
+
+[EDITOR'S NOTE: Local only encapsulates application-relevant local properties.
+We should note that provisioning domains are separate, and live behind this
+somewhere...]
+
 A Local represents all the information about the local endpoint necessary to
 establish an Association or a Listener: interface and port designators, as
 well as certificates and associated private keys.
 
-[EDITOR'S NOTE: Transport protocol selection should be bound to Local.]
 
+## Transient
+
+[EDITOR'S NOTE write me]
 
 ## Path
 
@@ -305,22 +347,6 @@ below.
 
 Note that information about the path and signaling to path elements could be
 provided by a facility such as PLUS {{I-D.trammell-plus-abstract-mech}}.
-
-## Listener
-
-[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
-and cryptographic state setup to create an Association from a Local and a
-not-previously-known Remote.]
-
-In many applications, there is a distinction between the active opener (or
-connection initiator, often a client), and the passive opener (often a
-server). A Listener represents an endpoint's willingness to start
-Associations in this passive opener/server role. It is, in essence, a
-one-sided, Path-less Association from which fully-formed Associations can
-be created.
-
-Listeners work very much like sockets on which the listen(2) call has
-been called in the SOCK_STREAM API.
 
 ## Pathfinder
 
@@ -395,11 +421,7 @@ sent (i.e., it has left the sender), when it is acknolwedged  (i.e., it has
 been received in full by the remote endpoint), or it has expired (its lifetime
 ran out before it was acknowledged).
 
-### Emulating Bytestreams
-
-
-
-## Stream
+## Bytestream
 
 The Stream abstraction is provided for two reasons. First, since it is the
 most like the existing SOCK_STREAM interface, it is the simplest abstraction
@@ -432,7 +454,6 @@ frames will yield to niceness 1 Object frames.
 The underlying transport protocol may make whatever use of
 the Paths and known properties of those Paths it sees fit when transporting a
 Stream.
-
 # Abstract Programming Interface
 
 [EDITOR'S NOTE: make sure this fits with the abstractions above after they're finished.]
