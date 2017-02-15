@@ -48,15 +48,18 @@ author:
     country: Switzerland
 
 normative:
+  I-D.ietf-taps-transports:
 
 informative:
     RFC0793:
     RFC4960:
+    RFC5245:
+    RFC6555:
     RFC6824:
     RFC7258:
     I-D.trammell-plus-abstract-mech:
     I-D.trammell-plus-statefulness:
-    I-D.hamilton-quic-transport-protocol:
+    I-D.ietf-quic-transport:
     I-D.iyengar-minion-protocol:
     MinimaLT:
       url: https://cr.yp.to/tcpip/minimalt-20130522.pdf
@@ -87,6 +90,8 @@ protocols when freed from the strictures of the current sockets API.
 --- middle
 
 # Introduction
+
+[EDITOR'S NOTE: review this section to make sure the right things are emphasized.]
 
 The BSD Unix Sockets API's SOCK_STREAM abstraction, by bringing network
 sockets into the UNIX programming model, allowing anyone who knew how to write
@@ -125,7 +130,7 @@ handshake to happen after the transport-layer handshake, which increases
 connection setup latency on the order of one or two round-trip times, an
 unacceptable delay for many applications. Integrating cryptographic state
 setup and maintenance into the path abstraction naturally complements efforts
-in new protocols (e.g. QUIC {{I-D.hamilton-quic-transport-protocol}}) to
+in new protocols (e.g. QUIC {{I-D.ietf-quic-transport-}}) to
 mitigate this strict layering.
 
 From these three starting points -- more flexible abstraction, path primacy,
@@ -139,15 +144,10 @@ wotking group (see https://datatracker.ietf.org/wg/taps/charter).
 
 Post replaces the traditional SOCK_STREAM abstraction with an Message
 abstraction, which can be seen as a generalization of the Stream Control
-Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service.  Messages can be
-small (e.g. a typical HTTP request) or large (e.g. an HTTP response containing
-header and body). Messages are sent and received on Streams, which logically
-group Messages for transmission and reception. For compatibility with
-situations where only strictly stream-oriented transport protocols are
-available, applications with data streams that cannot be easily split into
-Messages at the sender, and and for easy porting of the great deal of existing
-stream-oriented application code to Post, these streams may also be opened as
-bytestreams, presenting a file-like interface to the network.
+Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service. Messages are sent
+and received on Carriers, which logically group Messages for transmission and
+reception. For backward compatibility, these Carriers can also be opened as
+Streams, presenting a file-like interface to the network as with SOCK_STREAM.
 
 Post replaces the notions of a socket address and connected
 socket with an Association with a remote endpoint via set of Paths.
@@ -169,26 +169,29 @@ The key features of Post as compared with the existing sockets API are:
   network architectures.
 
 - Long-lived Associations, whose lifetimes may not be bound to underlying
-  transport connections. This allows associations to cache state and 
-  cryptographic key material to enable fast resumption of communication.
+  transport connections. This allows associations to cache state and
+  cryptographic key material to enable fast resumption of communication, and for
+  the implementation of the API to explicitly take care of connection establishment
+  mechanics such as connection racing {{RFC6555}} and peer-to-peer rendezvous
+  {{RFC5245}}.
 
 - Transport protocol stack independence, allowing applications to be written
   in terms of the semantics best for the application's own design, separate
-  from the protocol(s) used on the wire to achieve them.
+  from the protocol(s) used on the wire to achieve them. This enables
+  applications written to a single API to make use of transport protocols in
+  terms of the features they provide, as in {{I-D.ietf-taps-transports}}.
 
 This work is the synthesis of many years of Internet transport protocol
-research and development. It is inspired by concepts from the Stream
-Control Transmission Protocol (SCTP) {{RFC4960}}, 
-TCP Minion {{I-D.iyengar-minion-protocol}}, and MinimaLT{{MinimaLT}}, among other.
-
-We present Post Sockets as an illustration of what is possible with present
-developments in transport protocols when freed from the strictures of the
-current sockets API. While much of the work for building parts of the
-protocols needed to implement Post are already ongoing in other IETF working
-groups (e.g. MPTCP, QUIC, TLS), we argue that an abstract programming
-interface unifying access all these efforts is necessary to fully exploit
-their potential.
-
+research and development. It is inspired by concepts from the Stream Control
+Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-
+protocol}}, and MinimaLT{{MinimaLT}}, among other transport protocol
+modernization efforts. We present Post Sockets as an illustration of what is
+possible with present developments in transport protocols when freed from the
+strictures of the current sockets API. While much of the work for building
+parts of the protocols needed to implement Post are already ongoing in other
+IETF working groups (e.g. MPTCP, QUIC, TLS), we argue that an abstract
+programming interface unifying access all these efforts is necessary to fully
+exploit their potential.
 
 # Abstractions and Terminology
 
@@ -199,10 +202,10 @@ their potential.
     | ^  |  ^       |  ^     initiate()       listen()
     | |  |  |       |  |         |               |
     | |  |  |       V  |         V               V
-    | |  |  |     +================+           +============+
-    | |  |  |     |                |  accept() |            |
-    | |  |  |     |    Carrier     |<----------|  Listener  |
-    | |  |  |     |                |           |            |
+    | |  |  |     +================+  accept() +============+
+    | |  |  |     |                |<---+------|            |
+    | |  |  |     |    Carrier     |    |      |  Listener  |
+    | |  |  |     |                |----+      |            |
     | |  |  |     +================+           +============+
     | |  |  |      .    |        |               |
     | |  | +========+   |        |               |
@@ -229,7 +232,6 @@ their potential.
 Post is based on a small set of abstractions, the relationships among which
 are shown in Figure {{fig-abstractions}} and detailed in this section.
 
-
 ## Message
 
 A Message is an atomic unit of communication between applications. A Message
@@ -249,13 +251,6 @@ application layer or the transport layer, must guarantee storage for the full
 size of an Message.
 
 Messages are sent over and received from Message Carriers (see {{carrier}}).
-Sending is driven by the application, while receipt is driven by the arrival
-of the last packet that allows the Message to be assembled, decrypted, and
-passed to the application. Receipt is therefore asynchronous; given the
-different models for asynchronous I/O and concurrency supported by different
-platforms, it may be implemented in any number of ways, and the abstract API
-provides only for a way for the application to register how it wants to handle
-incoming messages for different communication patterns.
 
 On sending, Messages have properties that allow the application to specify its
 requirements with respect to reliability, ordering, and priority; these are
@@ -270,8 +265,8 @@ received messages contains only a sequence of ordered bytes.
 A Message may have a "lifetime" -- a wallclock duration before which the
 Message must be available to the application layer at the remote end. If a
 lifetime cannot be met, the Message is discarded as soon as possible. Messages
-without lifetimes are sent reliably. Lifetimes are also used to prioritize
-Message delivery.
+without lifetimes are sent reliably if supported by the transport protocol
+stack. Lifetimes are also used to prioritize Message delivery.
 
 There is no guarantee that a Message will not be delivered after the end of
 its lifetime; for example, a Message delivered over a strictly reliable
@@ -283,10 +278,11 @@ the Messages instead of forwarding them.
 
 ### Priority
 
-Messages have a "niceness" -- a category in an unbounded hierarchy most
-naturally represented as a non-negative integer. By default, Messages are in
-niceness class 0, or highest priority. Niceness class 1 Messages will yield to
-niceness class 0 Messages, class 2 to class 1, and so on. Niceness may be
+Messages have a "niceness" -- a priority among other messages sent over the
+same Message Carrier in an unbounded hierarchy most naturally represented as a
+non-negative integer. By default, Messages are in niceness class 0, or highest
+priority. Niceness class 1 Messages will yield to niceness class 0 Messages
+sent over the same Carrier, class 2 to class 1, and so on. Niceness may be
 translated to a priority signal for exposure to path elements (e.g. DSCP
 codepoint) to allow prioritization along the path as well as at the sender and
 receiver. This inversion of normal schemes for expressing priority has a
@@ -320,6 +316,14 @@ independent **thing** for sending and receiving messages between an
 application and a remote endpoint; it is roughly analogous to a socket in the
 present sockets API.
 
+Sending a Message over a Carrier is driven by the application, while receipt
+is driven by the arrival of the last packet that allows the Message to be
+assembled, decrypted, and passed to the application. Receipt is therefore
+asynchronous; given the different models for asynchronous I/O and concurrency
+supported by different platforms, it may be implemented in any number of ways.
+The abstract API provides only for a way for the application to register
+how it wants to handle incoming messages.
+
 All the Messages sent to a Message Carrier will be received on the
 corresponding Message Carrier at the remote endpoint, though not necessarily
 reliably or in order, depending on Message properties and the underlying
@@ -332,177 +336,107 @@ there is long-term state associated with it (via the underlying Association;
 see {{association}}), and it may be able to reactivated, but messages cannot
 be sent and received immediately.
 
+[EDITOR'S NOTE: replace **forked**?]
+
 If supported by the underlying transport protocol stack, a Message Carrier may
-be "forked": creating a new Message Carrier associated with a new Message
+be **forked**: creating a new Message Carrier associated with a new Message
 Carrier at the same remote endpoint. The semantics of the usage of multiple
-Message Carriers on the same Association are application-specific. Carrier
-forking is used for passive opens in client-server applications, as well; see
-{{listener}}.
+Message Carriers on the same Association are application-specific. When a
+Message Carrier is forked, its corresponding Message Carrier at the remote
+endpoint receives a fork request, which it must accept in order to fully
+establish the new carrier. Multiple message carriers between endpoints are
+implemented differently by different transport protocol stacks, either using
+multiple separate transport-layer connections, or using multiple streams of
+multistreaming transport protocols.
 
 To exchange messages with a given remote endpoint, an application may initiate
-a Message Carrier given its remote  (see {{remote}} and local (see {{local}})
+a Message Carrier given its remote (see {{remote}} and local (see {{local}})
 identities; this is an equivalent to an active open. There are five special
 cases of Message Carriers, as well, supporting different initiation and
 interaction patterns, defined in the subsections below.
 
 ### Listener
 
-[EDITOR'S NOTE this is basically a message carrier that's only used for forking]
-
-### Responder
-
-[EDITOR'S NOTE an abstraction where each message gets a callback and the carrier is hidden, for 1:1 or 1:n message exchange in a client-server pattern]
+A Listener is a special case of Message Carrier which only responds to
+requests to create a new Carrier from a remote endpoint, analogous to a server
+or listening socket in the present sockets API. Instead of being bound to a
+specific remote endpoint, it is bound only to a local identity; however, its
+interface for accepting fork requests is identical to that for fully fledged
+Message Carriers.
 
 ### Source
 
-[EDITOR'S NOTE an abstraction for send-only applications, including multicast]
+A Source is a special case of Message Carrier over which messages can only be
+sent, intended for unidirectional applications such as multicast transmitters.
+Sources cannot be forked, and need not accept forks.
 
 ### Sink
 
-[EDITOR'S NOTE an abstraction for receive-only applications, including multicast]
+A Sink is a special case of Message Carrier over which messages can only be
+received, intended for unidirectional applications such as multicast
+receivers. Sources cannot be forked, and need not accept forks.
+
+### Responder
+
+A Responder is a special case of Message Carrier which may receive messages
+from many remote sources, for cases in which an application will only ever
+send Messages in reply back to the source from which a Message was received. A
+Responder's receiver gets a Message, as well as a Source to send replies to.
+Responders cannot be forked, and need not accept forks.
 
 ### Stream
 
-[EDITOR'S NOTE morph a carrier irreversably into a file; some of what's below might be useful]
+A Message Carrier may also be irreversibly morphed into a Stream, in order to
+provide a strictly ordered, reliable service as with SOCK_STREAM. Morphing a
+Message Carrier into a Stream should return a "file-like object" as
+appropriate for the platform implementing the API. 
 
-The Stream abstraction is provided for two reasons. First, since it is the
-most like the existing SOCK_STREAM interface, it is the simplest abstraction
-to be used by applications ported to Post to take advantages of Path primacy.
-Second, some environments have connectivity so impaired (by local network
-operation policy and/or accidental middlebox interference) that only stream-
-based transport protocols are available, and applications should have the
-option to use streams directly in these situations.
-
-A Stream is a sequence of bytes B0 .. Bm such that the reception (and
-delivery to the receiving application of) Bn always depends on Bn-1.
-This property is inherited from the BSD UNIX file abstraction, which in turn
-inherited it from the physical limitations of sequential access media (stacks
-of punch cards, paper and/or magnetic tape).
-
-A Stream is bound to an Association. Writing a byte to the stream will cause
-it to be received by the remote, in order, or will cause an error condition
-and termination of the stream if the byte cannot be delivered. Due to the
-strong sequential dependence on a stream, streams must always be reliable and
-ordered. If frames containing Stream data are lost, these must be
-retransmitted or reconstructed using an error correction technique. If frames
-containing Stream data arrive out of order, the remote end must buffer them
-until the unordered frames are received and reassembled.
-
-As with Messages, Streams may have a niceness for prioritization. When mixing
-Stream and Message data on the same Path in an association, the niceness
-classes for Streams and Messages are interleaved; e.g. niceness 2 Stream
-frames will yield to niceness 1 Message frames.
-
-The underlying transport protocol may make whatever use of
-the Paths and known properties of those Paths it sees fit when transporting a
-Stream.
+Writing a byte to a Stream will cause it to be received by the remote, in
+order, or will cause an error condition and termination of the stream if the
+byte cannot be delivered. Due to the strong sequential dependence on a stream,
+streams must always be reliable and ordered. A Message Carrier may only be
+morphed to a Stream if it uses transport protocol stack that provides
+reliable, ordered service.
 
 ## Association
 
-[EDITOR'S NOTE the state container behind one or more carriers]
+An Association contains the long-term state necessary to support
+communications between a Local (see {{local}}) and a Remote (see {{Remote}})
+endpoint, such as cryptographic session resumption parameters or rendezvous
+information; information about the policies constraining the selection of
+transport protocols and local interfaces to create Transients (see
+{{transient}}) to carry Messages; and information about the paths through the
+network available available between them (see {{path}}).
+
+All Message Carriers are bound to an Association; new Message Carriers will
+reuse an Association if they can be carried from the same Local to the same
+Remote over the same Paths.
 
 ## Transient
 
-[EDITOR'S NOTE the binding between the carrier and however it's implemented; everything below here is implementation-specific]
+A Transient represents a binding between a Message Carrier and the instance of
+the transport protocol stack that implements it. As an Association contains
+long-term state for communications between two endpoints, a Transient contains
+ephemeral state for a single transport protocol over a single Path at a given
+point in time.
+
+Transients are generally not exposed by the API to the application, though
+they may be used for debugging and logging purposes.
 
 ## Path
 
-[EDITOR'S NOTE the state container for information about a path; unlike transient, may be persistent]
+A Path represents information about a single path through the network used by
+an Association, in terms of source and destination network and transport layer
+addresses within an addressing context. This information may be learned
+through a resolution, discovery, or rendezvous process (e.g. DNS, ICE), by
+measurements taken by the transport protocol stack, or by some other path
+information discovery mechanism. It is used by the transport protocol stack to
+maintain and/or (re-)establish communications for the Association.
 
-## Remote
-
-[EDITOR'S NOTE: not quite right. note that remotes may be at various levels of
-resolution. resolving a remote gives you another remote. might also be URLs,
-etc, etc, etc.]
-
-A Remote represents all the information required to establish and maintain a
-connection with the far end of an Association: network-layer address,
-transport-layer port, information about public keys or certificate authorities
-used to identify the remote on connection establishment, etc. Each
-Association is associated with a single Remote, either explicitly by the
-application (when created by active open) or by the Listener (when created by
-passive open). The resolution of Remotes from higher-layer information (URIs,
-hostnames) is architecture-dependent.
-
-## Local
-
-[EDITOR'S NOTE: Local only encapsulates application-relevant local properties.
-We should note that provisioning domains are separate, and live behind this
-somewhere...]
-
-A Local represents all the information about the local endpoint necessary to
-establish an Association or a Listener: interface and port designators, as
-well as certificates and associated private keys.
-
-
-
-
-## Carrier
-
-A carrier is a transport-independent 
-
-[EDITOR'S NOTE: terminology question: is our "Stream" really a "Carrier" or a "Channel"? I like "carrier"; it doesn't collide in Layer 3 or 4 terminology and fits nicely with "Post" (i.e. "letter carrier"). "Bytestream" then turns back into "Stream". Thoughts?]
-
-Messages are sent and received over Streams, which represent a networks'  Messages sent on a Stream will be
-received at the other end, atomically, but not necessarily reliably or in
-order. An application may use one or more Streams to communicate with a remote
-application; the semantics of which Messages belong on which Streams are, in
-this case, application-specific.
-
-
-
-## Listener
-
-[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
-and cryptographic state setup to create an Association from a Local and a
-not-previously-known Remote.]
-
-In many applications, there is a distinction between the active opener (or
-connection initiator, often a client), and the passive opener (often a
-server). A Listener represents an endpoint's willingness to start
-Associations in this passive opener/server role. It is, in essence, a
-one-sided, Path-less Association from which fully-formed Associations can
-be created.
-
-Listeners work very much like sockets on which the listen(2) call has
-been called in the SOCK_STREAM API.
-
-
-## Association
-
-An Association is... [EDITOR'S NOTE: work pointer]
-
-Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
-to be relatively long-lived. The lifetime of an Association is not bound to
-the lifetime of any transport-layer connection between the two endpoints;
-connections may be opened or closed as necessary to support the Streams and
-Object transmissions required by the application, and the application need
-not be bothered with the underlying connectivity state unless this is
-important to the application's semantics.
-
-Transients may be dynamically added or removed from an association, as well, as
-connectivity between the endpoints changes. An Association may exist even if
-there are no currently active paths available between them. Cryptographic
-identifiers and state for endpoints may also be added and removed as necessary
-due to certificate lifetime, key rollover, revocation, and so on.
-
-
-
-
-## Transient
-
-[EDITOR'S NOTE write me]
-
-## Path
-
-A Path represents a local and remote endpoint address, an optional set of
-intermediary path elements between the local and remote endpoint addresses,
-and a set of properties associated with the path.
-
-The set of available properties is a function of the underlying network-layer
-protocols used to expose the properties to the endpoint. However, the
-following core properties are generally useful for applications and transport
-layer protocols to choose among paths for specific Messages:
+The set of available properties is a function of the transport protocol stacks
+in use by an association. However, the following core properties are generally
+useful for applications and transport layer protocols to choose among paths
+for specific Messages:
 
 - Maximum Transmission Unit (MTU): the maximum size of an Message's payload
   (subtracting transport, network, and link layer overhead) which will likely
@@ -519,43 +453,57 @@ layer protocols to choose among paths for specific Messages:
   signals from path elements.
 - Reserved Data Rate: Committed, reserved data rate for the given
   Association along the Path. Requires a bandwidth reservation service in the
-  underlying transport and network layer protocol.
+  underlying transport protocol stack.
 - Path Element Membership: Identifiers for some or all nodes along the
   path, depending on the capabilities of the underlying network layer protocol
   to provide this. 
 
-Path properties are generally read-only. MTU is a property of the
-underlying link-layer technology on each link in the path; latency, loss, and
-rate expectations are dynamic properties of the network configuration and
-network traffic conditions; path element membership is a function of network
-topology. In an explicitly multipath architecture, application and transport layer
-requirements are met by having multiple paths with different properties to
-select from. Post can also provide signaling to the path, but this
-signaling is derived from information provided to the Message abstraction,
-below.
+Path properties are generally read-only. MTU is a property of the underlying
+link-layer technology on each link in the path; latency, loss, and rate
+expectations are dynamic properties of the network configuration and network
+traffic conditions; path element membership is a function of network topology.
+In an explicitly multipath architecture, application and transport layer
+requirements can be met by having multiple paths with different properties to
+select from. Transport protocol stacks can also provide signaling to devices
+along the path, but this signaling is derived from information provided to the
+Message abstraction.
 
 Note that information about the path and signaling to path elements could be
 provided by a facility such as PLUS {{I-D.trammell-plus-abstract-mech}}.
 
-## Pathfinder
+## Remote
 
-[EDITOR'S NOTE: write me, encapsulates any re-establishment and rendezvous
-protocol. might be equivalent to connect(), might also need to use something
-like ICE. Connection racing also fits behind the Pathfinder. Notes from Seoul:
-add a Pathfinder abstraction for rendezvous, especially in peer-to-peer
-situations. A Pathfinder encapsulates a method for reconnecting to a specific
-remote (e.g., underlying transport connect() call in the case of client-
-server, something like ICE in peer-to-peer). Add a pathfind() call to ensure
-an association has paths; this *must* be called before Messages can be sent.
-send() should *not* bring a dormant path up by default, it should fail. ]
+A Remote represents information required to establish and maintain a
+connection with the far end of an Association: name(s), address(es), and
+transport protocol parameters that can be used to establish a Transient;
+transport protocols to use; information about public keys or certificate
+authorities used to identify the remote on connection establishment; and so
+on. Each Association is associated with a single Remote, either explicitly by
+the application (when created by the initiation of a Message Carrier) or a
+Listener (when created by forking a Message Carrier on passive open).
 
+A Remote may be resolved, which results in zero or more Remotes with more
+specific information. For example, an application may want to establish a
+connection to a website identified by a URL https://www.example.com. This URL
+would be wrapped in a Remote and passed to a call to initiate a Message
+Carrier. The first pass resolution might parse the URL, decomposing it into a
+name, a transport port, and a transport protocol to try connecting with. A
+second pass resolution would then look up network-layer addresses associated
+with that name through DNS, and store any certificates available from DANE.
+Once a Remote has been resolved to the point that a transport protocol stack
+can use it to create a Transient, it is considered fully resolved.
 
-## Bytestream
+## Local
+
+A Local represents all the information about the local endpoint necessary to
+establish an Association or a Listener: interface, port, and transport
+protocol stack information, as well as certificates and associated private
+keys to use to identify this endpoint.
 
 
 # Abstract Programming Interface
 
-[EDITOR'S NOTE: make sure this fits with the abstractions above after they're finished.]
+[EDITOR'S NOTE: Rewrite me based on the Go code. WORK POINTER.]
 
 We now turn to the design of an abstract programming interface to provide a
 simple interface to Post's abstractions, constrained by the following design
@@ -820,3 +768,72 @@ that Messages will be delivered in the order sent by the application.
 When an application has hard semantic requirements that all the frames of a
 given Message be sent down a given Path or Paths, these hard constraints can
 also be expressed by the application.
+
+
+
+## Carrier
+
+A carrier is a transport-independent 
+
+[EDITOR'S NOTE: terminology question: is our "Stream" really a "Carrier" or a "Channel"? I like "carrier"; it doesn't collide in Layer 3 or 4 terminology and fits nicely with "Post" (i.e. "letter carrier"). "Bytestream" then turns back into "Stream". Thoughts?]
+
+Messages are sent and received over Streams, which represent a networks'  Messages sent on a Stream will be
+received at the other end, atomically, but not necessarily reliably or in
+order. An application may use one or more Streams to communicate with a remote
+application; the semantics of which Messages belong on which Streams are, in
+this case, application-specific.
+
+
+
+## Listener
+
+[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
+and cryptographic state setup to create an Association from a Local and a
+not-previously-known Remote.]
+
+In many applications, there is a distinction between the active opener (or
+connection initiator, often a client), and the passive opener (often a
+server). A Listener represents an endpoint's willingness to start
+Associations in this passive opener/server role. It is, in essence, a
+one-sided, Path-less Association from which fully-formed Associations can
+be created.
+
+Listeners work very much like sockets on which the listen(2) call has
+been called in the SOCK_STREAM API.
+
+
+## Association
+
+An Association is... [EDITOR'S NOTE: work pointer]
+
+Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
+to be relatively long-lived. 
+
+Transients may be dynamically added or removed from an association, as well, as
+connectivity between the endpoints changes. An Association may exist even if
+there are no currently active paths available between them. Cryptographic
+identifiers and state for endpoints may also be added and removed as necessary
+due to certificate lifetime, key rollover, revocation, and so on.
+
+## Path
+
+A Path represents a local and remote endpoint address, an optional set of
+intermediary path elements between the local and remote endpoint addresses,
+and a set of properties associated with the path.
+
+
+## Pathfinder
+
+[EDITOR'S NOTE: write me, encapsulates any re-establishment and rendezvous
+protocol. might be equivalent to connect(), might also need to use something
+like ICE. Connection racing also fits behind the Pathfinder. Notes from Seoul:
+add a Pathfinder abstraction for rendezvous, especially in peer-to-peer
+situations. A Pathfinder encapsulates a method for reconnecting to a specific
+remote (e.g., underlying transport connect() call in the case of client-
+server, something like ICE in peer-to-peer). Add a pathfind() call to ensure
+an association has paths; this *must* be called before Messages can be sent.
+send() should *not* bring a dormant path up by default, it should fail. ]
+
+
+## Bytestream
+
