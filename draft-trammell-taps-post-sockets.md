@@ -320,12 +320,50 @@ independent **thing** for sending and receiving messages between an
 application and a remote endpoint; it is roughly analogous to a socket in the
 present sockets API.
 
-A Carrier that is backed by current transport protocol stack state (such as a
-TCP connection; see {{transient}}) is said to be "active": messages can be
-sent and received over it. A Carrier can also be "dormant": [EDITOR'S NOTE work pointer]
+All the Messages sent to a Message Carrier will be received on the
+corresponding Message Carrier at the remote endpoint, though not necessarily
+reliably or in order, depending on Message properties and the underlying
+transport protocol stack.
+
+A Message Carrier that is backed by current transport protocol stack state
+(such as a TCP connection; see {{transient}}) is said to be "active": messages
+can be sent and received over it. A Message Carrier can also be "dormant":
+there is long-term state associated with it (via the underlying Association;
+see {{association}}), and it may be able to reactivated, but messages cannot
+be sent and received immediately.
+
+If supported by the underlying transport protocol stack, a Message Carrier may
+be "forked": creating a new Message Carrier associated with a new Message
+Carrier at the same remote endpoint. The semantics of the usage of multiple
+Message Carriers on the same Association are application-specific. Carrier
+forking is used for passive opens in client-server applications, as well; see
+{{listener}}.
+
+To exchange messages with a given remote endpoint, an application may initiate
+a Message Carrier given its remote  (see {{remote}} and local (see {{local}})
+identities; this is an equivalent to an active open. There are five special
+cases of Message Carriers, as well, supporting different initiation and
+interaction patterns, defined in the subsections below.
+
+### Listener
+
+[EDITOR'S NOTE this is basically a message carrier that's only used for forking]
+
+### Responder
+
+[EDITOR'S NOTE an abstraction where each message gets a callback and the carrier is hidden, for 1:1 or 1:n message exchange in a client-server pattern]
+
+### Source
+
+[EDITOR'S NOTE an abstraction for send-only applications, including multicast]
+
+### Sink
+
+[EDITOR'S NOTE an abstraction for receive-only applications, including multicast]
 
 ### Stream
 
+[EDITOR'S NOTE morph a carrier irreversably into a file; some of what's below might be useful]
 
 The Stream abstraction is provided for two reasons. First, since it is the
 most like the existing SOCK_STREAM interface, it is the simplest abstraction
@@ -359,19 +397,17 @@ The underlying transport protocol may make whatever use of
 the Paths and known properties of those Paths it sees fit when transporting a
 Stream.
 
-## Listener
-
-## Responder
-
-## Source
-
-## Sink
-
 ## Association
+
+[EDITOR'S NOTE the state container behind one or more carriers]
 
 ## Transient
 
+[EDITOR'S NOTE the binding between the carrier and however it's implemented; everything below here is implementation-specific]
+
 ## Path
+
+[EDITOR'S NOTE the state container for information about a path; unlike transient, may be persistent]
 
 ## Remote
 
@@ -413,8 +449,6 @@ order. An application may use one or more Streams to communicate with a remote
 application; the semantics of which Messages belong on which Streams are, in
 this case, application-specific.
 
-Streams may be created either actively (through the initiate() call),
-passively (by a Listener), or implicitly (by a Source, Sink, or Responder)
 
 
 ## Listener
