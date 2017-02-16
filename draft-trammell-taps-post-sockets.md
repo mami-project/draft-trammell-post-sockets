@@ -299,6 +299,13 @@ The sending transport uses deadlines, niceness, and antecedents, along with
 information about the properties of the Paths available, to determine when to
 send which Message down which Path.
 
+### Idempotence
+
+A sending application may mark a Message as "idempotent" to signal to the
+underlying transport protocol stack that its application semantics make it
+safe to send in situations that may cause it to be received more than once
+(i.e., for 0-RTT session resumption as in TCP Fast Open and QUIC).
+
 ### Additional Events
 
 Senders may also be asynchronously notified of three events on Messages they
@@ -309,10 +316,8 @@ all of these events.
 
 ## Message Carrier {#carrier}
 
-[EDITOR'S NOTE: replace **thing**]
-
 A Message Carrier (or simply Carrier) is a transport protocol stack-
-independent **thing** for sending and receiving messages between an
+independent interface for sending and receiving messages between an
 application and a remote endpoint; it is roughly analogous to a socket in the
 present sockets API.
 
@@ -336,10 +341,8 @@ there is long-term state associated with it (via the underlying Association;
 see {{association}}), and it may be able to reactivated, but messages cannot
 be sent and received immediately.
 
-[EDITOR'S NOTE: replace **forked**?]
-
 If supported by the underlying transport protocol stack, a Message Carrier may
-be **forked**: creating a new Message Carrier associated with a new Message
+be forked: creating a new Message Carrier associated with a new Message
 Carrier at the same remote endpoint. The semantics of the usage of multiple
 Message Carriers on the same Association are application-specific. When a
 Message Carrier is forked, its corresponding Message Carrier at the remote
@@ -380,9 +383,23 @@ receivers. Sources cannot be forked, and need not accept forks.
 
 A Responder is a special case of Message Carrier which may receive messages
 from many remote sources, for cases in which an application will only ever
-send Messages in reply back to the source from which a Message was received. A
-Responder's receiver gets a Message, as well as a Source to send replies to.
-Responders cannot be forked, and need not accept forks.
+send Messages in reply back to the source from which a Message was received.
+This is a common implementation pattern for servers in client-server
+applications. A Responder's receiver gets a Message, as well as a Source to
+send replies to. Responders cannot be forked, and need not accept forks.
+
+### Dialogue
+
+[EDITOR'S NOTE: not discussed, but we probably need a client-side mirror of
+responder. Problem: how does the dialogue know that a reply is linked to a
+request, and how does it know when the replies stop? This is not yet in the
+API sketch.]
+
+A Dialogue is a special case of Message Carrier which sends Messages to a
+single source, and receives one or more messages in reply. This is a common
+implementation pattern for clients in client-server applications; this Carrier
+complements its server-side Responder counterpart. Sending a message on a
+Dialogue takes an additional callback for Messages received in reply.
 
 ### Stream
 
@@ -420,8 +437,14 @@ long-term state for communications between two endpoints, a Transient contains
 ephemeral state for a single transport protocol over a single Path at a given
 point in time.
 
+A Message Carrier may be served by multiple Transients at once, e.g. when
+implementing multipath communication such that the separate paths are exposed
+to the API by the underlying transport protocol stack. Likewise, a Transient
+may serve multiple Message Carriers at once, e.g. when the Carriers are
+multiplexed over a multistreaming transport protocol stack.
+
 Transients are generally not exposed by the API to the application, though
-they may be used for debugging and logging purposes.
+they may be accessible for debugging and logging purposes.
 
 ## Path
 
@@ -500,9 +523,24 @@ establish an Association or a Listener: interface, port, and transport
 protocol stack information, as well as certificates and associated private
 keys to use to identify this endpoint.
 
-# Abstract Programming Interface
+## Policy Context
 
-[EDITOR'S NOTE: Rewrite me based on the Go code. WORK POINTER.]
+A Local and a Remote is not necessarily enough to establish a Message Carrier
+between two endpoints. For instance, an application may require or prefer
+certain transport features (see {{I-D.ietf-taps-transports}}) in the transport
+protocol stacks used by the Transients underlying the Carrier; it may also
+prefer Paths over one interface to those over another (e.g. WiFi access over
+LTE when roaming on a foreign LTE network, due to cost). These policies are
+expressed in a Policy Context bound to an Association. Multiple policy
+contexts may be active at once; e.g. a system Policy Context expressing
+administrative preferences about interface and protocol selection, an
+application Policy Context expressing transport feature information. The
+expression of policy contexts and the resolution of conflicts among Policy
+Contexts is currently implementation-specific.
+
+[EDITOR'S NOTE: is there a NEAT reference we can give here?]
+
+# Abstract Programming Interface
 
 We now turn to the design of an abstract programming interface to provide a
 simple interface to Post's abstractions, constrained by the following design
@@ -538,29 +576,76 @@ without priority or deadline, which guarantees ordered delivery over a single
 Carrier when the underlying transport protocol stack supports it).
 
 The current state of API development is illustrated as a set of interfaces and
-function prototypes in Go, below; future revisions of this document will give more a more abstract specification of the API as development completes.
-
-[EDITOR'S NOTE api.go goes here]
+function prototypes in the Go programming language in {{api-sketch}}; future
+revisions of this document will give more a more abstract specification of the
+API as development completes.
 
 ## Example Connection Patterns
 
-[EDITOR'S NOTE write me]
+Here, we illustrate the usage of the API outlined in {{api-sketch}} for common
+connection patterns. Note that error handling is ignored in these
+illustrations for ease of reading.
 
 ### Client-Server
 
-[EDITOR'S NOTE write me]
+Here's an example client-server application. The server echoes messages. The
+client sends a message and prints what it receives.
+
+~~~~~~~~
+// connect to a server given a remote
+func sayHello() {
+
+    carrier := Initiate(local, remote)
+
+    carrier.Send([]byte("Hello!"))
+    carrier.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg))
+        return false
+    })
+    carrier.Close()
+}
+~~~~~~~~
+{: #fig-client title="Example client"}
+
+The client in {{fig-client}} sends a message and sets up a receiver to print
+messages received in response.
+
+~~~~~~~~
+// run a server for a specific carrier, echo all its messages
+func runMyServerOn(carrier Carrier) {
+    carrier.Ready(func (msg InMessage) {
+        carrier.Send([]byte(msg))
+    })
+}
+
+// accept connections forever, spawn servers for them
+func acceptConnections() {
+    listener := Listen(local)
+    listener.Accept(func(carrier Carrier) bool {
+        go runMyServerOn(carrier)
+        return true
+    })
+}
+~~~~~~~~
+{: #fig-server title="Example server"}
+
+The server in {{fig-server}} creates a Listener, which accepts Carriers and passes them to a server, which echoes
+
+[EDITOR'S NOTE: write me: illustrate simplification using Responder and Dialogue]
 
 ### Client-Server with Happy Eyeballs
 
-[EDITOR'S NOTE write me]
+[EDITOR'S NOTE write me: note that the Remotes can be unresolved, that many candidate Transients can be started at once by the API implementation, that one or more will "win" and some will be abandoned. this isn't an example as much as additional discussion of the previous example.]
 
 ### Peer to Peer with Network Address Translation
 
-[EDITOR'S NOTE write me]
+[EDITOR'S NOTE write me: here you do simultaneous initiation using a Remote
+that refers to a rendezvous point.]
 
 ### Multicast Receiver
 
-[EDITOR'S NOTE write me]
+[EDITOR'S NOTE write me: set up a sink on a multicast group and just keep
+receiving.]
 
 ## Implementation Considerations
 
@@ -569,7 +654,10 @@ Post works without object framing on the sender side, but in this case
 requires additional deframing help on the application side. Necessary to show
 that you can port to Post even if your other endpoint is TCP-only. If there is
 no framing available in the underlying transport, send() fails. If there are
-too many open streams, open_stream() fails.]
+too many open streams, open_stream() fails. There must be a way for the
+application to provide message backpressure; i.e. through a channel with
+a given buffer length, or a maximum callback concurrency. Maximum message size
+may be difficult to determine and negotiate.]
 
 # Acknowledgments
 
@@ -587,272 +675,204 @@ endorsement.
 
 --- back
 
-# Implementation Notes 
+# API sketch in Golang {#api-sketch}
+
+~~~~~~~~
+// The interface to path information is TBD
+type Path interface{}
+
+// An association encapsulates an endpoint pair and the set of paths between them.
+type Association interface {
+    Local() Local
+    Remote() Remote
+    Paths() []Path
+}
+
+// A message together with with metadata needed to send it
+type OutMessage struct {
+    // The content of this message, as a byte array
+    Content []byte
+    // The niceness of this message. 0 is highest priority.
+    Niceness uint
+    // The lifetime of this message. After this duration, the message may expire.
+    Lifetime time.Duration
+    // Pointers to messages that must be sent before this one.
+    Antecedent []*OutMessage
+    // True if the message is safe to send such that it may be received multiple times (i.e. for 0-RTT).
+    Idempotent bool
+}
+
+// A message received from a stream
+type InMessage []byte
+
+// A Carrier is a transport protocol stack-independent interface for sending and
+// receiving messages between an application and a remote endpoint; it is roughly
+// analogous to a socket in the present sockets API.
+type Carrier interface {
+    // Send a byte array on this Carrier as a message with default metadata
+    // and no notifications.
+    Send(buf []byte) error
+
+    // Send a message on this Carrier. The optional onSent function will be
+    // called when the protocol stack instance has sent the message. The
+    // optional onAcked function will be called when the receiver has
+    // acknowledged the message. The optional onExpired function will be
+    // called if the message's lifetime expired before the message coult be
+    // sent. If the Carrier is not active, attempt to activate the Carrier
+    // before sending.
+    Sendmsg(msg *OutMessage, onSent func(), onAcked func(), onExpired func()) error
+
+    // Signal that an application is ready to receive messages via a given callback.
+    // Messages will be given to the callback until it returns false, or until the
+    // Carrier is closed.
+    Ready(receive func(InMessage) bool) error
+
+    // Retrieve the Association over which this Carrier is running.
+    Association() *Association
+
+    // Retrieve the active Transients over which this carrier is running, if active.
+    Transients() []Transient
+
+    // Determine whether the Carrier is currently active
+    IsActive() bool
+
+    // Ensure that the Carrier is active and ready to send and receive messages.
+    // Attempts to bring up at least one Transient.
+    Activate() error
+
+    // Terminate the Carrier
+    Close()
+
+    // Mutate to a file-like object
+    AsStream() io.ReadWriteCloser
+
+    // Attempt to fork a new Carrier for communicating with the same Remote
+    Fork() (Carrier, error)
+
+    // Signal that an application is ready to accept forks via a given callback.
+    // Forked carriers will be given to the callback until it returns false or
+    // until the Carrier is closed.
+    Accept(accept func(Carrier) bool) error
+}
+
+// Initiate a Carrier from a given Local to a given Remote. Returns a new
+// Carrier, which may be bound to an existing or a new Association. The
+// initiated Carrier is not yet active.
+func Initiate(local Local, remote Remote) (Carrier, error)
+
+type Listener interface {
+    // Signal that an application is ready to accept forks via a given callback.
+    // Accept will terminate when the callback returns false, or until the
+    // Listener is closed.
+    Accept(accept func(Carrier) bool) error
+
+    // Terminate this Listener
+    Close()
+}
+
+// Create a Listener on a given Local which will pass new Carriers to the
+// given channel until that channel is closed.
+func Listen(local Local) (Listener, error)
+
+// A Source is a unidirectional, send-only Carrier.
+type Source interface {
+    // Send a byte array on this Source as a message with default metadata
+    // and no notifications.
+    Send(buf []byte) error
+
+    // Send a message on this Source. The optional onSent function will be
+    // called when the protocol stack instance has sent the message. The
+    // optional onAcked function will be called when the receiver has
+    // acknowledged the message. The optional onExpired function will be
+    // called if the message's lifetime expired before the message coult be
+    // sent. If the Source is not active, attempt to activate the Source
+    // before sending.
+    Sendmsg(msg *OutMessage, onSent func(), onAcked func(), onExpired func()) error
+
+    // Retrieve the Association over which this Source is running.
+    Association() *Association
+
+    // Determine whether the Source is currently active
+    IsActive() bool
+
+    // Ensure that the Source is active and ready to send messages.
+    // Attempts to bring up at least one Transient.
+    Activate() error
+
+    // Terminate the Source
+    Close()
+}
+
+// Initiate a Source from a given Local to a given Remote. Returns a new
+// Source, which may be bound to an existing or a new Association. The
+// initiated Source is not yet active.
+func NewSource(local Local, remote Remote) (Source, error)
+
+// A Sink is a unidirectional, receive-only Carrier, bound only to a local.
+type Sink interface {
+    // Signal that an application is ready to receive messages via a given callback.
+    // Messages will be given to the callback until it returns false, or until the
+    // Sink is closed.
+    Ready(receive func(InMessage) bool) error
+
+    // Retrieve the Association over which this Sink is running.
+    Association() *Association
+
+    // Terminate the Sink
+    Close()
+}
+
+// Initiate a Sink on a given Local. Returns a new
+// Sink, which may be bound to an existing or a new Association.
+func NewSink(local Local) (Sink, error)
+
+// Initiate a Responder on a given Local. For each incoming Message, calls the
+// respond function with the Message and a Sink to send replies to. Calls the
+// Responder until it returns False, then terminates
+func Respond(local Local, respond func(msg InMessage, reply Sink) bool) error
+
+// A local identity
+type Local struct {
+    // A string identifying an interface or set of interfaces to accept messages and new carriers on.
+    Interface string
+    // A transport layer port
+    Port int
+    // A set of zero or more end entity certificates, together with private
+    // keys, to identify this application with.
+    Certificates []tls.Certificate
+}
+
+// Encapsulate a remote identity. Since the contents of a Remote are highly
+// dependent on its level of resolution; some examples are below.
+type Remote interface {
+    // Resolve this Remote Identity to a
+    Resolve() ([]RemoteIdentity, error)
+    // Returns True if the Remote is completely resolved; i.e., cannot be resol
+    Complete() bool
+}
+
+// Remote consisting of a URL
+type URLRemote struct {
+    URL string
+}
+
+// Remote encapsulating a name and port number
+type NamedEndpointRemote struct {
+    Hostname string
+    Port     int
+}
+
+// Remote encapsulating an IP address and port number
+type IPEndpointRemote struct {
+    Address net.IP
+    Port    int
+}
+
+// Remote encapsulating an IP address and port number, and a set of presented certificates
+type IPEndpointCertRemote struct {
+    Address      net.IP
+    Port         int
+    Certificates []tls.Certificate
+}
+~~~~~~~~
 
-[EDITOR'S NOTE: most of this goes into the FIT paper instead?]
-
-## From Policies to Paths
-
-[EDITOR'S NOTE: write a section on the pathfinder]
-
-## Supporting Stack Agility
-
-[EDITOR'S NOTE: write a section on protocol stack instances]
-
-## Playing with PostSockets: Golang implementation
-
-[EDITOR'S NOTE: short howto on the Go implementation]
-
-# Scrapyard
-
-[EDITOR'S NOTE: Here are a few paragraphs that don't fit in the draft but that haven't been deleted yet, in case they are useful after the reorg of the doc is complete]
-
-
-Messages larger
-than the MTU on the Path on which they are sent will be segmented into
-multiple frames. Multiple Messages that will fit into a single frame may be
-concatenated into one frame. There is no preference for transmitting the
-multiple frames for a given Message in any particular order, or by default,
-that Messages will be delivered in the order sent by the application. 
-
-When an application has hard semantic requirements that all the frames of a
-given Message be sent down a given Path or Paths, these hard constraints can
-also be expressed by the application.
-
-
-
-## Carrier
-
-A carrier is a transport-independent 
-
-[EDITOR'S NOTE: terminology question: is our "Stream" really a "Carrier" or a "Channel"? I like "carrier"; it doesn't collide in Layer 3 or 4 terminology and fits nicely with "Post" (i.e. "letter carrier"). "Bytestream" then turns back into "Stream". Thoughts?]
-
-Messages are sent and received over Streams, which represent a networks'  Messages sent on a Stream will be
-received at the other end, atomically, but not necessarily reliably or in
-order. An application may use one or more Streams to communicate with a remote
-application; the semantics of which Messages belong on which Streams are, in
-this case, application-specific.
-
-
-
-## Listener
-
-[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
-and cryptographic state setup to create an Association from a Local and a
-not-previously-known Remote.]
-
-In many applications, there is a distinction between the active opener (or
-connection initiator, often a client), and the passive opener (often a
-server). A Listener represents an endpoint's willingness to start
-Associations in this passive opener/server role. It is, in essence, a
-one-sided, Path-less Association from which fully-formed Associations can
-be created.
-
-Listeners work very much like sockets on which the listen(2) call has
-been called in the SOCK_STREAM API.
-
-## Association
-
-An Association is... [EDITOR'S NOTE: work pointer]
-
-Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
-to be relatively long-lived. 
-
-Transients may be dynamically added or removed from an association, as well, as
-connectivity between the endpoints changes. An Association may exist even if
-there are no currently active paths available between them. Cryptographic
-identifiers and state for endpoints may also be added and removed as necessary
-due to certificate lifetime, key rollover, revocation, and so on.
-
-## Path
-
-A Path represents a local and remote endpoint address, an optional set of
-intermediary path elements between the local and remote endpoint addresses,
-and a set of properties associated with the path.
-
-
-## Pathfinder
-
-[EDITOR'S NOTE: write me, encapsulates any re-establishment and rendezvous
-protocol. might be equivalent to connect(), might also need to use something
-like ICE. Connection racing also fits behind the Pathfinder. Notes from Seoul:
-add a Pathfinder abstraction for rendezvous, especially in peer-to-peer
-situations. A Pathfinder encapsulates a method for reconnecting to a specific
-remote (e.g., underlying transport connect() call in the case of client-
-server, something like ICE in peer-to-peer). Add a pathfind() call to ensure
-an association has paths; this *must* be called before Messages can be sent.
-send() should *not* bring a dormant path up by default, it should fail. ]
-
-
-
-listener, association, and
-stream), four entry points (listen(), associate(), send(), and
-open_stream()) and a set of callbacks for handling events at each endpoint.
-The details are given in the subsections below.
-
-## Active Association Creation
-
-Associations can be created two ways: actively by a connection initiator, and passively by a Listener that accepts a connection. Connection initiation uses the associate() entry point:
-
-association = associate(local, remote, receive_handler)
-
-where: 
-
-- local: a resolved Local (see {{address-resolution}}) describing the local identity and interface(s) to use
-- remote: a resolved Remote (see {{address-resolution}}) to associate with
-- receive_handler: a callback to be invoked when new objects are received; see  {{receiving-objects}} 
-
-The returned association has the following additional properties:
-
-- paths: a set of Paths that the Association can currently use to transport Objects. When the underlying transport connection is closed, this set will be empty. For explicitly multipath architectures and transports, this set may change dynamically during the lifetime of an association, even while it remains connected.
-
-Since the existence of an association does not necessarily imply
-current connection state at both ends of the Association, these objects are
-durable, and can be cached, migrated, and restored, as long as the mappings to
-their event handlers are stable. An attempts to send an object or open a
-stream on a dormant, previously actively-opened association will cause the
-underlying transport connection state to be resumed.
-
-## Listener and Passive Association Creation
-
-In order to accept new Association requests from clients, a server must create a Listener object, using the listen() entry point:
-
-listener = listen(local, accept_handler)
-
-where: 
-
-- local: resolved Local (see {{address-resolution}}) describing the local identity and interface(s) to use for Associations created by this listener.
-- accept_handler: callback to be invoked each time an association is requested by a remote, to finalize setting the association up. Platforms may provide a default here for supporting synchronous association request handling via an object queue.
-
-The accept_handler has the following prototype:
-
-accepted = accept_handler(listener, local, remote)
-
-where:
-
-- local: a resolved Local on which the association request was received.
-- remote: a resolved Remote from which the association request was received. 
-- accepted: flag, true if the handler decided to accept the request, false otherwise.
-
-The accept_handler() calls the accept() entry point to finally create the association:
-
-association = accept(listener, local, remote, receive_handler)
-
-## Sending Objects 
-
-Objects are sent using the send() entry point:
-
-send(association, bytes, [lifetime], [niceness], [oid], [antecedent\_oids], [paths])}
-
-where:
-
-- association: the association to send the object on
-- bytes: sequence of bytes making up the object. For platforms without bounded byte arrays, this may be implemented as a pointer and a length.
-- lifetime: lifetime of the object in milliseconds. This parameter is optional and defaults to infinity (for fully reliable object transport).
-- niceness: the object's niceness class. This parameter is optional and defaults to zero (for lowest niceness / highest priority)
-- oid: opaque identifier for an object, assigned by the application. Used to refer to this object as a subsequently sent object's antecedent, or in an ack or expired handler (see {{events}}). Optional, defaults to null.
-- antecedent_oids: set of object identifiers on which this object depends and which must be sent before this object. Optional, defaults to empty, meaning this object has no antecedent constraints.
-- paths: set of paths, as a subset of those available to the association, to explicitly use for this object. Optional, defaults to empty, meaning all paths are acceptable.
-
-Calls to send are non-blocking; a synchronous send which blocks on remote
-acknowledgment or expiry of an object can be implemented by a call to send()
-followed by a wait on the ack or expired events (see {{events}}).
-
-## Receiving Objects
-
-An application receives objects via its receive_handler callback, registered
-at association creation time. This callback has the following prototype:
-
-receive_handler(association, bytes)
-
-where:
-- association: the association the object was received from.
-- bytes: the sequence of bytes making up the object.
-
-For ease of porting synchronous datagram applications, implementations may
-make a default receive handler available, which allows messages to be
-synchronously polled from a per-association object queue. If this default is
-available, the entry point for the polling call is:
-
-bytes = receive_next(association)
-
-## Creating and Destroying Streams
-
-A stream may be created on an association via the open_stream() entry point:
-
-stream = open_stream(association, [sid])
-
-where:
-
-- association: the association to open the stream on
-- sid: opaque identifier for a stream. For transport protocols which do not support multiple streaming, this argument has no effect.
-
-A stream with a given sid must be opened by both sides before it can be used.
-
-The stream object returned should act like a file descriptor or bidirectional
-I/O object, according to the conventions of the platform implementing Post.
-
-## Events
-
-Message reception is a specific case of an event that can occur on an
-association. Other events are also available, and the application can register
-event handlers for each of these. Event handlers are registered via the
-handle() entry point:
-
-handle(association, event, handler) or
-
-handle(oid, event, handler)
-
-where
-
-- association: the association to register a handler on, or
-- oid: the object identifier to register a handler on
-- event: an identifier of the event to register a handler on
-- handler: a callback to be invoked when the event occurs, or null if the event should be ignored.
-
-The following events are supported; every event handler takes the association
-on which it is registered as well as any additional arguments listed:
-
-- receive (bytes): an object has been received
-- path_up (path): a path is newly available
-- path_down (path): a path is no longer available
-- dormant: no more paths are available, the association is now dormant, and the connection will need to be resumed if further objects are to be sent
-- ack (oid): an object was successfully received by the remote
-- expired (oid): an object expired before being sent to the remote
-
-Handlers for the ack and expired events can be registered on an association
-(in which case they are called for all objects sent on the association) or on
-an oid (in which case they are only called for the oid).
-
-## Paths and Path Properties
-
-As defined in {{path}}, the properties of a path include both the addresses of
-elements along the path as well as measurement-derived latency and capacity
-characteristics. The path_up and path_down events provide access to
-information about the paths available via the path argument to the event
-handler. This argument encapsulates these properties in a platform and
-transport-specific way, depending on the availability of information about the
-path.
-
-## Address Resolution
-
-Address resolution turns the name of a Remote into a resolved Remote object,
-which encapsulates all the information needed to connect (address, certificate
-parameters, cached cryptographic state, etc.); and an interface identifier on
-a local system to information needed to connect. Remote and local resolvers
-have the following entry points:
-
-remote = resolve(endpoint_name, configuration)
-
-local = resolve_local(endpoint_name, configuration)
-
-where:
-
-- endpoint_name: a name identifying the remote or local endpoint, including port
-- configuration: a platform-specific configuration object for configuring certificates, name resolution contexts, cached cryptographic state, etc. 
-
-## Configuration
-
-[EDITOR'S NOTE: add entry points for configurability, and make configuability
-consistent. system level and application level configuration. probably wrap
-all this in a configuration object.]
