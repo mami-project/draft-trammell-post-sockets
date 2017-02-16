@@ -500,7 +500,6 @@ establish an Association or a Listener: interface, port, and transport
 protocol stack information, as well as certificates and associated private
 keys to use to identify this endpoint.
 
-
 # Abstract Programming Interface
 
 [EDITOR'S NOTE: Rewrite me based on the Go code. WORK POINTER.]
@@ -515,6 +514,14 @@ be able to ignore controls and information irrelevant to their operation. This
 implies that the "default" interface must be no more complicated than BSD
 sockets, and must do something reasonable.
 
+- Reception is an inherently asynchronous activity. While the API is
+designed to be as platform-independent as possible, one key insight it is
+based on is that an Message receiver's behavior in a packet-switched network is
+inherently asynchronous, driven by the receipt of packets, and that this
+asynchronicity must be reflected in the API. The actual implementation of
+receive and event handling will need to be aligned to the method a given
+platform provides for asynchronous I/O.
+
 - A new API cannot be bound to a single transport protocol and expect
 wide deployment. As the API is transport-independent and may support runtime
 transport selection, it must impose the minimum possible set of constraints on
@@ -522,15 +529,163 @@ its underlying transports, though some API features may require underlying
 transport features to work optimally. It must be possible to implement Post
 over vanilla TCP in the present Internet architecture.
 
-- Reception is an inherently asynchronous activity. While the API is
-designed to be as platform-independent as possible, one key insight it is
-based on is that an Message receiver's behavior in a packet-switched network is
-inherently asynchronous, driven by the receipt of packets, and that this
-asynchronicity must be reflected in the API. The actual implementation of
-receive and event callbacks will need to be aligned to the method a given
-platform provides for asynchronous I/O.
+The API we design from these principles is centered around a Carrier, which
+can be created actively via initiate() or passively via a listen(); the latter
+creates a Listener from which new Carriers can be accept()ed.  Messages may be
+created explicitly and passed to this Carrier, or implicitly through a
+simplified interface which uses default message properties (reliable transport
+without priority or deadline, which guarantees ordered delivery over a single
+Carrier when the underlying transport protocol stack supports it).
 
-The API we define consists of three classes (listener, association, and
+The current state of API development is illustrated as a set of interfaces and
+function prototypes in Go, below; future revisions of this document will give more a more abstract specification of the API as development completes.
+
+[EDITOR'S NOTE api.go goes here]
+
+## Example Connection Patterns
+
+[EDITOR'S NOTE write me]
+
+### Client-Server
+
+[EDITOR'S NOTE write me]
+
+### Client-Server with Happy Eyeballs
+
+[EDITOR'S NOTE write me]
+
+### Peer to Peer with Network Address Translation
+
+[EDITOR'S NOTE write me]
+
+### Multicast Receiver
+
+[EDITOR'S NOTE write me]
+
+## Implementation Considerations
+
+[EDITOR'S NOTE: note what underlying transports must provide. Declare that
+Post works without object framing on the sender side, but in this case
+requires additional deframing help on the application side. Necessary to show
+that you can port to Post even if your other endpoint is TCP-only. If there is
+no framing available in the underlying transport, send() fails. If there are
+too many open streams, open_stream() fails.]
+
+# Acknowledgments
+
+Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at
+ETH Zurich for contributions to the initial design of Post Sockets. Thanks to
+Joe Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well
+as the attendees of the Post Sockets Design Meeting in February 2017 in Zurich
+for the discussions, which have improved the design described herein.
+
+This work is partially supported by the European Commission under Horizon 2020
+grant agreement no. 688421 Measurement and Architecture for a Middleboxed
+Internet (MAMI), and by the Swiss State Secretariat for Education, Research,
+and Innovation under contract no. 15.0268. This support does not imply
+endorsement.
+
+--- back
+
+# Implementation Notes 
+
+[EDITOR'S NOTE: most of this goes into the FIT paper instead?]
+
+## From Policies to Paths
+
+[EDITOR'S NOTE: write a section on the pathfinder]
+
+## Supporting Stack Agility
+
+[EDITOR'S NOTE: write a section on protocol stack instances]
+
+## Playing with PostSockets: Golang implementation
+
+[EDITOR'S NOTE: short howto on the Go implementation]
+
+# Scrapyard
+
+[EDITOR'S NOTE: Here are a few paragraphs that don't fit in the draft but that haven't been deleted yet, in case they are useful after the reorg of the doc is complete]
+
+
+Messages larger
+than the MTU on the Path on which they are sent will be segmented into
+multiple frames. Multiple Messages that will fit into a single frame may be
+concatenated into one frame. There is no preference for transmitting the
+multiple frames for a given Message in any particular order, or by default,
+that Messages will be delivered in the order sent by the application. 
+
+When an application has hard semantic requirements that all the frames of a
+given Message be sent down a given Path or Paths, these hard constraints can
+also be expressed by the application.
+
+
+
+## Carrier
+
+A carrier is a transport-independent 
+
+[EDITOR'S NOTE: terminology question: is our "Stream" really a "Carrier" or a "Channel"? I like "carrier"; it doesn't collide in Layer 3 or 4 terminology and fits nicely with "Post" (i.e. "letter carrier"). "Bytestream" then turns back into "Stream". Thoughts?]
+
+Messages are sent and received over Streams, which represent a networks'  Messages sent on a Stream will be
+received at the other end, atomically, but not necessarily reliably or in
+order. An application may use one or more Streams to communicate with a remote
+application; the semantics of which Messages belong on which Streams are, in
+this case, application-specific.
+
+
+
+## Listener
+
+[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
+and cryptographic state setup to create an Association from a Local and a
+not-previously-known Remote.]
+
+In many applications, there is a distinction between the active opener (or
+connection initiator, often a client), and the passive opener (often a
+server). A Listener represents an endpoint's willingness to start
+Associations in this passive opener/server role. It is, in essence, a
+one-sided, Path-less Association from which fully-formed Associations can
+be created.
+
+Listeners work very much like sockets on which the listen(2) call has
+been called in the SOCK_STREAM API.
+
+## Association
+
+An Association is... [EDITOR'S NOTE: work pointer]
+
+Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
+to be relatively long-lived. 
+
+Transients may be dynamically added or removed from an association, as well, as
+connectivity between the endpoints changes. An Association may exist even if
+there are no currently active paths available between them. Cryptographic
+identifiers and state for endpoints may also be added and removed as necessary
+due to certificate lifetime, key rollover, revocation, and so on.
+
+## Path
+
+A Path represents a local and remote endpoint address, an optional set of
+intermediary path elements between the local and remote endpoint addresses,
+and a set of properties associated with the path.
+
+
+## Pathfinder
+
+[EDITOR'S NOTE: write me, encapsulates any re-establishment and rendezvous
+protocol. might be equivalent to connect(), might also need to use something
+like ICE. Connection racing also fits behind the Pathfinder. Notes from Seoul:
+add a Pathfinder abstraction for rendezvous, especially in peer-to-peer
+situations. A Pathfinder encapsulates a method for reconnecting to a specific
+remote (e.g., underlying transport connect() call in the case of client-
+server, something like ICE in peer-to-peer). Add a pathfind() call to ensure
+an association has paths; this *must* be called before Messages can be sent.
+send() should *not* bring a dormant path up by default, it should fail. ]
+
+
+
+listener, association, and
 stream), four entry points (listen(), associate(), send(), and
 open_stream()) and a set of callbacks for handling events at each endpoint.
 The details are given in the subsections below.
@@ -701,139 +856,3 @@ where:
 [EDITOR'S NOTE: add entry points for configurability, and make configuability
 consistent. system level and application level configuration. probably wrap
 all this in a configuration object.]
-
-# Implementation Considerations
-
-[EDITOR'S NOTE: note what underlying transports must provide. Declare that
-Post works without object framing, but it's kind of useless. Necessary to
-show that you can port to Post even if your other endpoint is TCP-only. If
-there is no framing available in the underlying transport, send() fails. If
-there are too many open streams, open_stream() fails. Provide a deframe()
-handler to allow the application to turn a stream into objects over raw TCP.]
-
-# Example Connection Patterns
-
-## Client-Server
-
-## Client-Server with Happy Eyeballs
-
-## Peer to Peer with Network Address Translation
-
-## Multicast Receiver
-
-# Acknowledgments
-
-Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at
-ETH Zurich for contributions to the initial design of Post Sockets. Thanks to
-Joe Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well
-as the attendees of the Post Sockets Design Meeting in February 2017 in Zürich
-for the discussions, which have improved the design described herein.
-
-This work is partially supported by the European Commission under Horizon 2020
-grant agreement no. 688421 Measurement and Architecture for a Middleboxed
-Internet (MAMI), and by the Swiss State Secretariat for Education, Research,
-and Innovation under contract no. 15.0268. This support does not imply
-endorsement.
-
---- back
-
-# Implementation Notes 
-
-[EDITOR'S NOTE: write me]
-
-## From Policies to Paths
-
-[EDITOR'S NOTE: write a section on the pathfinder]
-
-## Supporting Stack Agility
-
-[EDITOR'S NOTE: write a section on protocol stack instances]
-
-## Playing with PostSockets: Golang implementation
-
-[EDITOR'S NOTE: short howto on the Go implementation]
-
-# Scrapyard
-
-[EDITOR'S NOTE: Here are a few paragraphs that don't fit in the draft but that haven't been deleted yet, in case they are useful after the reorg of the doc is complete]
-
-
-Messages larger
-than the MTU on the Path on which they are sent will be segmented into
-multiple frames. Multiple Messages that will fit into a single frame may be
-concatenated into one frame. There is no preference for transmitting the
-multiple frames for a given Message in any particular order, or by default,
-that Messages will be delivered in the order sent by the application. 
-
-When an application has hard semantic requirements that all the frames of a
-given Message be sent down a given Path or Paths, these hard constraints can
-also be expressed by the application.
-
-
-
-## Carrier
-
-A carrier is a transport-independent 
-
-[EDITOR'S NOTE: terminology question: is our "Stream" really a "Carrier" or a "Channel"? I like "carrier"; it doesn't collide in Layer 3 or 4 terminology and fits nicely with "Post" (i.e. "letter carrier"). "Bytestream" then turns back into "Stream". Thoughts?]
-
-Messages are sent and received over Streams, which represent a networks'  Messages sent on a Stream will be
-received at the other end, atomically, but not necessarily reliably or in
-order. An application may use one or more Streams to communicate with a remote
-application; the semantics of which Messages belong on which Streams are, in
-this case, application-specific.
-
-
-
-## Listener
-
-[EDITOR'S NOTE: possibly rewrite me, encapsulates any initial establishment
-and cryptographic state setup to create an Association from a Local and a
-not-previously-known Remote.]
-
-In many applications, there is a distinction between the active opener (or
-connection initiator, often a client), and the passive opener (often a
-server). A Listener represents an endpoint's willingness to start
-Associations in this passive opener/server role. It is, in essence, a
-one-sided, Path-less Association from which fully-formed Associations can
-be created.
-
-Listeners work very much like sockets on which the listen(2) call has
-been called in the SOCK_STREAM API.
-
-
-## Association
-
-An Association is... [EDITOR'S NOTE: work pointer]
-
-Note that, in contrast to current SOCK_STREAM sockets, Associations are meant
-to be relatively long-lived. 
-
-Transients may be dynamically added or removed from an association, as well, as
-connectivity between the endpoints changes. An Association may exist even if
-there are no currently active paths available between them. Cryptographic
-identifiers and state for endpoints may also be added and removed as necessary
-due to certificate lifetime, key rollover, revocation, and so on.
-
-## Path
-
-A Path represents a local and remote endpoint address, an optional set of
-intermediary path elements between the local and remote endpoint addresses,
-and a set of properties associated with the path.
-
-
-## Pathfinder
-
-[EDITOR'S NOTE: write me, encapsulates any re-establishment and rendezvous
-protocol. might be equivalent to connect(), might also need to use something
-like ICE. Connection racing also fits behind the Pathfinder. Notes from Seoul:
-add a Pathfinder abstraction for rendezvous, especially in peer-to-peer
-situations. A Pathfinder encapsulates a method for reconnecting to a specific
-remote (e.g., underlying transport connect() call in the case of client-
-server, something like ICE in peer-to-peer). Add a pathfind() call to ensure
-an association has paths; this *must* be called before Messages can be sent.
-send() should *not* bring a dormant path up by default, it should fail. ]
-
-
-## Bytestream
-
