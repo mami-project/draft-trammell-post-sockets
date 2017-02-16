@@ -130,7 +130,7 @@ handshake to happen after the transport-layer handshake, which increases
 connection setup latency on the order of one or two round-trip times, an
 unacceptable delay for many applications. Integrating cryptographic state
 setup and maintenance into the path abstraction naturally complements efforts
-in new protocols (e.g. QUIC {{I-D.ietf-quic-transport-}}) to
+in new protocols (e.g. QUIC {{I-D.ietf-quic-transport}}) to
 mitigate this strict layering.
 
 From these three starting points -- more flexible abstraction, path primacy,
@@ -183,8 +183,8 @@ The key features of Post as compared with the existing sockets API are:
 
 This work is the synthesis of many years of Internet transport protocol
 research and development. It is inspired by concepts from the Stream Control
-Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-
-protocol}}, and MinimaLT{{MinimaLT}}, among other transport protocol
+Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-protocol}}, 
+and MinimaLT{{MinimaLT}}, among other transport protocol
 modernization efforts. We present Post Sockets as an illustration of what is
 possible with present developments in transport protocols when freed from the
 strictures of the current sockets API. While much of the work for building
@@ -418,7 +418,7 @@ reliable, ordered service.
 ## Association
 
 An Association contains the long-term state necessary to support
-communications between a Local (see {{local}}) and a Remote (see {{Remote}})
+communications between a Local (see {{local}}) and a Remote (see {{remote}})
 endpoint, such as cryptographic session resumption parameters or rendezvous
 information; information about the policies constraining the selection of
 transport protocols and local interfaces to create Transients (see
