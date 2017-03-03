@@ -57,6 +57,7 @@ informative:
     RFC6555:
     RFC6824:
     RFC7258:
+    RFC7556:
     I-D.trammell-plus-abstract-mech:
     I-D.trammell-plus-statefulness:
     I-D.ietf-quic-transport:
@@ -80,7 +81,7 @@ informative:
 --- abstract
 
 This document describes Post Sockets, an asynchronous abstract programming
-interface for the atomic transmission of messages in an explicitly multipath
+interface for the atomic transmission of messages in an inherently multipath
 environment. Post replaces connections with long-lived associations between
 endpoints, with the possibility to cache cryptographic state in order to
 reduce amortized connection latency. We present this abstract interface as an
@@ -90,8 +91,6 @@ protocols when freed from the strictures of the current sockets API.
 --- middle
 
 # Introduction
-
-[EDITOR'S NOTE: review this section to make sure the right things are emphasized.]
 
 The BSD Unix Sockets API's SOCK_STREAM abstraction, by bringing network
 sockets into the UNIX programming model, allowing anyone who knew how to write
@@ -104,20 +103,24 @@ three and a half decades, but its total ubiquity has hidden an uncomfortable
 fact: the network is not really a file, and stream abstractions are too
 simplistic for many modern application programming models.
 
-In the meantime, the nature of Internet access is evolving. Many end-user
-devices are connected to the Internet via multiple interfaces, which suggests
-it is time to promote the "path" by which a host is connected to a first-order
-object; we call this "path primacy". 
+In the meantime, the nature of Internet access, and the variety of Internet
+transport protocols, is evolving. The challenges that new protocols and access
+paradigms present to the sockets API and to programming models based on them
+inspire the design elements of a new approach
 
-Implicit multipath communication is available for these multihomed nodes in
-the present Internet architecture with the Multipath TCP extension (MPTCP)
-{{RFC6824}}. Since many multihomed nodes are connected to the Internet through
-access paths with widely different properties with respect to bandwidth,
-latency and cost, adding explicit path control to MPTCP's API would be useful
-in many situations. Path primacy for cooperation with path elements is also
-useful in single-homed architectures, such as the mechanism proposed by the
-Path Layer UDP Substrate (PLUS) effort (see {{I-D.trammell-plus-statefulness}}
-and {{I-D.trammell-plus-abstract-mech}}).
+Many end-user devices are connected to the Internet via multiple interfaces,
+which suggests it is time to promote the paths by which two endpoints are
+connected to each other to a first-order object. While implicit multipath
+communication is available for these multihomed nodes in the present Internet
+architecture with the Multipath TCP extension (MPTCP) {{RFC6824}}, MPTCP was
+specifically designed to hide multipath communication from the application for
+purposes of compatibility. Since many multihomed nodes are connected to the
+Internet through access paths with widely different properties with respect to
+bandwidth, latency and cost, adding explicit path control to MPTCP's API would
+be useful in many situations. Applications also need control over cooperation
+with path elements via mechanisms such as that proposed by the Path Layer UDP
+Substrate (PLUS) effort (see {{I-D.trammell-plus-statefulness}} and
+{{I-D.trammell-plus-abstract-mech}}).
 
 Another trend straining the traditional layering of the transport stack
 associated with the SOCK_STREAM interface is the widespread interest in
@@ -130,17 +133,16 @@ handshake to happen after the transport-layer handshake, which increases
 connection setup latency on the order of one or two round-trip times, an
 unacceptable delay for many applications. Integrating cryptographic state
 setup and maintenance into the path abstraction naturally complements efforts
-in new protocols (e.g. QUIC {{I-D.ietf-quic-transport-}}) to
+in new protocols (e.g. QUIC {{I-D.ietf-quic-transport}}) to
 mitigate this strict layering.
 
-From these three starting points -- more flexible abstraction, path primacy,
-and encryption by default -- we define the Post-Socket Application Programming
+To meet these challenges, we present the Post-Socket Application Programming
 Interface (API), described in detail in this work. Post is designed to be
 language, transport protocol, and architecture independent, allowing
 applications to be written to a common abstract interface, easily ported among
 different platforms, and used even in environments where transport protocol
 selection may be done dynamically, as proposed in the IETF's Transport Services
-wotking group (see https://datatracker.ietf.org/wg/taps/charter).
+working group.
 
 Post replaces the traditional SOCK_STREAM abstraction with an Message
 abstraction, which can be seen as a generalization of the Stream Control
@@ -304,7 +306,7 @@ send which Message down which Path.
 A sending application may mark a Message as "idempotent" to signal to the
 underlying transport protocol stack that its application semantics make it
 safe to send in situations that may cause it to be received more than once
-(i.e., for 0-RTT session resumption as in TCP Fast Open and QUIC).
+(i.e., for 0-RTT session resumption as in TCP Fast Open, TLS 1.3, and QUIC).
 
 ### Additional Events
 
@@ -377,7 +379,7 @@ Sources cannot be forked, and need not accept forks.
 
 A Sink is a special case of Message Carrier over which messages can only be
 received, intended for unidirectional applications such as multicast
-receivers. Sources cannot be forked, and need not accept forks.
+receivers. Sinks cannot be forked, and need not accept forks.
 
 ### Responder
 
@@ -388,46 +390,37 @@ This is a common implementation pattern for servers in client-server
 applications. A Responder's receiver gets a Message, as well as a Source to
 send replies to. Responders cannot be forked, and need not accept forks.
 
-### Dialogue
-
-[EDITOR'S NOTE: not discussed, but we probably need a client-side mirror of
-responder. Problem: how does the dialogue know that a reply is linked to a
-request, and how does it know when the replies stop? This is not yet in the
-API sketch.]
-
-A Dialogue is a special case of Message Carrier which sends Messages to a
-single source, and receives one or more messages in reply. This is a common
-implementation pattern for clients in client-server applications; this Carrier
-complements its server-side Responder counterpart. Sending a message on a
-Dialogue takes an additional callback for Messages received in reply.
-
 ### Stream
 
-A Message Carrier may also be irreversibly morphed into a Stream, in order to
-provide a strictly ordered, reliable service as with SOCK_STREAM. Morphing a
-Message Carrier into a Stream should return a "file-like object" as
-appropriate for the platform implementing the API. 
+A Message Carrier may be irreversibly morphed into a Stream, in order to provide
+a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
+Carrier into a Stream should return a "file-like object" as appropriate for the
+platform implementing the API. Typically, both ends of a communication using a
+stream service will morph their respective Message Carriers independently before
+sending any Messages.
+
 
 Writing a byte to a Stream will cause it to be received by the remote, in
 order, or will cause an error condition and termination of the stream if the
 byte cannot be delivered. Due to the strong sequential dependence on a stream,
 streams must always be reliable and ordered. A Message Carrier may only be
 morphed to a Stream if it uses transport protocol stack that provides
-reliable, ordered service.
+reliable, ordered service, and only before it is used to send a Message.
 
 ## Association
 
 An Association contains the long-term state necessary to support
-communications between a Local (see {{local}}) and a Remote (see {{Remote}})
+communications between a Local (see {{local}}) and a Remote (see {{remote}})
 endpoint, such as cryptographic session resumption parameters or rendezvous
 information; information about the policies constraining the selection of
 transport protocols and local interfaces to create Transients (see
 {{transient}}) to carry Messages; and information about the paths through the
 network available available between them (see {{path}}).
 
-All Message Carriers are bound to an Association; new Message Carriers will
+All Message Carriers are bound to an Association. New Message Carriers will
 reuse an Association if they can be carried from the same Local to the same
-Remote over the same Paths.
+Remote over the same Paths; this re-use of an assocation may implies the
+creation of a new Transient.
 
 ## Transient
 
@@ -438,23 +431,25 @@ ephemeral state for a single transport protocol over a single Path at a given
 point in time.
 
 A Message Carrier may be served by multiple Transients at once, e.g. when
-implementing multipath communication such that the separate paths are exposed
-to the API by the underlying transport protocol stack. Likewise, a Transient
-may serve multiple Message Carriers at once, e.g. when the Carriers are
-multiplexed over a multistreaming transport protocol stack.
+implementing multipath communication such that the separate paths are exposed to
+the API by the underlying transport protocol stack. Each Transient serves only
+one Message Carrier, although multiple Transients may share the same underlying
+protocol stack; e.g. when multiplexing Carriers over streams in a multistreaming
+protocol.
 
 Transients are generally not exposed by the API to the application, though
 they may be accessible for debugging and logging purposes.
 
 ## Path
 
-A Path represents information about a single path through the network used by
-an Association, in terms of source and destination network and transport layer
-addresses within an addressing context. This information may be learned
-through a resolution, discovery, or rendezvous process (e.g. DNS, ICE), by
-measurements taken by the transport protocol stack, or by some other path
-information discovery mechanism. It is used by the transport protocol stack to
-maintain and/or (re-)establish communications for the Association.
+A Path represents information about a single path through the network used by an
+Association, in terms of source and destination network and transport layer
+addresses within an addressing context, and the provisioning domain {{RFC7556}}
+of the local interface. This information may be learned through a resolution,
+discovery, or rendezvous process (e.g. DNS, ICE), by measurements taken by the
+transport protocol stack, or by some other path information discovery mechanism.
+It is used by the transport protocol stack to maintain and/or (re-)establish
+communications for the Association.
 
 The set of available properties is a function of the transport protocol stacks
 in use by an association. However, the following core properties are generally
@@ -490,9 +485,6 @@ requirements can be met by having multiple paths with different properties to
 select from. Transport protocol stacks can also provide signaling to devices
 along the path, but this signaling is derived from information provided to the
 Message abstraction.
-
-Note that information about the path and signaling to path elements could be
-provided by a facility such as PLUS {{I-D.trammell-plus-abstract-mech}}.
 
 ## Remote
 
@@ -591,6 +583,10 @@ illustrations for ease of reading.
 Here's an example client-server application. The server echoes messages. The
 client sends a message and prints what it receives.
 
+The client in {{fig-client}} connects, sends a message, and sets up a receiver
+to print messages received in response. The carrier is inactive after the
+Initiate() call; the Send() call blocks until the carrier can be activated.
+
 ~~~~~~~~
 // connect to a server given a remote
 func sayHello() {
@@ -607,14 +603,13 @@ func sayHello() {
 ~~~~~~~~
 {: #fig-client title="Example client"}
 
-The client in {{fig-client}} sends a message and sets up a receiver to print
-messages received in response.
+The server in {{fig-server}} creates a Listener, which accepts Carriers and passes them to a server. The server echos the content of each message it receives.
 
 ~~~~~~~~
 // run a server for a specific carrier, echo all its messages
 func runMyServerOn(carrier Carrier) {
     carrier.Ready(func (msg InMessage) {
-        carrier.Send([]byte(msg))
+        carrier.Send(msg)
     })
 }
 
@@ -629,13 +624,35 @@ func acceptConnections() {
 ~~~~~~~~
 {: #fig-server title="Example server"}
 
-The server in {{fig-server}} creates a Listener, which accepts Carriers and passes them to a server, which echoes
+The Responder allows the server to be significantly signified, as shown in {{fig-responder}}.
 
-[EDITOR'S NOTE: write me: illustrate simplification using Responder and Dialogue]
+~~~~~~~~
+func echo(msg InMessage, reply Sink) {
+    reply.Send(msg)
+}
 
-### Client-Server with Happy Eyeballs
+Respond(local, echo)
+~~~~~~~~
+{: #fig-responder title="Example responder"}
 
-[EDITOR'S NOTE write me: note that the Remotes can be unresolved, that many candidate Transients can be started at once by the API implementation, that one or more will "win" and some will be abandoned. this isn't an example as much as additional discussion of the previous example.]
+### Client-Server with Happy Eyeballs and 0-RTT establishment
+
+The fundamental design of a client need not change at all for happy eyeballs (selection of multiple potential protocol stacks through connection racing); this is handled by the Post Sockets implementation automatically. If this connection racing is to use 0-RTT data, the client must mark the outgoing message as idempotent.
+
+~~~~~~~~
+// connect to a server given a remote
+func sayHelloQuickly() {
+
+    carrier := Initiate(local, remote)
+
+    carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
+    carrier.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg))
+        return false
+    })
+    carrier.Close()
+}
+~~~~~~~~
 
 ### Peer to Peer with Network Address Translation
 
@@ -649,13 +666,11 @@ receiving.]
 
 ## Implementation Considerations
 
-[EDITOR'S NOTE: note what underlying transports must provide. Declare that
-Post works without object framing on the sender side, but in this case
-requires additional deframing help on the application side. Necessary to show
-that you can port to Post even if your other endpoint is TCP-only. If there is
-no framing available in the underlying transport, send() fails. If there are
-too many open streams, open_stream() fails. There must be a way for the
-application to provide message backpressure; i.e. through a channel with
+[EDITOR'S NOTE: note what underlying transports must provide. Declare that Post
+works without object framing on the sender side, but in this case requires
+additional deframing help on the application side. Necessary to show that you
+can port to Post even if your other endpoint is TCP-only. There must be a way
+for the application to provide message backpressure; i.e. through a channel with
 a given buffer length, or a maximum callback concurrency. Maximum message size
 may be difficult to determine and negotiate.]
 
@@ -738,7 +753,7 @@ type Carrier interface {
 
     // Ensure that the Carrier is active and ready to send and receive messages.
     // Attempts to bring up at least one Transient.
-    Activate() error
+    Activate(isActive func()) error
 
     // Terminate the Carrier
     Close()
