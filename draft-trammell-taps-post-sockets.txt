@@ -5,12 +5,12 @@
 TAPS Working Group                                           B. Trammell
 Internet-Draft                                                ETH Zurich
 Intended status: Informational                                C. Perkins
-Expires: August 20, 2017                           University of Glasgow
+Expires: September 3, 2017                         University of Glasgow
                                                                 T. Pauly
                                                               Apple Inc.
                                                            M. Kuehlewind
                                                               ETH Zurich
-                                                       February 16, 2017
+                                                          March 02, 2017
 
 
 Post Sockets, An Abstract Programming Interface for the Transport Layer
@@ -20,7 +20,7 @@ Abstract
 
    This document describes Post Sockets, an asynchronous abstract
    programming interface for the atomic transmission of messages in an
-   explicitly multipath environment.  Post replaces connections with
+   inherently multipath environment.  Post replaces connections with
    long-lived associations between endpoints, with the possibility to
    cache cryptographic state in order to reduce amortized connection
    latency.  We present this abstract interface as an illustration of
@@ -42,7 +42,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on August 20, 2017.
+   This Internet-Draft will expire on September 3, 2017.
 
 Copyright Notice
 
@@ -53,9 +53,9 @@ Copyright Notice
 
 
 
-Trammell, et al.         Expires August 20, 2017                [Page 1]
+Trammell, et al.        Expires September 3, 2017               [Page 1]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
    This document is subject to BCP 78 and the IETF Trust's Legal
@@ -83,18 +83,18 @@ Table of Contents
        2.2.2.  Source  . . . . . . . . . . . . . . . . . . . . . . .   9
        2.2.3.  Sink  . . . . . . . . . . . . . . . . . . . . . . . .  10
        2.2.4.  Responder . . . . . . . . . . . . . . . . . . . . . .  10
-       2.2.5.  Dialogue  . . . . . . . . . . . . . . . . . . . . . .  10
-       2.2.6.  Stream  . . . . . . . . . . . . . . . . . . . . . . .  10
-     2.3.  Association . . . . . . . . . . . . . . . . . . . . . . .  11
+       2.2.5.  Stream  . . . . . . . . . . . . . . . . . . . . . . .  10
+     2.3.  Association . . . . . . . . . . . . . . . . . . . . . . .  10
      2.4.  Transient . . . . . . . . . . . . . . . . . . . . . . . .  11
      2.5.  Path  . . . . . . . . . . . . . . . . . . . . . . . . . .  11
      2.6.  Remote  . . . . . . . . . . . . . . . . . . . . . . . . .  12
      2.7.  Local . . . . . . . . . . . . . . . . . . . . . . . . . .  13
      2.8.  Policy Context  . . . . . . . . . . . . . . . . . . . . .  13
-   3.  Abstract Programming Interface  . . . . . . . . . . . . . . .  14
-     3.1.  Example Connection Patterns . . . . . . . . . . . . . . .  15
-       3.1.1.  Client-Server . . . . . . . . . . . . . . . . . . . .  15
-       3.1.2.  Client-Server with Happy Eyeballs . . . . . . . . . .  16
+   3.  Abstract Programming Interface  . . . . . . . . . . . . . . .  13
+     3.1.  Example Connection Patterns . . . . . . . . . . . . . . .  14
+       3.1.1.  Client-Server . . . . . . . . . . . . . . . . . . . .  14
+       3.1.2.  Client-Server with Happy Eyeballs and 0-RTT
+               establishment . . . . . . . . . . . . . . . . . . . .  16
        3.1.3.  Peer to Peer with Network Address Translation . . . .  16
        3.1.4.  Multicast Receiver  . . . . . . . . . . . . . . . . .  16
      3.2.  Implementation Considerations . . . . . . . . . . . . . .  16
@@ -109,15 +109,12 @@ Table of Contents
 
 
 
-Trammell, et al.         Expires August 20, 2017                [Page 2]
+Trammell, et al.        Expires September 3, 2017               [Page 2]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
 1.  Introduction
-
-   [EDITOR'S NOTE: review this section to make sure the right things are
-   emphasized.]
 
    The BSD Unix Sockets API's SOCK_STREAM abstraction, by bringing
    network sockets into the UNIX programming model, allowing anyone who
@@ -131,22 +128,26 @@ Internet-Draft                Post Sockets                 February 2017
    fact: the network is not really a file, and stream abstractions are
    too simplistic for many modern application programming models.
 
-   In the meantime, the nature of Internet access is evolving.  Many
-   end-user devices are connected to the Internet via multiple
-   interfaces, which suggests it is time to promote the "path" by which
-   a host is connected to a first-order object; we call this "path
-   primacy".
+   In the meantime, the nature of Internet access, and the variety of
+   Internet transport protocols, is evolving.  The challenges that new
+   protocols and access paradigms present to the sockets API and to
+   programming models based on them inspire the design elements of a new
+   approach
 
-   Implicit multipath communication is available for these multihomed
-   nodes in the present Internet architecture with the Multipath TCP
-   extension (MPTCP) [RFC6824].  Since many multihomed nodes are
-   connected to the Internet through access paths with widely different
-   properties with respect to bandwidth, latency and cost, adding
-   explicit path control to MPTCP's API would be useful in many
-   situations.  Path primacy for cooperation with path elements is also
-   useful in single-homed architectures, such as the mechanism proposed
-   by the Path Layer UDP Substrate (PLUS) effort (see
-   [I-D.trammell-plus-statefulness] and
+   Many end-user devices are connected to the Internet via multiple
+   interfaces, which suggests it is time to promote the paths by which
+   two endpoints are connected to each other to a first-order object.
+   While implicit multipath communication is available for these
+   multihomed nodes in the present Internet architecture with the
+   Multipath TCP extension (MPTCP) [RFC6824], MPTCP was specifically
+   designed to hide multipath communication from the application for
+   purposes of compatibility.  Since many multihomed nodes are connected
+   to the Internet through access paths with widely different properties
+   with respect to bandwidth, latency and cost, adding explicit path
+   control to MPTCP's API would be useful in many situations.
+   Applications also need control over cooperation with path elements
+   via mechanisms such as that proposed by the Path Layer UDP Substrate
+   (PLUS) effort (see [I-D.trammell-plus-statefulness] and
    [I-D.trammell-plus-abstract-mech]).
 
    Another trend straining the traditional layering of the transport
@@ -164,24 +165,22 @@ Internet-Draft                Post Sockets                 February 2017
 
 
 
-
-Trammell, et al.         Expires August 20, 2017                [Page 3]
+Trammell, et al.        Expires September 3, 2017               [Page 3]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
    in new protocols (e.g.  QUIC [I-D.ietf-quic-transport]) to mitigate
    this strict layering.
 
-   From these three starting points - more flexible abstraction, path
-   primacy, and encryption by default - we define the Post-Socket
-   Application Programming Interface (API), described in detail in this
-   work.  Post is designed to be language, transport protocol, and
-   architecture independent, allowing applications to be written to a
-   common abstract interface, easily ported among different platforms,
-   and used even in environments where transport protocol selection may
-   be done dynamically, as proposed in the IETF's Transport Services
-   wotking group (see https://datatracker.ietf.org/wg/taps/charter).
+   To meet these challenges, we present the Post-Socket Application
+   Programming Interface (API), described in detail in this work.  Post
+   is designed to be language, transport protocol, and architecture
+   independent, allowing applications to be written to a common abstract
+   interface, easily ported among different platforms, and used even in
+   environments where transport protocol selection may be done
+   dynamically, as proposed in the IETF's Transport Services working
+   group.
 
    Post replaces the traditional SOCK_STREAM abstraction with an Message
    abstraction, which can be seen as a generalization of the Stream
@@ -217,17 +216,15 @@ Internet-Draft                Post Sockets                 February 2017
       cache state and cryptographic key material to enable fast
       resumption of communication, and for the implementation of the API
       to explicitly take care of connection establishment mechanics such
-
-
-
-
-Trammell, et al.         Expires August 20, 2017                [Page 4]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
       as connection racing [RFC6555] and peer-to-peer rendezvous
       [RFC5245].
+
+
+
+Trammell, et al.        Expires September 3, 2017               [Page 4]
+
+Internet-Draft                Post Sockets                    March 2017
+
 
    o  Transport protocol stack independence, allowing applications to be
       written in terms of the semantics best for the application's own
@@ -239,7 +236,7 @@ Internet-Draft                Post Sockets                 February 2017
    This work is the synthesis of many years of Internet transport
    protocol research and development.  It is inspired by concepts from
    the Stream Control Transmission Protocol (SCTP) [RFC4960], TCP Minion
-   [I-D.iyengar-minion-protocol], and MinimaLT[MinimaLT], among other
+   {{I-D.iyengar-minion- protocol}}, and MinimaLT[MinimaLT], among other
    transport protocol modernization efforts.  We present Post Sockets as
    an illustration of what is possible with present developments in
    transport protocols when freed from the strictures of the current
@@ -277,9 +274,12 @@ Internet-Draft                Post Sockets                 February 2017
 
 
 
-Trammell, et al.         Expires August 20, 2017                [Page 5]
+
+
+
+Trammell, et al.        Expires September 3, 2017               [Page 5]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
    +=====================+
@@ -333,9 +333,9 @@ Internet-Draft                Post Sockets                 February 2017
 
 
 
-Trammell, et al.         Expires August 20, 2017                [Page 6]
+Trammell, et al.        Expires September 3, 2017               [Page 6]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
    There is no mapping between a Message and packets sent by the
@@ -389,9 +389,9 @@ Internet-Draft                Post Sockets                 February 2017
 
 
 
-Trammell, et al.         Expires August 20, 2017                [Page 7]
+Trammell, et al.        Expires September 3, 2017               [Page 7]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
    the sender and receiver.  This inversion of normal schemes for
@@ -415,7 +415,7 @@ Internet-Draft                Post Sockets                 February 2017
    the underlying transport protocol stack that its application
    semantics make it safe to send in situations that may cause it to be
    received more than once (i.e., for 0-RTT session resumption as in TCP
-   Fast Open and QUIC).
+   Fast Open, TLS 1.3, and QUIC).
 
 2.1.5.  Additional Events
 
@@ -445,9 +445,9 @@ Internet-Draft                Post Sockets                 February 2017
 
 
 
-Trammell, et al.         Expires August 20, 2017                [Page 8]
+Trammell, et al.        Expires September 3, 2017               [Page 8]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
    All the Messages sent to a Message Carrier will be received on the
@@ -501,16 +501,16 @@ Internet-Draft                Post Sockets                 February 2017
 
 
 
-Trammell, et al.         Expires August 20, 2017                [Page 9]
+Trammell, et al.        Expires September 3, 2017               [Page 9]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
 2.2.3.  Sink
 
    A Sink is a special case of Message Carrier over which messages can
    only be received, intended for unidirectional applications such as
-   multicast receivers.  Sources cannot be forked, and need not accept
+   multicast receivers.  Sinks cannot be forked, and need not accept
    forks.
 
 2.2.4.  Responder
@@ -523,27 +523,15 @@ Internet-Draft                Post Sockets                 February 2017
    Message, as well as a Source to send replies to.  Responders cannot
    be forked, and need not accept forks.
 
-2.2.5.  Dialogue
+2.2.5.  Stream
 
-   [EDITOR'S NOTE: not discussed, but we probably need a client-side
-   mirror of responder.  Problem: how does the dialogue know that a
-   reply is linked to a request, and how does it know when the replies
-   stop?  This is not yet in the API sketch.]
-
-   A Dialogue is a special case of Message Carrier which sends Messages
-   to a single source, and receives one or more messages in reply.  This
-   is a common implementation pattern for clients in client-server
-   applications; this Carrier complements its server-side Responder
-   counterpart.  Sending a message on a Dialogue takes an additional
-   callback for Messages received in reply.
-
-2.2.6.  Stream
-
-   A Message Carrier may also be irreversibly morphed into a Stream, in
-   order to provide a strictly ordered, reliable service as with
-   SOCK_STREAM.  Morphing a Message Carrier into a Stream should return
-   a "file-like object" as appropriate for the platform implementing the
-   API.
+   A Message Carrier may be irreversibly morphed into a Stream, in order
+   to provide a strictly ordered, reliable service as with SOCK_STREAM.
+   Morphing a Message Carrier into a Stream should return a "file-like
+   object" as appropriate for the platform implementing the API.
+   Typically, both ends of a communication using a stream service will
+   morph their respective Message Carriers independently before sending
+   any Messages.
 
    Writing a byte to a Stream will cause it to be received by the
    remote, in order, or will cause an error condition and termination of
@@ -551,16 +539,7 @@ Internet-Draft                Post Sockets                 February 2017
    sequential dependence on a stream, streams must always be reliable
    and ordered.  A Message Carrier may only be morphed to a Stream if it
    uses transport protocol stack that provides reliable, ordered
-   service.
-
-
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 10]
-
-Internet-Draft                Post Sockets                 February 2017
-
+   service, and only before it is used to send a Message.
 
 2.3.  Association
 
@@ -573,9 +552,18 @@ Internet-Draft                Post Sockets                 February 2017
    and information about the paths through the network available
    available between them (see Section 2.5).
 
-   All Message Carriers are bound to an Association; new Message
+   All Message Carriers are bound to an Association.  New Message
    Carriers will reuse an Association if they can be carried from the
-   same Local to the same Remote over the same Paths.
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 10]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
+   same Local to the same Remote over the same Paths; this re-use of an
+   assocation may implies the creation of a new Transient.
 
 2.4.  Transient
 
@@ -588,9 +576,10 @@ Internet-Draft                Post Sockets                 February 2017
    A Message Carrier may be served by multiple Transients at once, e.g.
    when implementing multipath communication such that the separate
    paths are exposed to the API by the underlying transport protocol
-   stack.  Likewise, a Transient may serve multiple Message Carriers at
-   once, e.g. when the Carriers are multiplexed over a multistreaming
-   transport protocol stack.
+   stack.  Each Transient serves only one Message Carrier, although
+   multiple Transients may share the same underlying protocol stack;
+   e.g. when multiplexing Carriers over streams in a multistreaming
+   protocol.
 
    Transients are generally not exposed by the API to the application,
    though they may be accessible for debugging and logging purposes.
@@ -599,7 +588,8 @@ Internet-Draft                Post Sockets                 February 2017
 
    A Path represents information about a single path through the network
    used by an Association, in terms of source and destination network
-   and transport layer addresses within an addressing context.  This
+   and transport layer addresses within an addressing context, and the
+   provisioning domain [RFC7556] of the local interface.  This
    information may be learned through a resolution, discovery, or
    rendezvous process (e.g.  DNS, ICE), by measurements taken by the
    transport protocol stack, or by some other path information discovery
@@ -611,13 +601,6 @@ Internet-Draft                Post Sockets                 February 2017
    core properties are generally useful for applications and transport
    layer protocols to choose among paths for specific Messages:
 
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 11]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
    o  Maximum Transmission Unit (MTU): the maximum size of an Message's
       payload (subtracting transport, network, and link layer overhead)
       which will likely fit into a single frame.  Derived from signals
@@ -627,6 +610,13 @@ Internet-Draft                Post Sockets                 February 2017
    o  Latency Expectation: expected one-way delay along the Path.
       Generally provided by inline measurements performed by the
       transport layer, as opposed to signaled by path elements.
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 11]
+
+Internet-Draft                Post Sockets                    March 2017
+
 
    o  Loss Probability Expectation: expected probability of a loss of
       any given single frame along the Path.  Generally provided by
@@ -656,24 +646,12 @@ Internet-Draft                Post Sockets                 February 2017
    the path, but this signaling is derived from information provided to
    the Message abstraction.
 
-   Note that information about the path and signaling to path elements
-   could be provided by a facility such as PLUS
-   [I-D.trammell-plus-abstract-mech].
-
 2.6.  Remote
 
    A Remote represents information required to establish and maintain a
    connection with the far end of an Association: name(s), address(es),
    and transport protocol parameters that can be used to establish a
    Transient; transport protocols to use; information about public keys
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 12]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
    or certificate authorities used to identify the remote on connection
    establishment; and so on.  Each Association is associated with a
    single Remote, either explicitly by the application (when created by
@@ -688,6 +666,14 @@ Internet-Draft                Post Sockets                 February 2017
    resolution might parse the URL, decomposing it into a name, a
    transport port, and a transport protocol to try connecting with.  A
    second pass resolution would then look up network-layer addresses
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 12]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
    associated with that name through DNS, and store any certificates
    available from DANE.  Once a Remote has been resolved to the point
    that a transport protocol stack can use it to create a Transient, it
@@ -718,18 +704,6 @@ Internet-Draft                Post Sockets                 February 2017
 
    [EDITOR'S NOTE: is there a NEAT reference we can give here?]
 
-
-
-
-
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 13]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
 3.  Abstract Programming Interface
 
    We now turn to the design of an abstract programming interface to
@@ -748,6 +722,14 @@ Internet-Draft                Post Sockets                 February 2017
       insight it is based on is that an Message receiver's behavior in a
       packet-switched network is inherently asynchronous, driven by the
       receipt of packets, and that this asynchronicity must be reflected
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 13]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
       in the API.  The actual implementation of receive and event
       handling will need to be aligned to the method a given platform
       provides for asynchronous I/O.
@@ -774,18 +756,6 @@ Internet-Draft                Post Sockets                 February 2017
    Appendix A; future revisions of this document will give more a more
    abstract specification of the API as development completes.
 
-
-
-
-
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 14]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
 3.1.  Example Connection Patterns
 
    Here, we illustrate the usage of the API outlined in Appendix A for
@@ -796,6 +766,25 @@ Internet-Draft                Post Sockets                 February 2017
 
    Here's an example client-server application.  The server echoes
    messages.  The client sends a message and prints what it receives.
+
+   The client in Figure 2 connects, sends a message, and sets up a
+   receiver to print messages received in response.  The carrier is
+   inactive after the Initiate() call; the Send() call blocks until the
+   carrier can be activated.
+
+
+
+
+
+
+
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 14]
+
+Internet-Draft                Post Sockets                    March 2017
+
 
    // connect to a server given a remote
    func sayHello() {
@@ -812,13 +801,14 @@ Internet-Draft                Post Sockets                 February 2017
 
                          Figure 2: Example client
 
-   The client in Figure 2 sends a message and sets up a receiver to
-   print messages received in response.
+   The server in Figure 3 creates a Listener, which accepts Carriers and
+   passes them to a server.  The server echos the content of each
+   message it receives.
 
    // run a server for a specific carrier, echo all its messages
    func runMyServerOn(carrier Carrier) {
        carrier.Ready(func (msg InMessage) {
-           carrier.Send([]byte(msg))
+           carrier.Send(msg)
        })
    }
 
@@ -833,28 +823,45 @@ Internet-Draft                Post Sockets                 February 2017
 
                          Figure 3: Example server
 
+   The Responder allows the server to be significantly signified, as
+   shown in Figure 4.
+
+   func echo(msg InMessage, reply Sink) {
+       reply.Send(msg)
+   }
+
+   Respond(local, echo)
+
+                        Figure 4: Example responder
 
 
 
 
-Trammell, et al.         Expires August 20, 2017               [Page 15]
+Trammell, et al.        Expires September 3, 2017              [Page 15]
 
-Internet-Draft                Post Sockets                 February 2017
+Internet-Draft                Post Sockets                    March 2017
 
 
-   The server in Figure 3 creates a Listener, which accepts Carriers and
-   passes them to a server, which echoes
+3.1.2.  Client-Server with Happy Eyeballs and 0-RTT establishment
 
-   [EDITOR'S NOTE: write me: illustrate simplification using Responder
-   and Dialogue]
+   The fundamental design of a client need not change at all for happy
+   eyeballs (selection of multiple potential protocol stacks through
+   connection racing); this is handled by the Post Sockets
+   implementation automatically.  If this connection racing is to use
+   0-RTT data, the client must mark the outgoing message as idempotent.
 
-3.1.2.  Client-Server with Happy Eyeballs
+// connect to a server given a remote
+func sayHelloQuickly() {
 
-   [EDITOR'S NOTE write me: note that the Remotes can be unresolved,
-   that many candidate Transients can be started at once by the API
-   implementation, that one or more will "win" and some will be
-   abandoned. this isn't an example as much as additional discussion of
-   the previous example.]
+    carrier := Initiate(local, remote)
+
+    carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
+    carrier.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg))
+        return false
+    })
+    carrier.Close()
+}
 
 3.1.3.  Peer to Peer with Network Address Translation
 
@@ -872,9 +879,7 @@ Internet-Draft                Post Sockets                 February 2017
    Declare that Post works without object framing on the sender side,
    but in this case requires additional deframing help on the
    application side.  Necessary to show that you can port to Post even
-   if your other endpoint is TCP-only.  If there is no framing available
-   in the underlying transport, send() fails.  If there are too many
-   open streams, open_stream() fails.  There must be a way for the
+   if your other endpoint is TCP-only.  There must be a way for the
    application to provide message backpressure; i.e. through a channel
    with a given buffer length, or a maximum callback concurrency.
    Maximum message size may be difficult to determine and negotiate.]
@@ -885,19 +890,19 @@ Internet-Draft                Post Sockets                 February 2017
    Group at ETH Zurich for contributions to the initial design of Post
    Sockets.  Thanks to Joe Hildebrand, Martin Thomson, and Michael Welzl
    for their feedback, as well as the attendees of the Post Sockets
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 16]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
    Design Meeting in February 2017 in Zurich for the discussions, which
    have improved the design described herein.
 
    This work is partially supported by the European Commission under
    Horizon 2020 grant agreement no. 688421 Measurement and Architecture
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 16]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
    for a Middleboxed Internet (MAMI), and by the Swiss State Secretariat
    for Education, Research, and Innovation under contract no. 15.0268.
    This support does not imply endorsement.
@@ -940,19 +945,18 @@ Internet-Draft                Post Sockets                 February 2017
               T. Lange, "MinimaLT, Minimal-latency Networking Through
               Better Security", May 2013.
 
+
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 17]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
    [RFC0793]  Postel, J., "Transmission Control Protocol", STD 7,
               RFC 793, DOI 10.17487/RFC0793, September 1981,
               <http://www.rfc-editor.org/info/rfc793>.
-
-
-
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 17]
-
-Internet-Draft                Post Sockets                 February 2017
-
 
    [RFC4960]  Stewart, R., Ed., "Stream Control Transmission Protocol",
               RFC 4960, DOI 10.17487/RFC4960, September 2007,
@@ -977,6 +981,10 @@ Internet-Draft                Post Sockets                 February 2017
               Attack", BCP 188, RFC 7258, DOI 10.17487/RFC7258, May
               2014, <http://www.rfc-editor.org/info/rfc7258>.
 
+   [RFC7556]  Anipko, D., Ed., "Multiple Provisioning Domain
+              Architecture", RFC 7556, DOI 10.17487/RFC7556, June 2015,
+              <http://www.rfc-editor.org/info/rfc7556>.
+
 Appendix A.  API sketch in Golang
 
 // The interface to path information is TBD
@@ -994,6 +1002,14 @@ type OutMessage struct {
     // The content of this message, as a byte array
     Content []byte
     // The niceness of this message. 0 is highest priority.
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 18]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
     Niceness uint
     // The lifetime of this message. After this duration, the message may expire.
     Lifetime time.Duration
@@ -1002,13 +1018,6 @@ type OutMessage struct {
     // True if the message is safe to send such that it may be received multiple times (i.e. for 0-RTT).
     Idempotent bool
 }
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 18]
-
-Internet-Draft                Post Sockets                 February 2017
-
 
 // A message received from a stream
 type InMessage []byte
@@ -1046,9 +1055,17 @@ type Carrier interface {
 
     // Ensure that the Carrier is active and ready to send and receive messages.
     // Attempts to bring up at least one Transient.
-    Activate() error
+    Activate(isActive func()) error
 
     // Terminate the Carrier
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 19]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
     Close()
 
     // Mutate to a file-like object
@@ -1058,14 +1075,6 @@ type Carrier interface {
     Fork() (Carrier, error)
 
     // Signal that an application is ready to accept forks via a given callback.
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 19]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
     // Forked carriers will be given to the callback until it returns false or
     // until the Carrier is closed.
     Accept(accept func(Carrier) bool) error
@@ -1105,6 +1114,14 @@ type Source interface {
     // before sending.
     Sendmsg(msg *OutMessage, onSent func(), onAcked func(), onExpired func()) error
 
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 20]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
     // Retrieve the Association over which this Source is running.
     Association() *Association
 
@@ -1114,13 +1131,6 @@ type Source interface {
     // Ensure that the Source is active and ready to send messages.
     // Attempts to bring up at least one Transient.
     Activate() error
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 20]
-
-Internet-Draft                Post Sockets                 February 2017
-
 
     // Terminate the Source
     Close()
@@ -1160,6 +1170,14 @@ type Local struct {
     Interface string
     // A transport layer port
     Port int
+
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 21]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
     // A set of zero or more end entity certificates, together with private
     // keys, to identify this application with.
     Certificates []tls.Certificate
@@ -1170,14 +1188,6 @@ type Local struct {
 type Remote interface {
     // Resolve this Remote Identity to a
     Resolve() ([]RemoteIdentity, error)
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 21]
-
-Internet-Draft                Post Sockets                 February 2017
-
-
     // Returns True if the Remote is completely resolved; i.e., cannot be resol
     Complete() bool
 }
@@ -1217,6 +1227,13 @@ Authors' Addresses
    Email: ietf@trammell.ch
 
 
+
+
+Trammell, et al.        Expires September 3, 2017              [Page 22]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
    Colin Perkins
    University of Glasgow
    School of Computing Science
@@ -1224,14 +1241,6 @@ Authors' Addresses
    United Kingdom
 
    Email: csp@csperkins.org
-
-
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 22]
-
-Internet-Draft                Post Sockets                 February 2017
 
 
    Tommy Pauly
@@ -1276,13 +1285,4 @@ Internet-Draft                Post Sockets                 February 2017
 
 
 
-
-
-
-
-
-
-
-
-
-Trammell, et al.         Expires August 20, 2017               [Page 23]
+Trammell, et al.        Expires September 3, 2017              [Page 23]

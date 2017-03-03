@@ -7,6 +7,7 @@
 
   <title>Post Sockets, An Abstract Programming Interface for the Transport Layer</title>
 
+  
 <style type="text/css">/*<![CDATA[*/
 @viewport {
   zoom: 1.0;
@@ -73,7 +74,11 @@ ul.toc li {
   padding-bottom: 5px;
   margin: 0;
 }
-ul.toc, ul.toc ul {
+ul.toc ul {
+  margin: 0;
+}
+/* xml2rfc nests ul directly inside ul which messes with the style badly */
+ul.toc, ul.toc>ul, ul.toc ul>ul {
   margin: 0 0 0 1.5em;
 }
 
@@ -208,6 +213,9 @@ ol, ul, li, p {
 li, p {
   margin-left: 0;
 }
+address {
+  font-style: normal;
+}
 
 .github-fork-ribbon-wrapper {
   display: none;
@@ -267,6 +275,7 @@ li, p {
   }
 /*]]>*/</style>
 
+
   <link href="#rfc.toc" rel="Contents"/>
 <link href="#rfc.section.1" rel="Chapter" title="1 Introduction"/>
 <link href="#rfc.section.2" rel="Chapter" title="2 Abstractions and Terminology"/>
@@ -281,8 +290,7 @@ li, p {
 <link href="#rfc.section.2.2.2" rel="Chapter" title="2.2.2 Source"/>
 <link href="#rfc.section.2.2.3" rel="Chapter" title="2.2.3 Sink"/>
 <link href="#rfc.section.2.2.4" rel="Chapter" title="2.2.4 Responder"/>
-<link href="#rfc.section.2.2.5" rel="Chapter" title="2.2.5 Dialogue"/>
-<link href="#rfc.section.2.2.6" rel="Chapter" title="2.2.6 Stream"/>
+<link href="#rfc.section.2.2.5" rel="Chapter" title="2.2.5 Stream"/>
 <link href="#rfc.section.2.3" rel="Chapter" title="2.3 Association"/>
 <link href="#rfc.section.2.4" rel="Chapter" title="2.4 Transient"/>
 <link href="#rfc.section.2.5" rel="Chapter" title="2.5 Path"/>
@@ -292,7 +300,7 @@ li, p {
 <link href="#rfc.section.3" rel="Chapter" title="3 Abstract Programming Interface"/>
 <link href="#rfc.section.3.1" rel="Chapter" title="3.1 Example Connection Patterns"/>
 <link href="#rfc.section.3.1.1" rel="Chapter" title="3.1.1 Client-Server"/>
-<link href="#rfc.section.3.1.2" rel="Chapter" title="3.1.2 Client-Server with Happy Eyeballs"/>
+<link href="#rfc.section.3.1.2" rel="Chapter" title="3.1.2 Client-Server with Happy Eyeballs and 0-RTT establishment"/>
 <link href="#rfc.section.3.1.3" rel="Chapter" title="3.1.3 Peer to Peer with Network Address Translation"/>
 <link href="#rfc.section.3.1.4" rel="Chapter" title="3.1.4 Multicast Receiver"/>
 <link href="#rfc.section.3.2" rel="Chapter" title="3.2 Implementation Considerations"/>
@@ -304,14 +312,14 @@ li, p {
 <link href="#rfc.authors" rel="Chapter"/>
 
 
-  <meta name="generator" content="xml2rfc version 2.5.1 - http://tools.ietf.org/tools/xml2rfc" />
+  <meta name="generator" content="xml2rfc version 2.5.2 - http://tools.ietf.org/tools/xml2rfc" />
   <link rel="schema.dct" href="http://purl.org/dc/terms/" />
 
   <meta name="dct.creator" content="Trammell, B., Perkins, C., Pauly, T., and M. Kuehlewind" />
   <meta name="dct.identifier" content="urn:ietf:id:draft-trammell-taps-post-sockets-00" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-2-16" />
-  <meta name="dct.abstract" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an explicitly multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
-  <meta name="description" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an explicitly multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-3-02" />
+  <meta name="dct.abstract" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
+  <meta name="description" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
 
 </head>
 
@@ -333,7 +341,7 @@ li, p {
   <td class="right">C. Perkins</td>
 </tr>
 <tr>
-  <td class="left">Expires: August 20, 2017</td>
+  <td class="left">Expires: September 3, 2017</td>
   <td class="right">University of Glasgow</td>
 </tr>
 <tr>
@@ -354,7 +362,7 @@ li, p {
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">February 16, 2017</td>
+  <td class="right">March 02, 2017</td>
 </tr>
 
     	
@@ -367,14 +375,14 @@ li, p {
   <h1 id="rfc.abstract">
   <a href="#rfc.abstract">Abstract</a>
 </h1>
-<p>This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an explicitly multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API.</p>
+<p>This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API.</p>
 <h1 id="rfc.status">
   <a href="#rfc.status">Status of This Memo</a>
 </h1>
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 20, 2017.</p>
+<p>This Internet-Draft will expire on September 3, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -399,8 +407,7 @@ li, p {
 <li>2.2.2.   <a href="#rfc.section.2.2.2">Source</a></li>
 <li>2.2.3.   <a href="#rfc.section.2.2.3">Sink</a></li>
 <li>2.2.4.   <a href="#rfc.section.2.2.4">Responder</a></li>
-<li>2.2.5.   <a href="#rfc.section.2.2.5">Dialogue</a></li>
-<li>2.2.6.   <a href="#rfc.section.2.2.6">Stream</a></li>
+<li>2.2.5.   <a href="#rfc.section.2.2.5">Stream</a></li>
 </ul><li>2.3.   <a href="#rfc.section.2.3">Association</a></li>
 <li>2.4.   <a href="#rfc.section.2.4">Transient</a></li>
 <li>2.5.   <a href="#rfc.section.2.5">Path</a></li>
@@ -410,7 +417,7 @@ li, p {
 </ul><li>3.   <a href="#rfc.section.3">Abstract Programming Interface</a></li>
 <ul><li>3.1.   <a href="#rfc.section.3.1">Example Connection Patterns</a></li>
 <ul><li>3.1.1.   <a href="#rfc.section.3.1.1">Client-Server</a></li>
-<li>3.1.2.   <a href="#rfc.section.3.1.2">Client-Server with Happy Eyeballs</a></li>
+<li>3.1.2.   <a href="#rfc.section.3.1.2">Client-Server with Happy Eyeballs and 0-RTT establishment</a></li>
 <li>3.1.3.   <a href="#rfc.section.3.1.3">Peer to Peer with Network Address Translation</a></li>
 <li>3.1.4.   <a href="#rfc.section.3.1.4">Multicast Receiver</a></li>
 </ul><li>3.2.   <a href="#rfc.section.3.2">Implementation Considerations</a></li>
@@ -425,15 +432,14 @@ li, p {
   </ul>
 
   <h1 id="rfc.section.1"><a href="#rfc.section.1">1.</a> <a href="#introduction" id="introduction">Introduction</a></h1>
-<p id="rfc.section.1.p.1">[EDITOR&#8217;S NOTE: review this section to make sure the right things are emphasized.]</p>
-<p id="rfc.section.1.p.2">The BSD Unix Sockets API&#8217;s SOCK_STREAM abstraction, by bringing network sockets into the UNIX programming model, allowing anyone who knew how to write programs that dealt with sequential-access files to also write network applications, was a revolution in simplicity. It would not be an overstatement to say that this simple API is the reason the Internet won the protocol wars of the 1980s. SOCK_STREAM is tied to the Transmission Control Protocol (TCP), specified in 1981 <a href="#RFC0793">[RFC0793]</a>. TCP has scaled remarkably well over the past three and a half decades, but its total ubiquity has hidden an uncomfortable fact: the network is not really a file, and stream abstractions are too simplistic for many modern application programming models.</p>
-<p id="rfc.section.1.p.3">In the meantime, the nature of Internet access is evolving. Many end-user devices are connected to the Internet via multiple interfaces, which suggests it is time to promote the &#8220;path&#8221; by which a host is connected to a first-order object; we call this &#8220;path primacy&#8221;.</p>
-<p id="rfc.section.1.p.4">Implicit multipath communication is available for these multihomed nodes in the present Internet architecture with the Multipath TCP extension (MPTCP) <a href="#RFC6824">[RFC6824]</a>. Since many multihomed nodes are connected to the Internet through access paths with widely different properties with respect to bandwidth, latency and cost, adding explicit path control to MPTCP&#8217;s API would be useful in many situations. Path primacy for cooperation with path elements is also useful in single-homed architectures, such as the mechanism proposed by the Path Layer UDP Substrate (PLUS) effort (see <a href="#I-D.trammell-plus-statefulness">[I-D.trammell-plus-statefulness]</a> and <a href="#I-D.trammell-plus-abstract-mech">[I-D.trammell-plus-abstract-mech]</a>).</p>
-<p id="rfc.section.1.p.5">Another trend straining the traditional layering of the transport stack associated with the SOCK_STREAM interface is the widespread interest in ubiquitous deployment of encryption to guarantee confidentiality, authenticity, and integrity, in the face of pervasive surveillance <a href="#RFC7258">[RFC7258]</a>. Layering the most widely deployed encryption technology, Transport Layer Security (TLS), strictly atop TCP (i.e., via a TLS library such as OpenSSL that uses the sockets API) requires the encryption-layer handshake to happen after the transport-layer handshake, which increases connection setup latency on the order of one or two round-trip times, an unacceptable delay for many applications. Integrating cryptographic state setup and maintenance into the path abstraction naturally complements efforts in new protocols (e.g. QUIC <a href="#I-D.ietf-quic-transport">[I-D.ietf-quic-transport]</a>) to mitigate this strict layering.</p>
-<p id="rfc.section.1.p.6">From these three starting points &#8211; more flexible abstraction, path primacy, and encryption by default &#8211; we define the Post-Socket Application Programming Interface (API), described in detail in this work. Post is designed to be language, transport protocol, and architecture independent, allowing applications to be written to a common abstract interface, easily ported among different platforms, and used even in environments where transport protocol selection may be done dynamically, as proposed in the IETF&#8217;s Transport Services wotking group (see https://datatracker.ietf.org/wg/taps/charter).</p>
-<p id="rfc.section.1.p.7">Post replaces the traditional SOCK_STREAM abstraction with an Message abstraction, which can be seen as a generalization of the Stream Control Transmission Protocol&#8217;s <a href="#RFC4960">[RFC4960]</a> SOCK_SEQPACKET service. Messages are sent and received on Carriers, which logically group Messages for transmission and reception. For backward compatibility, these Carriers can also be opened as Streams, presenting a file-like interface to the network as with SOCK_STREAM.</p>
-<p id="rfc.section.1.p.8">Post replaces the notions of a socket address and connected socket with an Association with a remote endpoint via set of Paths.  Implementation and wire format for transport protocol(s) implementing the Post API are explicitly out of scope for this work; these abstractions need not map directly to implementation-level concepts, and indeed with various amounts of shimming and glue could be implemented with varying success atop any sufficiently flexible transport protocol.</p>
-<p id="rfc.section.1.p.9">The key features of Post as compared with the existing sockets API are:</p>
+<p id="rfc.section.1.p.1">The BSD Unix Sockets API&#8217;s SOCK_STREAM abstraction, by bringing network sockets into the UNIX programming model, allowing anyone who knew how to write programs that dealt with sequential-access files to also write network applications, was a revolution in simplicity. It would not be an overstatement to say that this simple API is the reason the Internet won the protocol wars of the 1980s. SOCK_STREAM is tied to the Transmission Control Protocol (TCP), specified in 1981 <a href="#RFC0793">[RFC0793]</a>. TCP has scaled remarkably well over the past three and a half decades, but its total ubiquity has hidden an uncomfortable fact: the network is not really a file, and stream abstractions are too simplistic for many modern application programming models.</p>
+<p id="rfc.section.1.p.2">In the meantime, the nature of Internet access, and the variety of Internet transport protocols, is evolving. The challenges that new protocols and access paradigms present to the sockets API and to programming models based on them inspire the design elements of a new approach</p>
+<p id="rfc.section.1.p.3">Many end-user devices are connected to the Internet via multiple interfaces, which suggests it is time to promote the paths by which two endpoints are connected to each other to a first-order object. While implicit multipath communication is available for these multihomed nodes in the present Internet architecture with the Multipath TCP extension (MPTCP) <a href="#RFC6824">[RFC6824]</a>, MPTCP was specifically designed to hide multipath communication from the application for purposes of compatibility. Since many multihomed nodes are connected to the Internet through access paths with widely different properties with respect to bandwidth, latency and cost, adding explicit path control to MPTCP&#8217;s API would be useful in many situations. Applications also need control over cooperation with path elements via mechanisms such as that proposed by the Path Layer UDP Substrate (PLUS) effort (see <a href="#I-D.trammell-plus-statefulness">[I-D.trammell-plus-statefulness]</a> and <a href="#I-D.trammell-plus-abstract-mech">[I-D.trammell-plus-abstract-mech]</a>).</p>
+<p id="rfc.section.1.p.4">Another trend straining the traditional layering of the transport stack associated with the SOCK_STREAM interface is the widespread interest in ubiquitous deployment of encryption to guarantee confidentiality, authenticity, and integrity, in the face of pervasive surveillance <a href="#RFC7258">[RFC7258]</a>. Layering the most widely deployed encryption technology, Transport Layer Security (TLS), strictly atop TCP (i.e., via a TLS library such as OpenSSL that uses the sockets API) requires the encryption-layer handshake to happen after the transport-layer handshake, which increases connection setup latency on the order of one or two round-trip times, an unacceptable delay for many applications. Integrating cryptographic state setup and maintenance into the path abstraction naturally complements efforts in new protocols (e.g. QUIC <a href="#I-D.ietf-quic-transport">[I-D.ietf-quic-transport]</a>) to mitigate this strict layering.</p>
+<p id="rfc.section.1.p.5">To meet these challenges, we present the Post-Socket Application Programming Interface (API), described in detail in this work. Post is designed to be language, transport protocol, and architecture independent, allowing applications to be written to a common abstract interface, easily ported among different platforms, and used even in environments where transport protocol selection may be done dynamically, as proposed in the IETF&#8217;s Transport Services working group.</p>
+<p id="rfc.section.1.p.6">Post replaces the traditional SOCK_STREAM abstraction with an Message abstraction, which can be seen as a generalization of the Stream Control Transmission Protocol&#8217;s <a href="#RFC4960">[RFC4960]</a> SOCK_SEQPACKET service. Messages are sent and received on Carriers, which logically group Messages for transmission and reception. For backward compatibility, these Carriers can also be opened as Streams, presenting a file-like interface to the network as with SOCK_STREAM.</p>
+<p id="rfc.section.1.p.7">Post replaces the notions of a socket address and connected socket with an Association with a remote endpoint via set of Paths.  Implementation and wire format for transport protocol(s) implementing the Post API are explicitly out of scope for this work; these abstractions need not map directly to implementation-level concepts, and indeed with various amounts of shimming and glue could be implemented with varying success atop any sufficiently flexible transport protocol.</p>
+<p id="rfc.section.1.p.8">The key features of Post as compared with the existing sockets API are:</p>
 <p/>
 
 <ul>
@@ -443,7 +449,7 @@ li, p {
   <li>Long-lived Associations, whose lifetimes may not be bound to underlying transport connections. This allows associations to cache state and cryptographic key material to enable fast resumption of communication, and for the implementation of the API to explicitly take care of connection establishment mechanics such as connection racing <a href="#RFC6555">[RFC6555]</a> and peer-to-peer rendezvous <a href="#RFC5245">[RFC5245]</a>.</li>
   <li>Transport protocol stack independence, allowing applications to be written in terms of the semantics best for the application&#8217;s own design, separate from the protocol(s) used on the wire to achieve them. This enables applications written to a single API to make use of transport protocols in terms of the features they provide, as in <a href="#I-D.ietf-taps-transports">[I-D.ietf-taps-transports]</a>.</li>
 </ul>
-<p id="rfc.section.1.p.11">This work is the synthesis of many years of Internet transport protocol research and development. It is inspired by concepts from the Stream Control Transmission Protocol (SCTP) <a href="#RFC4960">[RFC4960]</a>, TCP Minion <a href="#I-D.iyengar-minion-protocol">[I-D.iyengar-minion-protocol]</a>, and MinimaLT<a href="#MinimaLT">[MinimaLT]</a>, among other transport protocol modernization efforts. We present Post Sockets as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API. While much of the work for building parts of the protocols needed to implement Post are already ongoing in other IETF working groups (e.g. MPTCP, QUIC, TLS), we argue that an abstract programming interface unifying access all these efforts is necessary to fully exploit their potential.</p>
+<p id="rfc.section.1.p.10">This work is the synthesis of many years of Internet transport protocol research and development. It is inspired by concepts from the Stream Control Transmission Protocol (SCTP) <a href="#RFC4960">[RFC4960]</a>, TCP Minion {{I-D.iyengar-minion- protocol}}, and MinimaLT<a href="#MinimaLT">[MinimaLT]</a>, among other transport protocol modernization efforts. We present Post Sockets as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API. While much of the work for building parts of the protocols needed to implement Post are already ongoing in other IETF working groups (e.g. MPTCP, QUIC, TLS), we argue that an abstract programming interface unifying access all these efforts is necessary to fully exploit their potential.</p>
 <h1 id="rfc.section.2"><a href="#rfc.section.2">2.</a> <a href="#abstractions-and-terminology" id="abstractions-and-terminology">Abstractions and Terminology</a></h1>
 <div id="rfc.figure.1"/>
 <div id="fig-abstractions"/>
@@ -496,7 +502,7 @@ li, p {
 <h1 id="rfc.section.2.1.3"><a href="#rfc.section.2.1.3">2.1.3.</a> <a href="#dependence" id="dependence">Dependence</a></h1>
 <p id="rfc.section.2.1.3.p.1">A Message may have &#8220;antecedents&#8221; &#8211; other Messages on which it depends, which must be delivered before it (the &#8220;successor&#8221;) is delivered.  The sending transport uses deadlines, niceness, and antecedents, along with information about the properties of the Paths available, to determine when to send which Message down which Path.</p>
 <h1 id="rfc.section.2.1.4"><a href="#rfc.section.2.1.4">2.1.4.</a> <a href="#idempotence" id="idempotence">Idempotence</a></h1>
-<p id="rfc.section.2.1.4.p.1">A sending application may mark a Message as &#8220;idempotent&#8221; to signal to the underlying transport protocol stack that its application semantics make it safe to send in situations that may cause it to be received more than once (i.e., for 0-RTT session resumption as in TCP Fast Open and QUIC).</p>
+<p id="rfc.section.2.1.4.p.1">A sending application may mark a Message as &#8220;idempotent&#8221; to signal to the underlying transport protocol stack that its application semantics make it safe to send in situations that may cause it to be received more than once (i.e., for 0-RTT session resumption as in TCP Fast Open, TLS 1.3, and QUIC).</p>
 <h1 id="rfc.section.2.1.5"><a href="#rfc.section.2.1.5">2.1.5.</a> <a href="#additional-events" id="additional-events">Additional Events</a></h1>
 <p id="rfc.section.2.1.5.p.1">Senders may also be asynchronously notified of three events on Messages they have sent: that the Message has been transmitted, that the Message has been acknowledged by the receiver, or that the Message has expired before transmission/acknowledgment. Not all transport protocol stacks will support all of these events.</p>
 <h1 id="rfc.section.2.2"><a href="#rfc.section.2.2">2.2.</a> <a href="#carrier" id="carrier">Message Carrier</a></h1>
@@ -511,24 +517,21 @@ li, p {
 <h1 id="rfc.section.2.2.2"><a href="#rfc.section.2.2.2">2.2.2.</a> <a href="#source" id="source">Source</a></h1>
 <p id="rfc.section.2.2.2.p.1">A Source is a special case of Message Carrier over which messages can only be sent, intended for unidirectional applications such as multicast transmitters.  Sources cannot be forked, and need not accept forks.</p>
 <h1 id="rfc.section.2.2.3"><a href="#rfc.section.2.2.3">2.2.3.</a> <a href="#sink" id="sink">Sink</a></h1>
-<p id="rfc.section.2.2.3.p.1">A Sink is a special case of Message Carrier over which messages can only be received, intended for unidirectional applications such as multicast receivers. Sources cannot be forked, and need not accept forks.</p>
+<p id="rfc.section.2.2.3.p.1">A Sink is a special case of Message Carrier over which messages can only be received, intended for unidirectional applications such as multicast receivers. Sinks cannot be forked, and need not accept forks.</p>
 <h1 id="rfc.section.2.2.4"><a href="#rfc.section.2.2.4">2.2.4.</a> <a href="#responder" id="responder">Responder</a></h1>
 <p id="rfc.section.2.2.4.p.1">A Responder is a special case of Message Carrier which may receive messages from many remote sources, for cases in which an application will only ever send Messages in reply back to the source from which a Message was received.  This is a common implementation pattern for servers in client-server applications. A Responder&#8217;s receiver gets a Message, as well as a Source to send replies to. Responders cannot be forked, and need not accept forks.</p>
-<h1 id="rfc.section.2.2.5"><a href="#rfc.section.2.2.5">2.2.5.</a> <a href="#dialogue" id="dialogue">Dialogue</a></h1>
-<p id="rfc.section.2.2.5.p.1">[EDITOR&#8217;S NOTE: not discussed, but we probably need a client-side mirror of responder. Problem: how does the dialogue know that a reply is linked to a request, and how does it know when the replies stop? This is not yet in the API sketch.]</p>
-<p id="rfc.section.2.2.5.p.2">A Dialogue is a special case of Message Carrier which sends Messages to a single source, and receives one or more messages in reply. This is a common implementation pattern for clients in client-server applications; this Carrier complements its server-side Responder counterpart. Sending a message on a Dialogue takes an additional callback for Messages received in reply.</p>
-<h1 id="rfc.section.2.2.6"><a href="#rfc.section.2.2.6">2.2.6.</a> <a href="#stream" id="stream">Stream</a></h1>
-<p id="rfc.section.2.2.6.p.1">A Message Carrier may also be irreversibly morphed into a Stream, in order to provide a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message Carrier into a Stream should return a &#8220;file-like object&#8221; as appropriate for the platform implementing the API.</p>
-<p id="rfc.section.2.2.6.p.2">Writing a byte to a Stream will cause it to be received by the remote, in order, or will cause an error condition and termination of the stream if the byte cannot be delivered. Due to the strong sequential dependence on a stream, streams must always be reliable and ordered. A Message Carrier may only be morphed to a Stream if it uses transport protocol stack that provides reliable, ordered service.</p>
+<h1 id="rfc.section.2.2.5"><a href="#rfc.section.2.2.5">2.2.5.</a> <a href="#stream" id="stream">Stream</a></h1>
+<p id="rfc.section.2.2.5.p.1">A Message Carrier may be irreversibly morphed into a Stream, in order to provide a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message Carrier into a Stream should return a &#8220;file-like object&#8221; as appropriate for the platform implementing the API. Typically, both ends of a communication using a stream service will morph their respective Message Carriers independently before sending any Messages.</p>
+<p id="rfc.section.2.2.5.p.2">Writing a byte to a Stream will cause it to be received by the remote, in order, or will cause an error condition and termination of the stream if the byte cannot be delivered. Due to the strong sequential dependence on a stream, streams must always be reliable and ordered. A Message Carrier may only be morphed to a Stream if it uses transport protocol stack that provides reliable, ordered service, and only before it is used to send a Message.</p>
 <h1 id="rfc.section.2.3"><a href="#rfc.section.2.3">2.3.</a> <a href="#association" id="association">Association</a></h1>
 <p id="rfc.section.2.3.p.1">An Association contains the long-term state necessary to support communications between a Local (see <a href="#local">Section 2.7</a>) and a Remote (see <a href="#remote">Section 2.6</a>) endpoint, such as cryptographic session resumption parameters or rendezvous information; information about the policies constraining the selection of transport protocols and local interfaces to create Transients (see <a href="#transient">Section 2.4</a>) to carry Messages; and information about the paths through the network available available between them (see <a href="#path">Section 2.5</a>).</p>
-<p id="rfc.section.2.3.p.2">All Message Carriers are bound to an Association; new Message Carriers will reuse an Association if they can be carried from the same Local to the same Remote over the same Paths.</p>
+<p id="rfc.section.2.3.p.2">All Message Carriers are bound to an Association. New Message Carriers will reuse an Association if they can be carried from the same Local to the same Remote over the same Paths; this re-use of an assocation may implies the creation of a new Transient.</p>
 <h1 id="rfc.section.2.4"><a href="#rfc.section.2.4">2.4.</a> <a href="#transient" id="transient">Transient</a></h1>
 <p id="rfc.section.2.4.p.1">A Transient represents a binding between a Message Carrier and the instance of the transport protocol stack that implements it. As an Association contains long-term state for communications between two endpoints, a Transient contains ephemeral state for a single transport protocol over a single Path at a given point in time.</p>
-<p id="rfc.section.2.4.p.2">A Message Carrier may be served by multiple Transients at once, e.g. when implementing multipath communication such that the separate paths are exposed to the API by the underlying transport protocol stack. Likewise, a Transient may serve multiple Message Carriers at once, e.g. when the Carriers are multiplexed over a multistreaming transport protocol stack.</p>
+<p id="rfc.section.2.4.p.2">A Message Carrier may be served by multiple Transients at once, e.g. when implementing multipath communication such that the separate paths are exposed to the API by the underlying transport protocol stack. Each Transient serves only one Message Carrier, although multiple Transients may share the same underlying protocol stack; e.g. when multiplexing Carriers over streams in a multistreaming protocol.</p>
 <p id="rfc.section.2.4.p.3">Transients are generally not exposed by the API to the application, though they may be accessible for debugging and logging purposes.</p>
 <h1 id="rfc.section.2.5"><a href="#rfc.section.2.5">2.5.</a> <a href="#path" id="path">Path</a></h1>
-<p id="rfc.section.2.5.p.1">A Path represents information about a single path through the network used by an Association, in terms of source and destination network and transport layer addresses within an addressing context. This information may be learned through a resolution, discovery, or rendezvous process (e.g. DNS, ICE), by measurements taken by the transport protocol stack, or by some other path information discovery mechanism. It is used by the transport protocol stack to maintain and/or (re-)establish communications for the Association.</p>
+<p id="rfc.section.2.5.p.1">A Path represents information about a single path through the network used by an Association, in terms of source and destination network and transport layer addresses within an addressing context, and the provisioning domain <a href="#RFC7556">[RFC7556]</a> of the local interface. This information may be learned through a resolution, discovery, or rendezvous process (e.g. DNS, ICE), by measurements taken by the transport protocol stack, or by some other path information discovery mechanism.  It is used by the transport protocol stack to maintain and/or (re-)establish communications for the Association.</p>
 <p id="rfc.section.2.5.p.2">The set of available properties is a function of the transport protocol stacks in use by an association. However, the following core properties are generally useful for applications and transport layer protocols to choose among paths for specific Messages:</p>
 <p/>
 
@@ -541,7 +544,6 @@ li, p {
   <li>Path Element Membership: Identifiers for some or all nodes along the path, depending on the capabilities of the underlying network layer protocol to provide this.</li>
 </ul>
 <p id="rfc.section.2.5.p.4">Path properties are generally read-only. MTU is a property of the underlying link-layer technology on each link in the path; latency, loss, and rate expectations are dynamic properties of the network configuration and network traffic conditions; path element membership is a function of network topology.  In an explicitly multipath architecture, application and transport layer requirements can be met by having multiple paths with different properties to select from. Transport protocol stacks can also provide signaling to devices along the path, but this signaling is derived from information provided to the Message abstraction.</p>
-<p id="rfc.section.2.5.p.5">Note that information about the path and signaling to path elements could be provided by a facility such as PLUS <a href="#I-D.trammell-plus-abstract-mech">[I-D.trammell-plus-abstract-mech]</a>.</p>
 <h1 id="rfc.section.2.6"><a href="#rfc.section.2.6">2.6.</a> <a href="#remote" id="remote">Remote</a></h1>
 <p id="rfc.section.2.6.p.1">A Remote represents information required to establish and maintain a connection with the far end of an Association: name(s), address(es), and transport protocol parameters that can be used to establish a Transient; transport protocols to use; information about public keys or certificate authorities used to identify the remote on connection establishment; and so on. Each Association is associated with a single Remote, either explicitly by the application (when created by the initiation of a Message Carrier) or a Listener (when created by forking a Message Carrier on passive open).</p>
 <p id="rfc.section.2.6.p.2">A Remote may be resolved, which results in zero or more Remotes with more specific information. For example, an application may want to establish a connection to a website identified by a URL https://www.example.com. This URL would be wrapped in a Remote and passed to a call to initiate a Message Carrier. The first pass resolution might parse the URL, decomposing it into a name, a transport port, and a transport protocol to try connecting with. A second pass resolution would then look up network-layer addresses associated with that name through DNS, and store any certificates available from DANE.  Once a Remote has been resolved to the point that a transport protocol stack can use it to create a Transient, it is considered fully resolved.</p>
@@ -565,6 +567,7 @@ li, p {
 <p id="rfc.section.3.1.p.1">Here, we illustrate the usage of the API outlined in <a href="#api-sketch">Appendix A</a> for common connection patterns. Note that error handling is ignored in these illustrations for ease of reading.</p>
 <h1 id="rfc.section.3.1.1"><a href="#rfc.section.3.1.1">3.1.1.</a> <a href="#client-server" id="client-server">Client-Server</a></h1>
 <p id="rfc.section.3.1.1.p.1">Here&#8217;s an example client-server application. The server echoes messages. The client sends a message and prints what it receives.</p>
+<p id="rfc.section.3.1.1.p.2">The client in <a href="#fig-client">Figure 2</a> connects, sends a message, and sets up a receiver to print messages received in response. The carrier is inactive after the Initiate() call; the Send() call blocks until the carrier can be activated.</p>
 <div id="rfc.figure.2"/>
 <div id="fig-client"/>
 <pre>
@@ -582,14 +585,14 @@ func sayHello() {
 }
 </pre>
 <p class="figure">Figure 2: Example client</p>
-<p id="rfc.section.3.1.1.p.2">The client in <a href="#fig-client">Figure 2</a> sends a message and sets up a receiver to print messages received in response.</p>
+<p id="rfc.section.3.1.1.p.3">The server in <a href="#fig-server">Figure 3</a> creates a Listener, which accepts Carriers and passes them to a server. The server echos the content of each message it receives.</p>
 <div id="rfc.figure.3"/>
 <div id="fig-server"/>
 <pre>
 // run a server for a specific carrier, echo all its messages
 func runMyServerOn(carrier Carrier) {
     carrier.Ready(func (msg InMessage) {
-        carrier.Send([]byte(msg))
+        carrier.Send(msg)
     })
 }
 
@@ -603,16 +606,39 @@ func acceptConnections() {
 }
 </pre>
 <p class="figure">Figure 3: Example server</p>
-<p id="rfc.section.3.1.1.p.3">The server in <a href="#fig-server">Figure 3</a> creates a Listener, which accepts Carriers and passes them to a server, which echoes</p>
-<p id="rfc.section.3.1.1.p.4">[EDITOR&#8217;S NOTE: write me: illustrate simplification using Responder and Dialogue]</p>
-<h1 id="rfc.section.3.1.2"><a href="#rfc.section.3.1.2">3.1.2.</a> <a href="#client-server-with-happy-eyeballs" id="client-server-with-happy-eyeballs">Client-Server with Happy Eyeballs</a></h1>
-<p id="rfc.section.3.1.2.p.1">[EDITOR&#8217;S NOTE write me: note that the Remotes can be unresolved, that many candidate Transients can be started at once by the API implementation, that one or more will &#8220;win&#8221; and some will be abandoned. this isn&#8217;t an example as much as additional discussion of the previous example.]</p>
+<p id="rfc.section.3.1.1.p.4">The Responder allows the server to be significantly signified, as shown in <a href="#fig-responder">Figure 4</a>.</p>
+<div id="rfc.figure.4"/>
+<div id="fig-responder"/>
+<pre>
+func echo(msg InMessage, reply Sink) {
+    reply.Send(msg)
+}
+
+Respond(local, echo)
+</pre>
+<p class="figure">Figure 4: Example responder</p>
+<h1 id="rfc.section.3.1.2"><a href="#rfc.section.3.1.2">3.1.2.</a> <a href="#client-server-with-happy-eyeballs-and-0-rtt-establishment" id="client-server-with-happy-eyeballs-and-0-rtt-establishment">Client-Server with Happy Eyeballs and 0-RTT establishment</a></h1>
+<p id="rfc.section.3.1.2.p.1">The fundamental design of a client need not change at all for happy eyeballs (selection of multiple potential protocol stacks through connection racing); this is handled by the Post Sockets implementation automatically. If this connection racing is to use 0-RTT data, the client must mark the outgoing message as idempotent.</p>
+<pre>
+// connect to a server given a remote
+func sayHelloQuickly() {
+
+    carrier := Initiate(local, remote)
+
+    carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
+    carrier.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg))
+        return false
+    })
+    carrier.Close()
+}
+</pre>
 <h1 id="rfc.section.3.1.3"><a href="#rfc.section.3.1.3">3.1.3.</a> <a href="#peer-to-peer-with-network-address-translation" id="peer-to-peer-with-network-address-translation">Peer to Peer with Network Address Translation</a></h1>
 <p id="rfc.section.3.1.3.p.1">[EDITOR&#8217;S NOTE write me: here you do simultaneous initiation using a Remote that refers to a rendezvous point.]</p>
 <h1 id="rfc.section.3.1.4"><a href="#rfc.section.3.1.4">3.1.4.</a> <a href="#multicast-receiver" id="multicast-receiver">Multicast Receiver</a></h1>
 <p id="rfc.section.3.1.4.p.1">[EDITOR&#8217;S NOTE write me: set up a sink on a multicast group and just keep receiving.]</p>
 <h1 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#implementation-considerations" id="implementation-considerations">Implementation Considerations</a></h1>
-<p id="rfc.section.3.2.p.1">[EDITOR&#8217;S NOTE: note what underlying transports must provide. Declare that Post works without object framing on the sender side, but in this case requires additional deframing help on the application side. Necessary to show that you can port to Post even if your other endpoint is TCP-only. If there is no framing available in the underlying transport, send() fails. If there are too many open streams, open_stream() fails. There must be a way for the application to provide message backpressure; i.e. through a channel with a given buffer length, or a maximum callback concurrency. Maximum message size may be difficult to determine and negotiate.]</p>
+<p id="rfc.section.3.2.p.1">[EDITOR&#8217;S NOTE: note what underlying transports must provide. Declare that Post works without object framing on the sender side, but in this case requires additional deframing help on the application side. Necessary to show that you can port to Post even if your other endpoint is TCP-only. There must be a way for the application to provide message backpressure; i.e. through a channel with a given buffer length, or a maximum callback concurrency. Maximum message size may be difficult to determine and negotiate.]</p>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#acknowledgments" id="acknowledgments">Acknowledgments</a></h1>
 <p id="rfc.section.4.p.1">Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH Zurich for contributions to the initial design of Post Sockets. Thanks to Joe Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well as the attendees of the Post Sockets Design Meeting in February 2017 in Zurich for the discussions, which have improved the design described herein.</p>
 <p id="rfc.section.4.p.2">This work is partially supported by the European Commission under Horizon 2020 grant agreement no. 688421 Measurement and Architecture for a Middleboxed Internet (MAMI), and by the Swiss State Secretariat for Education, Research, and Innovation under contract no. 15.0268. This support does not imply endorsement.</p>
@@ -697,6 +723,12 @@ func acceptConnections() {
       </td>
       <td class="top"><a>Farrell, S.</a> and <a>H. Tschofenig</a>, "<a href="http://tools.ietf.org/html/rfc7258">Pervasive Monitoring Is an Attack</a>", BCP 188, RFC 7258, DOI 10.17487/RFC7258, May 2014.</td>
     </tr>
+    <tr>
+      <td class="reference">
+        <b id="RFC7556">[RFC7556]</b>
+      </td>
+      <td class="top"><a>Anipko, D.</a>, "<a href="http://tools.ietf.org/html/rfc7556">Multiple Provisioning Domain Architecture</a>", RFC 7556, DOI 10.17487/RFC7556, June 2015.</td>
+    </tr>
   </tbody>
 </table>
 <h1 id="rfc.appendix.A"><a href="#rfc.appendix.A">Appendix A.</a> <a href="#api-sketch" id="api-sketch">API sketch in Golang</a></h1>
@@ -761,7 +793,7 @@ type Carrier interface {
 
     // Ensure that the Carrier is active and ready to send and receive messages.
     // Attempts to bring up at least one Transient.
-    Activate() error
+    Activate(isActive func()) error
 
     // Terminate the Carrier
     Close()
