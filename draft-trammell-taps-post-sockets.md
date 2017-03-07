@@ -57,6 +57,7 @@ informative:
     RFC6555:
     RFC6824:
     RFC7258:
+    RFC7413:
     RFC7556:
     I-D.trammell-plus-abstract-mech:
     I-D.trammell-plus-statefulness:
@@ -77,6 +78,23 @@ informative:
         - 
           ins: T. Lange
       date: 2013-05-22
+    NEAT:
+      url: https://www.neat-project.org/wp-content/uploads/2016/11/lanman_2016-accepted-version.pdf
+      title: Towards a Flexible Internet Transport Layer Architecture
+      author: 
+        -
+          ins: K-J. Grinnemo
+        -
+          ins: Tom Jones
+        -
+          ins: Gorry Fairhurst
+        -
+          ins: David Ros
+        -
+          ins: Anna Brunstrom
+        -
+          ins: Per Hurtig
+      date: 2016-06
 
 --- abstract
 
@@ -399,7 +417,6 @@ platform implementing the API. Typically, both ends of a communication using a
 stream service will morph their respective Message Carriers independently before
 sending any Messages.
 
-
 Writing a byte to a Stream will cause it to be received by the remote, in
 order, or will cause an error condition and termination of the stream if the
 byte cannot be delivered. Due to the strong sequential dependence on a stream,
@@ -521,16 +538,15 @@ A Local and a Remote is not necessarily enough to establish a Message Carrier
 between two endpoints. For instance, an application may require or prefer
 certain transport features (see {{I-D.ietf-taps-transports}}) in the transport
 protocol stacks used by the Transients underlying the Carrier; it may also
-prefer Paths over one interface to those over another (e.g. WiFi access over
-LTE when roaming on a foreign LTE network, due to cost). These policies are
-expressed in a Policy Context bound to an Association. Multiple policy
-contexts may be active at once; e.g. a system Policy Context expressing
-administrative preferences about interface and protocol selection, an
-application Policy Context expressing transport feature information. The
-expression of policy contexts and the resolution of conflicts among Policy
-Contexts is currently implementation-specific.
-
-[EDITOR'S NOTE: is there a NEAT reference we can give here?]
+prefer Paths over one interface to those over another (e.g. WiFi access over LTE
+when roaming on a foreign LTE network, due to cost). These policies are
+expressed in a Policy Context bound to an Association. Multiple policy contexts
+may be active at once; e.g. a system Policy Context expressing administrative
+preferences about interface and protocol selection, an application Policy
+Context expressing transport feature information. The expression of policy
+contexts and the resolution of conflicts among Policy Contexts is currently
+implementation-specific; note that these are equivalent to the Policy API in the
+NEAT architeture {{NEAT}}.
 
 # Abstract Programming Interface
 
@@ -568,13 +584,13 @@ without priority or deadline, which guarantees ordered delivery over a single
 Carrier when the underlying transport protocol stack supports it).
 
 The current state of API development is illustrated as a set of interfaces and
-function prototypes in the Go programming language in {{api-sketch}}; future
+function prototypes in the Go programming language in {{apisketch}}; future
 revisions of this document will give more a more abstract specification of the
 API as development completes.
 
 ## Example Connection Patterns
 
-Here, we illustrate the usage of the API outlined in {{api-sketch}} for common
+Here, we illustrate the usage of the API outlined in {{apisketch}} for common
 connection patterns. Note that error handling is ignored in these
 illustrations for ease of reading.
 
@@ -637,7 +653,11 @@ Respond(local, echo)
 
 ### Client-Server with Happy Eyeballs and 0-RTT establishment
 
-The fundamental design of a client need not change at all for happy eyeballs (selection of multiple potential protocol stacks through connection racing); this is handled by the Post Sockets implementation automatically. If this connection racing is to use 0-RTT data, the client must mark the outgoing message as idempotent.
+The fundamental design of a client need not change at all for happy eyeballs
+{{RFC6555}} (selection of multiple potential protocol stacks through connection
+racing); this is handled by the Post Sockets implementation automatically. If
+this connection racing is to use 0-RTT data (i.e., as provided by TCP Fast Open
+{{RFC7413}}, the client must mark the outgoing message as idempotent.
 
 ~~~~~~~~
 // connect to a server given a remote
@@ -647,7 +667,7 @@ func sayHelloQuickly() {
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
-        fmt.Println(string([]byte(msg))
+        fmt.Println(string([]byte(msg)))
         return false
     })
     carrier.Close()
@@ -656,41 +676,60 @@ func sayHelloQuickly() {
 
 ### Peer to Peer with Network Address Translation
 
-[EDITOR'S NOTE write me: here you do simultaneous initiation using a Remote
-that refers to a rendezvous point.]
+In the client-server examples shown above, the Remote given to the Initiate call
+refers to the name and port of the server to connect to. This need not be the
+case, however; a Remote may also refer to an identity and a rendezvous point for
+rendezvous as in ICE {{RFC5245}}. Here, each peer does its own Initiate call
+simultaneously, and the result on each side is a Carrier attached to an
+appropriate Association.
 
 ### Multicast Receiver
 
-[EDITOR'S NOTE write me: set up a sink on a multicast group and just keep
-receiving.]
+A multicast receiver is implemented using a Sink attached to a Local
+encapsulating a multicast address on which to receive multicast datagrams. The
+following example prints messages received on the multicast address forever.
+
+~~~~~~~~
+func receiveMulticast() {
+    sink = NewSink(local)
+    sink.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg)))
+        return true
+    })
+}
 
 ## Implementation Considerations
 
-[EDITOR'S NOTE: note what underlying transports must provide. Declare that Post
-works without object framing on the sender side, but in this case requires
-additional deframing help on the application side. Necessary to show that you
-can port to Post even if your other endpoint is TCP-only. There must be a way
-for the application to provide message backpressure; i.e. through a channel with
-a given buffer length, or a maximum callback concurrency. Maximum message size
-may be difficult to determine and negotiate.]
+[EDITOR'S NOTE: this section will be a grab-bag of things we already know will
+need attention from implementors. Note what underlying transports must provide
+for each feature. Post works without object framing on the sender side, but in
+this case may require additional deframing help on the application side. Show
+that you can port to Post even if your other endpoint is TCP-only. There must be
+a way for the application to provide message backpressure; i.e. through a
+channel with a given buffer length, or a maximum callback concurrency. Maximum
+message size may be difficult to determine and negotiate.]
 
 # Acknowledgments
 
-Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at
-ETH Zurich for contributions to the initial design of Post Sockets. Thanks to
-Joe Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well
-as the attendees of the Post Sockets Design Meeting in February 2017 in Zurich
-for the discussions, which have improved the design described herein.
+Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH
+Zurich for contributions to the initial design of Post Sockets. Thanks to Joe
+Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well as the
+attendees of the Post Sockets workshop in February 2017 in Zurich for the
+discussions, which have improved the design described herein.
 
 This work is partially supported by the European Commission under Horizon 2020
 grant agreement no. 688421 Measurement and Architecture for a Middleboxed
-Internet (MAMI), and by the Swiss State Secretariat for Education, Research,
-and Innovation under contract no. 15.0268. This support does not imply
-endorsement.
+Internet (MAMI), and by the Swiss State Secretariat for Education, Research, and
+Innovation under contract no. 15.0268. This support does not imply endorsement.
 
 --- back
 
-# API sketch in Golang {#api-sketch}
+# API sketch in Golang {#apisketch}
+
+The following sketch is a snapshot of an API currently under development in Go,
+available at https://github.com/mami-project/postsocket. The details of the API
+are still under development; once the API definition stabilizes, this will be
+expanded into prose in a future revision of this draft.
 
 ~~~~~~~~
 // The interface to path information is TBD
