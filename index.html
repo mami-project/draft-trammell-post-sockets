@@ -7,7 +7,6 @@
 
   <title>Post Sockets, An Abstract Programming Interface for the Transport Layer</title>
 
-  
 <style type="text/css">/*<![CDATA[*/
 @viewport {
   zoom: 1.0;
@@ -74,11 +73,7 @@ ul.toc li {
   padding-bottom: 5px;
   margin: 0;
 }
-ul.toc ul {
-  margin: 0;
-}
-/* xml2rfc nests ul directly inside ul which messes with the style badly */
-ul.toc, ul.toc>ul, ul.toc ul>ul {
+ul.toc, ul.toc ul {
   margin: 0 0 0 1.5em;
 }
 
@@ -213,9 +208,6 @@ ol, ul, li, p {
 li, p {
   margin-left: 0;
 }
-address {
-  font-style: normal;
-}
 
 .github-fork-ribbon-wrapper {
   display: none;
@@ -275,7 +267,6 @@ address {
   }
 /*]]>*/</style>
 
-
   <link href="#rfc.toc" rel="Contents"/>
 <link href="#rfc.section.1" rel="Chapter" title="1 Introduction"/>
 <link href="#rfc.section.2" rel="Chapter" title="2 Abstractions and Terminology"/>
@@ -312,12 +303,12 @@ address {
 <link href="#rfc.authors" rel="Chapter"/>
 
 
-  <meta name="generator" content="xml2rfc version 2.5.2 - http://tools.ietf.org/tools/xml2rfc" />
+  <meta name="generator" content="xml2rfc version 2.5.1 - http://tools.ietf.org/tools/xml2rfc" />
   <link rel="schema.dct" href="http://purl.org/dc/terms/" />
 
   <meta name="dct.creator" content="Trammell, B., Perkins, C., Pauly, T., and M. Kuehlewind" />
   <meta name="dct.identifier" content="urn:ietf:id:draft-trammell-taps-post-sockets-00" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-3-02" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-3-07" />
   <meta name="dct.abstract" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
   <meta name="description" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
 
@@ -341,7 +332,7 @@ address {
   <td class="right">C. Perkins</td>
 </tr>
 <tr>
-  <td class="left">Expires: September 3, 2017</td>
+  <td class="left">Expires: September 8, 2017</td>
   <td class="right">University of Glasgow</td>
 </tr>
 <tr>
@@ -362,7 +353,7 @@ address {
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">March 02, 2017</td>
+  <td class="right">March 07, 2017</td>
 </tr>
 
     	
@@ -382,7 +373,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on September 3, 2017.</p>
+<p>This Internet-Draft will expire on September 8, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -449,7 +440,7 @@ address {
   <li>Long-lived Associations, whose lifetimes may not be bound to underlying transport connections. This allows associations to cache state and cryptographic key material to enable fast resumption of communication, and for the implementation of the API to explicitly take care of connection establishment mechanics such as connection racing <a href="#RFC6555">[RFC6555]</a> and peer-to-peer rendezvous <a href="#RFC5245">[RFC5245]</a>.</li>
   <li>Transport protocol stack independence, allowing applications to be written in terms of the semantics best for the application&#8217;s own design, separate from the protocol(s) used on the wire to achieve them. This enables applications written to a single API to make use of transport protocols in terms of the features they provide, as in <a href="#I-D.ietf-taps-transports">[I-D.ietf-taps-transports]</a>.</li>
 </ul>
-<p id="rfc.section.1.p.10">This work is the synthesis of many years of Internet transport protocol research and development. It is inspired by concepts from the Stream Control Transmission Protocol (SCTP) <a href="#RFC4960">[RFC4960]</a>, TCP Minion {{I-D.iyengar-minion- protocol}}, and MinimaLT<a href="#MinimaLT">[MinimaLT]</a>, among other transport protocol modernization efforts. We present Post Sockets as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API. While much of the work for building parts of the protocols needed to implement Post are already ongoing in other IETF working groups (e.g. MPTCP, QUIC, TLS), we argue that an abstract programming interface unifying access all these efforts is necessary to fully exploit their potential.</p>
+<p id="rfc.section.1.p.10">This work is the synthesis of many years of Internet transport protocol research and development. It is inspired by concepts from the Stream Control Transmission Protocol (SCTP) <a href="#RFC4960">[RFC4960]</a>, TCP Minion <a href="#I-D.iyengar-minion-protocol">[I-D.iyengar-minion-protocol]</a>, and MinimaLT<a href="#MinimaLT">[MinimaLT]</a>, among other transport protocol modernization efforts. We present Post Sockets as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API. While much of the work for building parts of the protocols needed to implement Post are already ongoing in other IETF working groups (e.g. MPTCP, QUIC, TLS), we argue that an abstract programming interface unifying access all these efforts is necessary to fully exploit their potential.</p>
 <h1 id="rfc.section.2"><a href="#rfc.section.2">2.</a> <a href="#abstractions-and-terminology" id="abstractions-and-terminology">Abstractions and Terminology</a></h1>
 <div id="rfc.figure.1"/>
 <div id="fig-abstractions"/>
