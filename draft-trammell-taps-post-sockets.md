@@ -354,9 +354,11 @@ Messages can represent both relatively small structures, such as requests in a
 request/response protocol such as HTTP; as well as relatively large
 structures, such as files of arbitrary size in a filesystem.
 
-There is no mapping between a Message and packets sent by the underlying
-protocol stack on the wire: the transport protocol may freely segment messages
-and/or combine messages into packets.
+In the general case, there is no mapping between a Message and packets sent by
+the underlying protocol stack on the wire: the transport protocol may freely
+segment messages and/or combine messages into packets. However, a message may be
+marked as immediate, which will cause it to be sent in a single packet, if it
+will fit.
 
 This implies that both the sending and receiving endpoint, whether in the
 application layer or the transport layer, must guarantee storage for the full
@@ -365,12 +367,12 @@ size of an Message.
 Messages are sent over and received from Message Carriers (see {{carrier}}).
 
 On sending, Messages have properties that allow the application to specify its
-requirements with respect to reliability, ordering, and priority; these are
-described in detail below. Messages may also have arbitrary properties which
-provide additional information to the underlying transport protocol stack on
-how they should be handled, in a protocol-specific way. These stacks may also
-deliver or set properties on received messages, but in the general case a
-received messages contains only a sequence of ordered bytes.
+requirements with respect to reliability, ordering, priority, idempotence, and
+immediacy; these are described in detail below. Messages may also have arbitrary
+properties which provide additional information to the underlying transport
+protocol stack on how they should be handled, in a protocol-specific way. These
+stacks may also deliver or set properties on received messages, but in the
+general case a received messages contains only a sequence of ordered bytes.
 
 ### Lifetime and Partial Reliability
 
@@ -417,6 +419,14 @@ A sending application may mark a Message as "idempotent" to signal to the
 underlying transport protocol stack that its application semantics make it
 safe to send in situations that may cause it to be received more than once
 (i.e., for 0-RTT session resumption as in TCP Fast Open, TLS 1.3, and QUIC).
+
+### Immediacy
+
+A sending application may mark a Message as "immediate" to signal to the
+underlying transport protocol stack that its application semantics require it to
+be placed in a single packet, on its own, instead of waiting to be combined with
+other messages or parts thereof (i.e., for media transports and interactive
+sessions with small messages).
 
 ### Additional Events
 
