@@ -295,6 +295,9 @@ li, p {
 <link href="#rfc.section.3.1.3" rel="Chapter" title="3.1.3 Peer to Peer with Network Address Translation"/>
 <link href="#rfc.section.3.1.4" rel="Chapter" title="3.1.4 Multicast Receiver"/>
 <link href="#rfc.section.3.2" rel="Chapter" title="3.2 Implementation Considerations"/>
+<link href="#rfc.section.3.2.1" rel="Chapter" title="3.2.1 Message Framing and Deframing"/>
+<link href="#rfc.section.3.2.2" rel="Chapter" title="3.2.2 Message Size Limitations"/>
+<link href="#rfc.section.3.2.3" rel="Chapter" title="3.2.3 Backpressure"/>
 <link href="#rfc.section.4" rel="Chapter" title="4 Acknowledgments"/>
 <link href="#rfc.references" rel="Chapter" title="5 References"/>
 <link href="#rfc.references.1" rel="Chapter" title="5.1 Normative References"/>
@@ -308,7 +311,7 @@ li, p {
 
   <meta name="dct.creator" content="Trammell, B., Perkins, C., Pauly, T., and M. Kuehlewind" />
   <meta name="dct.identifier" content="urn:ietf:id:draft-trammell-taps-post-sockets-00" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-3-07" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-3-08" />
   <meta name="dct.abstract" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
   <meta name="description" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
 
@@ -332,7 +335,7 @@ li, p {
   <td class="right">C. Perkins</td>
 </tr>
 <tr>
-  <td class="left">Expires: September 8, 2017</td>
+  <td class="left">Expires: September 9, 2017</td>
   <td class="right">University of Glasgow</td>
 </tr>
 <tr>
@@ -353,7 +356,7 @@ li, p {
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">March 07, 2017</td>
+  <td class="right">March 08, 2017</td>
 </tr>
 
     	
@@ -373,7 +376,7 @@ li, p {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on September 8, 2017.</p>
+<p>This Internet-Draft will expire on September 9, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -412,7 +415,10 @@ li, p {
 <li>3.1.3.   <a href="#rfc.section.3.1.3">Peer to Peer with Network Address Translation</a></li>
 <li>3.1.4.   <a href="#rfc.section.3.1.4">Multicast Receiver</a></li>
 </ul><li>3.2.   <a href="#rfc.section.3.2">Implementation Considerations</a></li>
-</ul><li>4.   <a href="#rfc.section.4">Acknowledgments</a></li>
+<ul><li>3.2.1.   <a href="#rfc.section.3.2.1">Message Framing and Deframing</a></li>
+<li>3.2.2.   <a href="#rfc.section.3.2.2">Message Size Limitations</a></li>
+<li>3.2.3.   <a href="#rfc.section.3.2.3">Backpressure</a></li>
+</ul></ul><li>4.   <a href="#rfc.section.4">Acknowledgments</a></li>
 <li>5.   <a href="#rfc.references">References</a></li>
 <ul><li>5.1.   <a href="#rfc.references.1">Normative References</a></li>
 <li>5.2.   <a href="#rfc.references.2">Informative References</a></li>
@@ -459,7 +465,7 @@ li, p {
     | |  |  |      .    |        |               |
     | |  | +========+   |        |               |
     | |  | | Source |   | +=======================+
-    | |  | +========+   | |                       | durable end-to-end 
+    | |  | +========+   | |                       | durable end-to-end
     | |  V         .    | |      Association      | state via many paths/
     | | +===========+   | |                       | policies and prefs
     | | |    Sink   |   | +=======================+
@@ -470,7 +476,7 @@ li, p {
    +================+   |         +=========+  +=========+
                         |                 |      |
                    +===========+        +==========+
-         ephemeral |           |        |          |  
+         ephemeral |           |        |          |
        transport &amp; | Transient |-------&gt;|   Path   | properties of
       crypto state |           |        |          | address pair
                    +===========+        +==========+
@@ -541,8 +547,7 @@ li, p {
 <h1 id="rfc.section.2.7"><a href="#rfc.section.2.7">2.7.</a> <a href="#local" id="local">Local</a></h1>
 <p id="rfc.section.2.7.p.1">A Local represents all the information about the local endpoint necessary to establish an Association or a Listener: interface, port, and transport protocol stack information, as well as certificates and associated private keys to use to identify this endpoint.</p>
 <h1 id="rfc.section.2.8"><a href="#rfc.section.2.8">2.8.</a> <a href="#policy-context" id="policy-context">Policy Context</a></h1>
-<p id="rfc.section.2.8.p.1">A Local and a Remote is not necessarily enough to establish a Message Carrier between two endpoints. For instance, an application may require or prefer certain transport features (see <a href="#I-D.ietf-taps-transports">[I-D.ietf-taps-transports]</a>) in the transport protocol stacks used by the Transients underlying the Carrier; it may also prefer Paths over one interface to those over another (e.g. WiFi access over LTE when roaming on a foreign LTE network, due to cost). These policies are expressed in a Policy Context bound to an Association. Multiple policy contexts may be active at once; e.g. a system Policy Context expressing administrative preferences about interface and protocol selection, an application Policy Context expressing transport feature information. The expression of policy contexts and the resolution of conflicts among Policy Contexts is currently implementation-specific.</p>
-<p id="rfc.section.2.8.p.2">[EDITOR&#8217;S NOTE: is there a NEAT reference we can give here?]</p>
+<p id="rfc.section.2.8.p.1">A Local and a Remote is not necessarily enough to establish a Message Carrier between two endpoints. For instance, an application may require or prefer certain transport features (see <a href="#I-D.ietf-taps-transports">[I-D.ietf-taps-transports]</a>) in the transport protocol stacks used by the Transients underlying the Carrier; it may also prefer Paths over one interface to those over another (e.g. WiFi access over LTE when roaming on a foreign LTE network, due to cost). These policies are expressed in a Policy Context bound to an Association. Multiple policy contexts may be active at once; e.g. a system Policy Context expressing administrative preferences about interface and protocol selection, an application Policy Context expressing transport feature information. The expression of policy contexts and the resolution of conflicts among Policy Contexts is currently implementation-specific; note that these are equivalent to the Policy API in the NEAT architeture <a href="#NEAT">[NEAT]</a>.</p>
 <h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a> <a href="#abstract-programming-interface" id="abstract-programming-interface">Abstract Programming Interface</a></h1>
 <p id="rfc.section.3.p.1">We now turn to the design of an abstract programming interface to provide a simple interface to Post&#8217;s abstractions, constrained by the following design principles:</p>
 <p/>
@@ -553,9 +558,9 @@ li, p {
   <li>A new API cannot be bound to a single transport protocol and expect wide deployment. As the API is transport-independent and may support runtime transport selection, it must impose the minimum possible set of constraints on its underlying transports, though some API features may require underlying transport features to work optimally. It must be possible to implement Post over vanilla TCP in the present Internet architecture.</li>
 </ul>
 <p id="rfc.section.3.p.3">The API we design from these principles is centered around a Carrier, which can be created actively via initiate() or passively via a listen(); the latter creates a Listener from which new Carriers can be accept()ed.  Messages may be created explicitly and passed to this Carrier, or implicitly through a simplified interface which uses default message properties (reliable transport without priority or deadline, which guarantees ordered delivery over a single Carrier when the underlying transport protocol stack supports it).</p>
-<p id="rfc.section.3.p.4">The current state of API development is illustrated as a set of interfaces and function prototypes in the Go programming language in <a href="#api-sketch">Appendix A</a>; future revisions of this document will give more a more abstract specification of the API as development completes.</p>
+<p id="rfc.section.3.p.4">The current state of API development is illustrated as a set of interfaces and function prototypes in the Go programming language in <a href="#apisketch">Appendix A</a>; future revisions of this document will give more a more abstract specification of the API as development completes.</p>
 <h1 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1.</a> <a href="#example-connection-patterns" id="example-connection-patterns">Example Connection Patterns</a></h1>
-<p id="rfc.section.3.1.p.1">Here, we illustrate the usage of the API outlined in <a href="#api-sketch">Appendix A</a> for common connection patterns. Note that error handling is ignored in these illustrations for ease of reading.</p>
+<p id="rfc.section.3.1.p.1">Here, we illustrate the usage of the API outlined in <a href="#apisketch">Appendix A</a> for common connection patterns. Note that error handling is ignored in these illustrations for ease of reading.</p>
 <h1 id="rfc.section.3.1.1"><a href="#rfc.section.3.1.1">3.1.1.</a> <a href="#client-server" id="client-server">Client-Server</a></h1>
 <p id="rfc.section.3.1.1.p.1">Here&#8217;s an example client-server application. The server echoes messages. The client sends a message and prints what it receives.</p>
 <p id="rfc.section.3.1.1.p.2">The client in <a href="#fig-client">Figure 2</a> connects, sends a message, and sets up a receiver to print messages received in response. The carrier is inactive after the Initiate() call; the Send() call blocks until the carrier can be activated.</p>
@@ -609,7 +614,7 @@ Respond(local, echo)
 </pre>
 <p class="figure">Figure 4: Example responder</p>
 <h1 id="rfc.section.3.1.2"><a href="#rfc.section.3.1.2">3.1.2.</a> <a href="#client-server-with-happy-eyeballs-and-0-rtt-establishment" id="client-server-with-happy-eyeballs-and-0-rtt-establishment">Client-Server with Happy Eyeballs and 0-RTT establishment</a></h1>
-<p id="rfc.section.3.1.2.p.1">The fundamental design of a client need not change at all for happy eyeballs (selection of multiple potential protocol stacks through connection racing); this is handled by the Post Sockets implementation automatically. If this connection racing is to use 0-RTT data, the client must mark the outgoing message as idempotent.</p>
+<p id="rfc.section.3.1.2.p.1">The fundamental design of a client need not change at all for happy eyeballs <a href="#RFC6555">[RFC6555]</a> (selection of multiple potential protocol stacks through connection racing); this is handled by the Post Sockets implementation automatically. If this connection racing is to use 0-RTT data (i.e., as provided by TCP Fast Open <a href="#RFC7413">[RFC7413]</a>, the client must mark the outgoing message as idempotent.</p>
 <pre>
 // connect to a server given a remote
 func sayHelloQuickly() {
@@ -618,20 +623,37 @@ func sayHelloQuickly() {
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
-        fmt.Println(string([]byte(msg))
+        fmt.Println(string([]byte(msg)))
         return false
     })
     carrier.Close()
 }
 </pre>
 <h1 id="rfc.section.3.1.3"><a href="#rfc.section.3.1.3">3.1.3.</a> <a href="#peer-to-peer-with-network-address-translation" id="peer-to-peer-with-network-address-translation">Peer to Peer with Network Address Translation</a></h1>
-<p id="rfc.section.3.1.3.p.1">[EDITOR&#8217;S NOTE write me: here you do simultaneous initiation using a Remote that refers to a rendezvous point.]</p>
+<p id="rfc.section.3.1.3.p.1">In the client-server examples shown above, the Remote given to the Initiate call refers to the name and port of the server to connect to. This need not be the case, however; a Remote may also refer to an identity and a rendezvous point for rendezvous as in ICE <a href="#RFC5245">[RFC5245]</a>. Here, each peer does its own Initiate call simultaneously, and the result on each side is a Carrier attached to an appropriate Association.</p>
 <h1 id="rfc.section.3.1.4"><a href="#rfc.section.3.1.4">3.1.4.</a> <a href="#multicast-receiver" id="multicast-receiver">Multicast Receiver</a></h1>
-<p id="rfc.section.3.1.4.p.1">[EDITOR&#8217;S NOTE write me: set up a sink on a multicast group and just keep receiving.]</p>
+<p id="rfc.section.3.1.4.p.1">A multicast receiver is implemented using a Sink attached to a Local encapsulating a multicast address on which to receive multicast datagrams. The following example prints messages received on the multicast address forever.</p>
+<pre>
+func receiveMulticast() {
+    sink = NewSink(local)
+    sink.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg)))
+        return true
+    })
+}
+</pre>
 <h1 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#implementation-considerations" id="implementation-considerations">Implementation Considerations</a></h1>
-<p id="rfc.section.3.2.p.1">[EDITOR&#8217;S NOTE: note what underlying transports must provide. Declare that Post works without object framing on the sender side, but in this case requires additional deframing help on the application side. Necessary to show that you can port to Post even if your other endpoint is TCP-only. There must be a way for the application to provide message backpressure; i.e. through a channel with a given buffer length, or a maximum callback concurrency. Maximum message size may be difficult to determine and negotiate.]</p>
+<p id="rfc.section.3.2.p.1">Here we discuss an incomplete list of API implementation considerations that have arisen with experimentation with the prototype in <a href="#apisketch">Appendix A</a>.</p>
+<h1 id="rfc.section.3.2.1"><a href="#rfc.section.3.2.1">3.2.1.</a> <a href="#message-framing-and-deframing" id="message-framing-and-deframing">Message Framing and Deframing</a></h1>
+<p id="rfc.section.3.2.1.p.1">An obvious goal of Post Sockets is interoperability with non-Post Sockets endpoints: a Post Sockets endpoint using a given protocol stack must be able to communicate with another endpoint using the same protocol stack, but not using Post Sockets. This implies that the underlying transport protocol stack must support object framing, in order to delimit Messages carried by protocol stacks that are not themselves message-oriented.</p>
+<p id="rfc.section.3.2.1.p.2">Another goal of Post Sockets is to work over unmodified TCP. We could simply define a Message Carrier over TCP to support only stream morphing, but this would fall far short of our goal to transport independence. Another approach is to recognize that almost every protocol using TCP already has its own message delimiters, and to allow the receiver of a Message to provide a deframing primitive to the API. Experimentation with the best way to achieve this within Post Sockets is underway.</p>
+<h1 id="rfc.section.3.2.2"><a href="#rfc.section.3.2.2">3.2.2.</a> <a href="#message-size-limitations" id="message-size-limitations">Message Size Limitations</a></h1>
+<p id="rfc.section.3.2.2.p.1">Ideally, Messages can be of inifinite size. However, protocol stacks and protocol stack implementations may impose their own limits on message sizing; For example, SCTP <a href="#RFC4960">[RFC4960]</a> and TLS <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a> impose record size limitations of 64kB and 16kB, respectively. Message sizes may also be limited by the available buffer at the receiver, since a Message must be fully assembled at the receiver before it can be passed on to the application layer. These message size limitations are probably best exposed through the policy context.</p>
+<p id="rfc.section.3.2.2.p.2">A truly infinite message service &#8211; e.g. large file transfer where both endpoints have committed persistent storage to the message &#8211; is probably best realized as a layer above Post Sockets, and may be added as a new type of Message Carrier to a future revision of this document.</p>
+<h1 id="rfc.section.3.2.3"><a href="#rfc.section.3.2.3">3.2.3.</a> <a href="#backpressure" id="backpressure">Backpressure</a></h1>
+<p id="rfc.section.3.2.3.p.1">Regardless of how asynchronous reception is implemented, it is important for an application to be able to apply receiver backpressure, to allow the protocol stack to perform receiver flow control. Depending on how asynchronous I/O works in the platform, this could be implemented by having a maximum number of concurrent receive callbacks, for example.</p>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#acknowledgments" id="acknowledgments">Acknowledgments</a></h1>
-<p id="rfc.section.4.p.1">Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH Zurich for contributions to the initial design of Post Sockets. Thanks to Joe Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well as the attendees of the Post Sockets Design Meeting in February 2017 in Zurich for the discussions, which have improved the design described herein.</p>
+<p id="rfc.section.4.p.1">Many thanks to Laurent Chuat and Jason Lee at the Network Security Group at ETH Zurich for contributions to the initial design of Post Sockets. Thanks to Joe Hildebrand, Martin Thomson, and Michael Welzl for their feedback, as well as the attendees of the Post Sockets workshop in February 2017 in Zurich for the discussions, which have improved the design described herein.</p>
 <p id="rfc.section.4.p.2">This work is partially supported by the European Commission under Horizon 2020 grant agreement no. 688421 Measurement and Architecture for a Middleboxed Internet (MAMI), and by the Swiss State Secretariat for Education, Research, and Innovation under contract no. 15.0268. This support does not imply endorsement.</p>
 <h1 id="rfc.references"><a href="#rfc.references">5.</a> References</h1>
 <h1 id="rfc.references.1"><a href="#rfc.references.1">5.1.</a> Normative References</h1>
@@ -656,6 +678,12 @@ func sayHelloQuickly() {
     </tr>
     <tr>
       <td class="reference">
+        <b id="I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</b>
+      </td>
+      <td class="top"><a>Rescorla, E.</a>, "<a href="http://tools.ietf.org/html/draft-ietf-tls-tls13-18">The Transport Layer Security (TLS) Protocol Version 1.3</a>", Internet-Draft draft-ietf-tls-tls13-18, October 2016.</td>
+    </tr>
+    <tr>
+      <td class="reference">
         <b id="I-D.iyengar-minion-protocol">[I-D.iyengar-minion-protocol]</b>
       </td>
       <td class="top"><a>Jana, J.</a>, <a>Cheshire, S.</a> and <a>J. Graessley</a>, "<a href="http://tools.ietf.org/html/draft-iyengar-minion-protocol-02">Minion - Wire Protocol</a>", Internet-Draft draft-iyengar-minion-protocol-02, October 2013.</td>
@@ -677,6 +705,12 @@ func sayHelloQuickly() {
         <b id="MinimaLT">[MinimaLT]</b>
       </td>
       <td class="top"><a>Petullo, W.</a>, <a>Zhang, X.</a>, <a>Solworth, J.</a>, <a>Bernstein, D.</a> and <a>T. Lange</a>, "<a>MinimaLT, Minimal-latency Networking Through Better Security</a>", May 2013.</td>
+    </tr>
+    <tr>
+      <td class="reference">
+        <b id="NEAT">[NEAT]</b>
+      </td>
+      <td class="top"><a>Grinnemo, K-J.</a>, <a>Tom Jones, .</a>, <a>Gorry Fairhurst, .</a>, <a>David Ros, .</a>, <a>Anna Brunstrom, .</a> and <a>. Per Hurtig</a>, "<a>Towards a Flexible Internet Transport Layer Architecture</a>", June 2016.</td>
     </tr>
     <tr>
       <td class="reference">
@@ -716,13 +750,20 @@ func sayHelloQuickly() {
     </tr>
     <tr>
       <td class="reference">
+        <b id="RFC7413">[RFC7413]</b>
+      </td>
+      <td class="top"><a>Cheng, Y.</a>, <a>Chu, J.</a>, <a>Radhakrishnan, S.</a> and <a>A. Jain</a>, "<a href="http://tools.ietf.org/html/rfc7413">TCP Fast Open</a>", RFC 7413, DOI 10.17487/RFC7413, December 2014.</td>
+    </tr>
+    <tr>
+      <td class="reference">
         <b id="RFC7556">[RFC7556]</b>
       </td>
       <td class="top"><a>Anipko, D.</a>, "<a href="http://tools.ietf.org/html/rfc7556">Multiple Provisioning Domain Architecture</a>", RFC 7556, DOI 10.17487/RFC7556, June 2015.</td>
     </tr>
   </tbody>
 </table>
-<h1 id="rfc.appendix.A"><a href="#rfc.appendix.A">Appendix A.</a> <a href="#api-sketch" id="api-sketch">API sketch in Golang</a></h1>
+<h1 id="rfc.appendix.A"><a href="#rfc.appendix.A">Appendix A.</a> <a href="#apisketch" id="apisketch">API sketch in Golang</a></h1>
+<p id="rfc.section.A.p.1">The following sketch is a snapshot of an API currently under development in Go, available at https://github.com/mami-project/postsocket. The details of the API are still under development; once the API definition stabilizes, this will be expanded into prose in a future revision of this draft.</p>
 <pre>
 // The interface to path information is TBD
 type Path interface{}

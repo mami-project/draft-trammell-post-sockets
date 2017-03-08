@@ -5,12 +5,12 @@
 TAPS Working Group                                           B. Trammell
 Internet-Draft                                                ETH Zurich
 Intended status: Informational                                C. Perkins
-Expires: September 8, 2017                         University of Glasgow
+Expires: September 9, 2017                         University of Glasgow
                                                                 T. Pauly
                                                               Apple Inc.
                                                            M. Kuehlewind
                                                               ETH Zurich
-                                                          March 07, 2017
+                                                          March 08, 2017
 
 
 Post Sockets, An Abstract Programming Interface for the Transport Layer
@@ -42,7 +42,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on September 8, 2017.
+   This Internet-Draft will expire on September 9, 2017.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Trammell, et al.        Expires September 8, 2017               [Page 1]
+Trammell, et al.        Expires September 9, 2017               [Page 1]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -97,22 +97,24 @@ Table of Contents
                establishment . . . . . . . . . . . . . . . . . . . .  16
        3.1.3.  Peer to Peer with Network Address Translation . . . .  16
        3.1.4.  Multicast Receiver  . . . . . . . . . . . . . . . . .  16
-     3.2.  Implementation Considerations . . . . . . . . . . . . . .  16
-   4.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  16
-   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  17
-     5.1.  Normative References  . . . . . . . . . . . . . . . . . .  17
-     5.2.  Informative References  . . . . . . . . . . . . . . . . .  17
-   Appendix A.  API sketch in Golang . . . . . . . . . . . . . . . .  18
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  22
+     3.2.  Implementation Considerations . . . . . . . . . . . . . .  17
+       3.2.1.  Message Framing and Deframing . . . . . . . . . . . .  17
+       3.2.2.  Message Size Limitations  . . . . . . . . . . . . . .  17
+       3.2.3.  Backpressure  . . . . . . . . . . . . . . . . . . . .  17
+   4.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  18
+   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  18
+     5.1.  Normative References  . . . . . . . . . . . . . . . . . .  18
+     5.2.  Informative References  . . . . . . . . . . . . . . . . .  18
+   Appendix A.  API sketch in Golang . . . . . . . . . . . . . . . .  20
 
 
 
-
-
-Trammell, et al.        Expires September 8, 2017               [Page 2]
+Trammell, et al.        Expires September 9, 2017               [Page 2]
 
 Internet-Draft                Post Sockets                    March 2017
 
+
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  24
 
 1.  Introduction
 
@@ -160,16 +162,16 @@ Internet-Draft                Post Sockets                    March 2017
    API) requires the encryption-layer handshake to happen after the
    transport-layer handshake, which increases connection setup latency
    on the order of one or two round-trip times, an unacceptable delay
-   for many applications.  Integrating cryptographic state setup and
-   maintenance into the path abstraction naturally complements efforts
 
 
 
-Trammell, et al.        Expires September 8, 2017               [Page 3]
+Trammell, et al.        Expires September 9, 2017               [Page 3]
 
 Internet-Draft                Post Sockets                    March 2017
 
 
+   for many applications.  Integrating cryptographic state setup and
+   maintenance into the path abstraction naturally complements efforts
    in new protocols (e.g.  QUIC [I-D.ietf-quic-transport]) to mitigate
    this strict layering.
 
@@ -216,15 +218,16 @@ Internet-Draft                Post Sockets                    March 2017
       cache state and cryptographic key material to enable fast
       resumption of communication, and for the implementation of the API
       to explicitly take care of connection establishment mechanics such
-      as connection racing [RFC6555] and peer-to-peer rendezvous
-      [RFC5245].
 
 
 
-Trammell, et al.        Expires September 8, 2017               [Page 4]
+Trammell, et al.        Expires September 9, 2017               [Page 4]
 
 Internet-Draft                Post Sockets                    March 2017
 
+
+      as connection racing [RFC6555] and peer-to-peer rendezvous
+      [RFC5245].
 
    o  Transport protocol stack independence, allowing applications to be
       written in terms of the semantics best for the application's own
@@ -274,10 +277,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-
-
-
-Trammell, et al.        Expires September 8, 2017               [Page 5]
+Trammell, et al.        Expires September 9, 2017               [Page 5]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -333,7 +333,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017               [Page 6]
+Trammell, et al.        Expires September 9, 2017               [Page 6]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -389,7 +389,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017               [Page 7]
+Trammell, et al.        Expires September 9, 2017               [Page 7]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -445,7 +445,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017               [Page 8]
+Trammell, et al.        Expires September 9, 2017               [Page 8]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -501,7 +501,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017               [Page 9]
+Trammell, et al.        Expires September 9, 2017               [Page 9]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -557,7 +557,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017              [Page 10]
+Trammell, et al.        Expires September 9, 2017              [Page 10]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -613,7 +613,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017              [Page 11]
+Trammell, et al.        Expires September 9, 2017              [Page 11]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -669,7 +669,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017              [Page 12]
+Trammell, et al.        Expires September 9, 2017              [Page 12]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -700,9 +700,9 @@ Internet-Draft                Post Sockets                    March 2017
    expressing administrative preferences about interface and protocol
    selection, an application Policy Context expressing transport feature
    information.  The expression of policy contexts and the resolution of
-   conflicts among Policy Contexts is currently implementation-specific.
-
-   [EDITOR'S NOTE: is there a NEAT reference we can give here?]
+   conflicts among Policy Contexts is currently implementation-specific;
+   note that these are equivalent to the Policy API in the NEAT
+   architeture [NEAT].
 
 3.  Abstract Programming Interface
 
@@ -725,7 +725,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017              [Page 13]
+Trammell, et al.        Expires September 9, 2017              [Page 13]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -781,7 +781,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017              [Page 14]
+Trammell, et al.        Expires September 9, 2017              [Page 14]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -837,7 +837,7 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017              [Page 15]
+Trammell, et al.        Expires September 9, 2017              [Page 15]
 
 Internet-Draft                Post Sockets                    March 2017
 
@@ -845,10 +845,11 @@ Internet-Draft                Post Sockets                    March 2017
 3.1.2.  Client-Server with Happy Eyeballs and 0-RTT establishment
 
    The fundamental design of a client need not change at all for happy
-   eyeballs (selection of multiple potential protocol stacks through
-   connection racing); this is handled by the Post Sockets
+   eyeballs [RFC6555] (selection of multiple potential protocol stacks
+   through connection racing); this is handled by the Post Sockets
    implementation automatically.  If this connection racing is to use
-   0-RTT data, the client must mark the outgoing message as idempotent.
+   0-RTT data (i.e., as provided by TCP Fast Open [RFC7413], the client
+   must mark the outgoing message as idempotent.
 
 // connect to a server given a remote
 func sayHelloQuickly() {
@@ -857,7 +858,7 @@ func sayHelloQuickly() {
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
-        fmt.Println(string([]byte(msg))
+        fmt.Println(string([]byte(msg)))
         return false
     })
     carrier.Close()
@@ -865,24 +866,97 @@ func sayHelloQuickly() {
 
 3.1.3.  Peer to Peer with Network Address Translation
 
-   [EDITOR'S NOTE write me: here you do simultaneous initiation using a
-   Remote that refers to a rendezvous point.]
+   In the client-server examples shown above, the Remote given to the
+   Initiate call refers to the name and port of the server to connect
+   to.  This need not be the case, however; a Remote may also refer to
+   an identity and a rendezvous point for rendezvous as in ICE
+   [RFC5245].  Here, each peer does its own Initiate call
+   simultaneously, and the result on each side is a Carrier attached to
+   an appropriate Association.
 
 3.1.4.  Multicast Receiver
 
-   [EDITOR'S NOTE write me: set up a sink on a multicast group and just
-   keep receiving.]
+   A multicast receiver is implemented using a Sink attached to a Local
+   encapsulating a multicast address on which to receive multicast
+   datagrams.  The following example prints messages received on the
+   multicast address forever.
+
+   func receiveMulticast() {
+       sink = NewSink(local)
+       sink.Ready(func (msg InMessage) {
+           fmt.Println(string([]byte(msg)))
+           return true
+       })
+   }
+
+
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 16]
+
+Internet-Draft                Post Sockets                    March 2017
+
 
 3.2.  Implementation Considerations
 
-   [EDITOR'S NOTE: note what underlying transports must provide.
-   Declare that Post works without object framing on the sender side,
-   but in this case requires additional deframing help on the
-   application side.  Necessary to show that you can port to Post even
-   if your other endpoint is TCP-only.  There must be a way for the
-   application to provide message backpressure; i.e. through a channel
-   with a given buffer length, or a maximum callback concurrency.
-   Maximum message size may be difficult to determine and negotiate.]
+   Here we discuss an incomplete list of API implementation
+   considerations that have arisen with experimentation with the
+   prototype in Appendix A.
+
+3.2.1.  Message Framing and Deframing
+
+   An obvious goal of Post Sockets is interoperability with non-Post
+   Sockets endpoints: a Post Sockets endpoint using a given protocol
+   stack must be able to communicate with another endpoint using the
+   same protocol stack, but not using Post Sockets.  This implies that
+   the underlying transport protocol stack must support object framing,
+   in order to delimit Messages carried by protocol stacks that are not
+   themselves message-oriented.
+
+   Another goal of Post Sockets is to work over unmodified TCP.  We
+   could simply define a Message Carrier over TCP to support only stream
+   morphing, but this would fall far short of our goal to transport
+   independence.  Another approach is to recognize that almost every
+   protocol using TCP already has its own message delimiters, and to
+   allow the receiver of a Message to provide a deframing primitive to
+   the API.  Experimentation with the best way to achieve this within
+   Post Sockets is underway.
+
+3.2.2.  Message Size Limitations
+
+   Ideally, Messages can be of inifinite size.  However, protocol stacks
+   and protocol stack implementations may impose their own limits on
+   message sizing; For example, SCTP [RFC4960] and TLS
+   [I-D.ietf-tls-tls13] impose record size limitations of 64kB and 16kB,
+   respectively.  Message sizes may also be limited by the available
+   buffer at the receiver, since a Message must be fully assembled at
+   the receiver before it can be passed on to the application layer.
+   These message size limitations are probably best exposed through the
+   policy context.
+
+   A truly infinite message service - e.g. large file transfer where
+   both endpoints have committed persistent storage to the message - is
+   probably best realized as a layer above Post Sockets, and may be
+   added as a new type of Message Carrier to a future revision of this
+   document.
+
+3.2.3.  Backpressure
+
+   Regardless of how asynchronous reception is implemented, it is
+   important for an application to be able to apply receiver
+   backpressure, to allow the protocol stack to perform receiver flow
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 17]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
+   control.  Depending on how asynchronous I/O works in the platform,
+   this could be implemented by having a maximum number of concurrent
+   receive callbacks, for example.
 
 4.  Acknowledgments
 
@@ -890,16 +964,8 @@ func sayHelloQuickly() {
    Group at ETH Zurich for contributions to the initial design of Post
    Sockets.  Thanks to Joe Hildebrand, Martin Thomson, and Michael Welzl
    for their feedback, as well as the attendees of the Post Sockets
-
-
-
-Trammell, et al.        Expires September 8, 2017              [Page 16]
-
-Internet-Draft                Post Sockets                    March 2017
-
-
-   Design Meeting in February 2017 in Zurich for the discussions, which
-   have improved the design described herein.
+   workshop in February 2017 in Zurich for the discussions, which have
+   improved the design described herein.
 
    This work is partially supported by the European Commission under
    Horizon 2020 grant agreement no. 688421 Measurement and Architecture
@@ -924,10 +990,25 @@ Internet-Draft                Post Sockets                    March 2017
               and Secure Transport", draft-ietf-quic-transport-01 (work
               in progress), January 2017.
 
+   [I-D.ietf-tls-tls13]
+              Rescorla, E., "The Transport Layer Security (TLS) Protocol
+              Version 1.3", draft-ietf-tls-tls13-18 (work in progress),
+              October 2016.
+
    [I-D.iyengar-minion-protocol]
               Jana, J., Cheshire, S., and J. Graessley, "Minion - Wire
               Protocol", draft-iyengar-minion-protocol-02 (work in
               progress), October 2013.
+
+
+
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 18]
+
+Internet-Draft                Post Sockets                    March 2017
+
 
    [I-D.trammell-plus-abstract-mech]
               Trammell, B., "Abstract Mechanisms for a Cooperative Path
@@ -945,14 +1026,10 @@ Internet-Draft                Post Sockets                    March 2017
               T. Lange, "MinimaLT, Minimal-latency Networking Through
               Better Security", May 2013.
 
-
-
-
-
-Trammell, et al.        Expires September 8, 2017              [Page 17]
-
-Internet-Draft                Post Sockets                    March 2017
-
+   [NEAT]     Grinnemo, K-J., Tom Jones, ., Gorry Fairhurst, ., David
+              Ros, ., Anna Brunstrom, ., and . Per Hurtig, "Towards a
+              Flexible Internet Transport Layer Architecture", June
+              2016.
 
    [RFC0793]  Postel, J., "Transmission Control Protocol", STD 7,
               RFC 793, DOI 10.17487/RFC0793, September 1981,
@@ -981,11 +1058,29 @@ Internet-Draft                Post Sockets                    March 2017
               Attack", BCP 188, RFC 7258, DOI 10.17487/RFC7258, May
               2014, <http://www.rfc-editor.org/info/rfc7258>.
 
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 19]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
+   [RFC7413]  Cheng, Y., Chu, J., Radhakrishnan, S., and A. Jain, "TCP
+              Fast Open", RFC 7413, DOI 10.17487/RFC7413, December 2014,
+              <http://www.rfc-editor.org/info/rfc7413>.
+
    [RFC7556]  Anipko, D., Ed., "Multiple Provisioning Domain
               Architecture", RFC 7556, DOI 10.17487/RFC7556, June 2015,
               <http://www.rfc-editor.org/info/rfc7556>.
 
 Appendix A.  API sketch in Golang
+
+   The following sketch is a snapshot of an API currently under
+   development in Go, available at https://github.com/mami-project/
+   postsocket.  The details of the API are still under development; once
+   the API definition stabilizes, this will be expanded into prose in a
+   future revision of this draft.
 
 // The interface to path information is TBD
 type Path interface{}
@@ -1002,14 +1097,6 @@ type OutMessage struct {
     // The content of this message, as a byte array
     Content []byte
     // The niceness of this message. 0 is highest priority.
-
-
-
-Trammell, et al.        Expires September 8, 2017              [Page 18]
-
-Internet-Draft                Post Sockets                    March 2017
-
-
     Niceness uint
     // The lifetime of this message. After this duration, the message may expire.
     Lifetime time.Duration
@@ -1027,6 +1114,14 @@ type InMessage []byte
 // analogous to a socket in the present sockets API.
 type Carrier interface {
     // Send a byte array on this Carrier as a message with default metadata
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 20]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
     // and no notifications.
     Send(buf []byte) error
 
@@ -1058,14 +1153,6 @@ type Carrier interface {
     Activate(isActive func()) error
 
     // Terminate the Carrier
-
-
-
-Trammell, et al.        Expires September 8, 2017              [Page 19]
-
-Internet-Draft                Post Sockets                    March 2017
-
-
     Close()
 
     // Mutate to a file-like object
@@ -1083,6 +1170,14 @@ Internet-Draft                Post Sockets                    March 2017
 // Initiate a Carrier from a given Local to a given Remote. Returns a new
 // Carrier, which may be bound to an existing or a new Association. The
 // initiated Carrier is not yet active.
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 21]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
 func Initiate(local Local, remote Remote) (Carrier, error)
 
 type Listener interface {
@@ -1114,14 +1209,6 @@ type Source interface {
     // before sending.
     Sendmsg(msg *OutMessage, onSent func(), onAcked func(), onExpired func()) error
 
-
-
-
-Trammell, et al.        Expires September 8, 2017              [Page 20]
-
-Internet-Draft                Post Sockets                    March 2017
-
-
     // Retrieve the Association over which this Source is running.
     Association() *Association
 
@@ -1139,6 +1226,14 @@ Internet-Draft                Post Sockets                    March 2017
 // Initiate a Source from a given Local to a given Remote. Returns a new
 // Source, which may be bound to an existing or a new Association. The
 // initiated Source is not yet active.
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 22]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
 func NewSource(local Local, remote Remote) (Source, error)
 
 // A Sink is a unidirectional, receive-only Carrier, bound only to a local.
@@ -1170,14 +1265,6 @@ type Local struct {
     Interface string
     // A transport layer port
     Port int
-
-
-
-Trammell, et al.        Expires September 8, 2017              [Page 21]
-
-Internet-Draft                Post Sockets                    March 2017
-
-
     // A set of zero or more end entity certificates, together with private
     // keys, to identify this application with.
     Certificates []tls.Certificate
@@ -1195,6 +1282,14 @@ type Remote interface {
 // Remote consisting of a URL
 type URLRemote struct {
     URL string
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 23]
+
+Internet-Draft                Post Sockets                    March 2017
+
+
 }
 
 // Remote encapsulating a name and port number
@@ -1227,13 +1322,6 @@ Authors' Addresses
    Email: ietf@trammell.ch
 
 
-
-
-Trammell, et al.        Expires September 8, 2017              [Page 22]
-
-Internet-Draft                Post Sockets                    March 2017
-
-
    Colin Perkins
    University of Glasgow
    School of Computing Science
@@ -1250,6 +1338,12 @@ Internet-Draft                Post Sockets                    March 2017
    United States of America
 
    Email: tpauly@apple.com
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 24]
+
+Internet-Draft                Post Sockets                    March 2017
 
 
    Mirja Kuehlewind
@@ -1285,4 +1379,22 @@ Internet-Draft                Post Sockets                    March 2017
 
 
 
-Trammell, et al.        Expires September 8, 2017              [Page 23]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trammell, et al.        Expires September 9, 2017              [Page 25]
