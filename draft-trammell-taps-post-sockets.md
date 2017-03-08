@@ -217,35 +217,35 @@ exploit their potential.
 # Abstractions and Terminology
 
 ~~~~~~~~~~
-   +=====================+
-   |       Message       |
-   +=====================+
-    | ^  |  ^       |  ^     initiate()       listen()
-    | |  |  |       |  |         |               |
-    | |  |  |       V  |         V               V
-    | |  |  |     +================+  accept() +============+
-    | |  |  |     |                |<---+------|            |
-    | |  |  |     |    Carrier     |    |      |  Listener  |
-    | |  |  |     |                |----+      |            |
-    | |  |  |     +================+           +============+
-    | |  |  |      .    |        |               |
-    | |  | +========+   |        |               |
-    | |  | | Source |   | +=======================+
-    | |  | +========+   | |                       | durable end-to-end
-    | |  V         .    | |      Association      | state via many paths/
-    | | +===========+   | |                       | policies and prefs
-    | | |    Sink   |   | +=======================+
-    | | +===========+   |                 |      |
-    V |            .    |                 |      |
-   +================+   |         +=========+  +=========+
-   |    Responder   |   |         |  Local  |  | Remote  |
-   +================+   |         +=========+  +=========+
-                        |                 |      |
-                   +===========+        +==========+
-         ephemeral |           |        |          |
-       transport & | Transient |------->|   Path   | properties of
-      crypto state |           |        |          | address pair
-                   +===========+        +==========+
+        +===============+
+        |    Message    |
+        +===============+
+              |    ^     initiate()       listen()
+          send()  ready()    |               |
+              V    |         V               V
+        +======================+  accept() +============+
+        |                      |<---+------|            |
+        |       Carrier        |    |      |  Listener  |
+        |                      |----+      |            |
+        +======================+           +============+
+                    |        |               |
+                    |        |               |
+                    | +=======================+
+                    | |                       | durable end-to-end
+                    | |      Association      | state via many paths/
+                    | |                       | policies and prefs
+                    | +=======================+
+                    |                 |      |
+                    |                 |      |
+                    |         +=========+  +=========+
+                    |         |  Local  |  | Remote  |
+                    |         +=========+  +=========+
+                    |                 |      |
+               +===========+        +==========+
+     ephemeral |           |        |          |
+   transport & | Transient |------->|   Path   | properties of
+  crypto state |           |        |          | address pair
+               +===========+        +==========+
 
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
