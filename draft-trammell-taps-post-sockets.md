@@ -726,13 +726,15 @@ Post Sockets is underway.
 
 ### Message Size Limitations
 
-Ideally, Messages can be of infinite size. However, protocol stacks and
-protocol stack implementations may impose their own limits on message sizing;
-For example, SCTP {{RFC4960}} and TLS {{I-D.ietf-tls-tls13}} impose record size
+Ideally, Messages can be of infinite size. However, protocol stacks and protocol
+stack implementations may impose their own limits on message sizing; For
+example, SCTP {{RFC4960}} and TLS {{I-D.ietf-tls-tls13}} impose record size
 limitations of 64kB and 16kB, respectively. Message sizes may also be limited by
-the available buffer at the receiver, since a Message must be fully assembled at
-the receiver before it can be passed on to the application layer. These message
-size limitations are probably best exposed through the policy context.
+the available buffer at the receiver, since a Message must be fully assembled by
+the transport layer before it can be passed on to the application layer. Since
+not every transport protocol stack implements the signaling necessary to
+negotiate or expose message size limitations, these are currently configured out
+of band, and are probably best exposed through the policy context.
 
 A truly infinite message service -- e.g. large file transfer where both
 endpoints have committed persistent storage to the message -- is probably best
