@@ -2,7 +2,7 @@
 title: Post Sockets, An Abstract Programming Interface for the Transport Layer
 abbrev: Post Sockets
 docname: draft-trammell-taps-post-sockets-00
-date: 
+date:
 category: info
 
 ipr: trust200902
@@ -24,7 +24,7 @@ author:
     country: Switzerland
   -
     ins: C. Perkins
-    name: Colin Perkins 
+    name: Colin Perkins
     org: University of Glasgow
     street: School of Computing Science
     city: Glasgow  G12 8QQ
@@ -59,29 +59,30 @@ informative:
     RFC7258:
     RFC7413:
     RFC7556:
+    I-D.ietf-quic-transport:
+    I-D.ietf-tls-tls13:
+    I-D.iyengar-minion-protocol:
     I-D.trammell-plus-abstract-mech:
     I-D.trammell-plus-statefulness:
-    I-D.ietf-quic-transport:
-    I-D.iyengar-minion-protocol:
     MinimaLT:
       url: https://cr.yp.to/tcpip/minimalt-20130522.pdf
       title: MinimaLT, Minimal-latency Networking Through Better Security
       author:
         -
           ins: W. M. Petullo
-        - 
-          ins: X. Zhang 
-        - 
+        -
+          ins: X. Zhang
+        -
           ins: J. A. Solworth
         -
           ins: D. J. Bernstein
-        - 
+        -
           ins: T. Lange
       date: 2013-05-22
     NEAT:
       url: https://www.neat-project.org/wp-content/uploads/2016/11/lanman_2016-accepted-version.pdf
       title: Towards a Flexible Internet Transport Layer Architecture
-      author: 
+      author:
         -
           ins: K-J. Grinnemo
         -
@@ -182,8 +183,8 @@ The key features of Post as compared with the existing sockets API are:
 - Explicit Message orientation, with framing and atomicity guarantees for
   Message transmission.
 
-- Asynchronous reception, allowing all receiver-side interactions to be 
-  event-driven. 
+- Asynchronous reception, allowing all receiver-side interactions to be
+  event-driven.
 
 - Explicit support for multistreaming and multipath transport protocols and
   network architectures.
@@ -203,7 +204,7 @@ The key features of Post as compared with the existing sockets API are:
 
 This work is the synthesis of many years of Internet transport protocol
 research and development. It is inspired by concepts from the Stream Control
-Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-protocol}}, 
+Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-protocol}},
 and MinimaLT{{MinimaLT}}, among other transport protocol
 modernization efforts. We present Post Sockets as an illustration of what is
 possible with present developments in transport protocols when freed from the
@@ -230,7 +231,7 @@ exploit their potential.
     | |  |  |      .    |        |               |
     | |  | +========+   |        |               |
     | |  | | Source |   | +=======================+
-    | |  | +========+   | |                       | durable end-to-end 
+    | |  | +========+   | |                       | durable end-to-end
     | |  V         .    | |      Association      | state via many paths/
     | | +===========+   | |                       | policies and prefs
     | | |    Sink   |   | +=======================+
@@ -241,7 +242,7 @@ exploit their potential.
    +================+   |         +=========+  +=========+
                         |                 |      |
                    +===========+        +==========+
-         ephemeral |           |        |          |  
+         ephemeral |           |        |          |
        transport & | Transient |------->|   Path   | properties of
       crypto state |           |        |          | address pair
                    +===========+        +==========+
@@ -491,7 +492,7 @@ for specific Messages:
   underlying transport protocol stack.
 - Path Element Membership: Identifiers for some or all nodes along the
   path, depending on the capabilities of the underlying network layer protocol
-  to provide this. 
+  to provide this.
 
 Path properties are generally read-only. MTU is a property of the underlying
 link-layer technology on each link in the path; latency, loss, and rate
@@ -697,17 +698,52 @@ func receiveMulticast() {
         return true
     })
 }
+~~~~~~~~
 
 ## Implementation Considerations
 
-[EDITOR'S NOTE: this section will be a grab-bag of things we already know will
-need attention from implementors. Note what underlying transports must provide
-for each feature. Post works without object framing on the sender side, but in
-this case may require additional deframing help on the application side. Show
-that you can port to Post even if your other endpoint is TCP-only. There must be
-a way for the application to provide message backpressure; i.e. through a
-channel with a given buffer length, or a maximum callback concurrency. Maximum
-message size may be difficult to determine and negotiate.]
+Here we discuss an incomplete list of API implementation considerations that
+have arisen with experimentation with the prototype in {{apisketch}}.
+
+### Message Framing and Deframing
+
+An obvious goal of Post Sockets is interoperability with non-Post Sockets
+endpoints: a Post Sockets endpoint using a given protocol stack must be able to
+communicate with another endpoint using the same protocol stack, but not using
+Post Sockets. This implies that the underlying transport protocol stack must
+support object framing, in order to delimit Messages carried by protocol stacks
+that are not themselves message-oriented.
+
+Another goal of Post Sockets is to work over unmodified TCP. We could simply
+define a Message Carrier over TCP to support only stream morphing, but this
+would fall far short of our goal to transport independence. Another approach is
+to recognize that almost every protocol using TCP already has its own message
+delimiters, and to allow the receiver of a Message to provide a deframing
+primitive to the API. Experimentation with the best way to achieve this within
+Post Sockets is underway.
+
+### Message Size Limitations
+
+Ideally, Messages can be of inifinite size. However, protocol stacks and
+protocol stack implementations may impose their own limits on message sizing;
+For example, SCTP {{RFC4960}} and TLS {{I-D.ietf-tls-tls13}} impose record size
+limitations of 64kB and 16kB, respectively. Message sizes may also be limited by
+the available buffer at the receiver, since a Message must be fully assembled at
+the receiver before it can be passed on to the application layer. These message
+size limitations are probably best exposed through the policy context.
+
+A truly infinite message service -- e.g. large file transfer where both
+endpoints have committed persistent storage to the message -- is probably best
+realized as a layer above Post Sockets, and may be added as a new type of
+Message Carrier to a future revision of this document.
+
+### Backpressure
+
+Regardless of how asynchronous reception is implemented, it is important for an
+application to be able to apply receiver backpressure, to allow the protocol
+stack to perform receiver flow control. Depending on how asynchronous I/O works
+in the platform, this could be implemented by having a maximum number of
+concurrent receive callbacks, for example.
 
 # Acknowledgments
 
