@@ -250,8 +250,99 @@ exploit their potential.
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
 
-Post is based on a small set of abstractions, the relationships among which
-are shown in Figure {{fig-abstractions}} and detailed in this section.
+Post is based on a small set of abstractions, centered around a Message Carrier
+as the entry point for an application to the networking API.
+The relationships among them are shown in Figure {{fig-abstractions}} and detailed in this section.
+
+## Message Carrier {#carrier}
+
+A Message Carrier (or simply Carrier) is a transport protocol stack-independent 
+interface for sending and receiving messages between an
+application and a remote endpoint; it is roughly analogous to a socket in the
+present sockets API.
+
+Sending a Message over a Carrier is driven by the application, while receipt
+is driven by the arrival of the last packet that allows the Message to be
+assembled, decrypted, and passed to the application. Receipt is therefore
+asynchronous; given the different models for asynchronous I/O and concurrency
+supported by different platforms, it may be implemented in any number of ways.
+The abstract API provides only for a way for the application to register
+how it wants to handle incoming messages.
+
+All the Messages sent to a Message Carrier will be received on the
+corresponding Message Carrier at the remote endpoint, though not necessarily
+reliably or in order, depending on Message properties and the underlying
+transport protocol stack.
+
+A Message Carrier that is backed by current transport protocol stack state
+(such as a TCP connection; see {{transient}}) is said to be "active": messages
+can be sent and received over it. A Message Carrier can also be "dormant":
+there is long-term state associated with it (via the underlying Association;
+see {{association}}), and it may be able to reactivated, but messages cannot
+be sent and received immediately.
+
+If supported by the underlying transport protocol stack, a Message Carrier may
+be forked: creating a new Message Carrier associated with a new Message
+Carrier at the same remote endpoint. The semantics of the usage of multiple
+Message Carriers based on the same Association are application-specific. When a
+Message Carrier is forked, its corresponding Message Carrier at the remote
+endpoint receives a fork request, which it must accept in order to fully
+establish the new carrier. Multiple message carriers between endpoints are
+implemented differently by different transport protocol stacks, either using
+multiple separate transport-layer connections, or using multiple streams of
+multistreaming transport protocols.
+
+To exchange messages with a given remote endpoint, an application may initiate
+a Message Carrier given its remote (see {{remote}} and local (see {{local}})
+identities; this is an equivalent to an active open. There are five special
+cases of Message Carriers, as well, supporting different initiation and
+interaction patterns, defined in the subsections below.
+
+### Listener
+
+A Listener is a special case of Message Carrier which only responds to
+requests to create a new Carrier from a remote endpoint, analogous to a server
+or listening socket in the present sockets API. Instead of being bound to a
+specific remote endpoint, it is bound only to a local identity; however, its
+interface for accepting fork requests is identical to that for fully fledged
+Message Carriers.
+
+### Source
+
+A Source is a special case of Message Carrier over which messages can only be
+sent, intended for unidirectional applications such as multicast transmitters.
+Sources cannot be forked, and need not accept forks.
+
+### Sink
+
+A Sink is a special case of Message Carrier over which messages can only be
+received, intended for unidirectional applications such as multicast
+receivers. Sinks cannot be forked, and need not accept forks.
+
+### Responder
+
+A Responder is a special case of Message Carrier which may receive messages
+from many remote sources, for cases in which an application will only ever
+send Messages in reply back to the source from which a Message was received.
+This is a common implementation pattern for servers in client-server
+applications. A Responder's receiver gets a Message, as well as a Source to
+send replies to. Responders cannot be forked, and need not accept forks.
+
+### Stream
+
+A Message Carrier may be irreversibly morphed into a Stream, in order to provide
+a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
+Carrier into a Stream should return a "file-like object" as appropriate for the
+platform implementing the API. Typically, both ends of a communication using a
+stream service will morph their respective Message Carriers independently before
+sending any Messages.
+
+Writing a byte to a Stream will cause it to be received by the remote, in
+order, or will cause an error condition and termination of the stream if the
+byte cannot be delivered. Due to the strong sequential dependence on a stream,
+streams must always be reliable and ordered. A Message Carrier may only be
+morphed to a Stream if it uses transport protocol stack that provides
+reliable, ordered service, and only before it is used to send a Message.
 
 ## Message
 
@@ -335,96 +426,6 @@ acknowledged by the receiver, or that the Message has expired before
 transmission/acknowledgment. Not all transport protocol stacks will support
 all of these events.
 
-## Message Carrier {#carrier}
-
-A Message Carrier (or simply Carrier) is a transport protocol stack-
-independent interface for sending and receiving messages between an
-application and a remote endpoint; it is roughly analogous to a socket in the
-present sockets API.
-
-Sending a Message over a Carrier is driven by the application, while receipt
-is driven by the arrival of the last packet that allows the Message to be
-assembled, decrypted, and passed to the application. Receipt is therefore
-asynchronous; given the different models for asynchronous I/O and concurrency
-supported by different platforms, it may be implemented in any number of ways.
-The abstract API provides only for a way for the application to register
-how it wants to handle incoming messages.
-
-All the Messages sent to a Message Carrier will be received on the
-corresponding Message Carrier at the remote endpoint, though not necessarily
-reliably or in order, depending on Message properties and the underlying
-transport protocol stack.
-
-A Message Carrier that is backed by current transport protocol stack state
-(such as a TCP connection; see {{transient}}) is said to be "active": messages
-can be sent and received over it. A Message Carrier can also be "dormant":
-there is long-term state associated with it (via the underlying Association;
-see {{association}}), and it may be able to reactivated, but messages cannot
-be sent and received immediately.
-
-If supported by the underlying transport protocol stack, a Message Carrier may
-be forked: creating a new Message Carrier associated with a new Message
-Carrier at the same remote endpoint. The semantics of the usage of multiple
-Message Carriers on the same Association are application-specific. When a
-Message Carrier is forked, its corresponding Message Carrier at the remote
-endpoint receives a fork request, which it must accept in order to fully
-establish the new carrier. Multiple message carriers between endpoints are
-implemented differently by different transport protocol stacks, either using
-multiple separate transport-layer connections, or using multiple streams of
-multistreaming transport protocols.
-
-To exchange messages with a given remote endpoint, an application may initiate
-a Message Carrier given its remote (see {{remote}} and local (see {{local}})
-identities; this is an equivalent to an active open. There are five special
-cases of Message Carriers, as well, supporting different initiation and
-interaction patterns, defined in the subsections below.
-
-### Listener
-
-A Listener is a special case of Message Carrier which only responds to
-requests to create a new Carrier from a remote endpoint, analogous to a server
-or listening socket in the present sockets API. Instead of being bound to a
-specific remote endpoint, it is bound only to a local identity; however, its
-interface for accepting fork requests is identical to that for fully fledged
-Message Carriers.
-
-### Source
-
-A Source is a special case of Message Carrier over which messages can only be
-sent, intended for unidirectional applications such as multicast transmitters.
-Sources cannot be forked, and need not accept forks.
-
-### Sink
-
-A Sink is a special case of Message Carrier over which messages can only be
-received, intended for unidirectional applications such as multicast
-receivers. Sinks cannot be forked, and need not accept forks.
-
-### Responder
-
-A Responder is a special case of Message Carrier which may receive messages
-from many remote sources, for cases in which an application will only ever
-send Messages in reply back to the source from which a Message was received.
-This is a common implementation pattern for servers in client-server
-applications. A Responder's receiver gets a Message, as well as a Source to
-send replies to. Responders cannot be forked, and need not accept forks.
-
-### Stream
-
-A Message Carrier may be irreversibly morphed into a Stream, in order to provide
-a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
-Carrier into a Stream should return a "file-like object" as appropriate for the
-platform implementing the API. Typically, both ends of a communication using a
-stream service will morph their respective Message Carriers independently before
-sending any Messages.
-
-Writing a byte to a Stream will cause it to be received by the remote, in
-order, or will cause an error condition and termination of the stream if the
-byte cannot be delivered. Due to the strong sequential dependence on a stream,
-streams must always be reliable and ordered. A Message Carrier may only be
-morphed to a Stream if it uses transport protocol stack that provides
-reliable, ordered service, and only before it is used to send a Message.
-
 ## Association
 
 An Association contains the long-term state necessary to support
@@ -437,8 +438,37 @@ network available available between them (see {{path}}).
 
 All Message Carriers are bound to an Association. New Message Carriers will
 reuse an Association if they can be carried from the same Local to the same
-Remote over the same Paths; this re-use of an assocation may implies the
+Remote over the same Paths; this re-use of an Association may implies the
 creation of a new Transient.
+
+## Remote
+
+A Remote represents information required to establish and maintain a
+connection with the far end of an Association: name(s), address(es), and
+transport protocol parameters that can be used to establish a Transient;
+transport protocols to use; information about public keys or certificate
+authorities used to identify the remote on connection establishment; and so
+on. Each Association is associated with a single Remote, either explicitly by
+the application (when created by the initiation of a Message Carrier) or a
+Listener (when created by forking a Message Carrier on passive open).
+
+A Remote may be resolved, which results in zero or more Remotes with more
+specific information. For example, an application may want to establish a
+connection to a website identified by a URL https://www.example.com. This URL
+would be wrapped in a Remote and passed to a call to initiate a Message
+Carrier. The first pass resolution might parse the URL, decomposing it into a
+name, a transport port, and a transport protocol to try connecting with. A
+second pass resolution would then look up network-layer addresses associated
+with that name through DNS, and store any certificates available from DANE.
+Once a Remote has been resolved to the point that a transport protocol stack
+can use it to create a Transient, it is considered fully resolved.
+
+## Local
+
+A Local represents all the information about the local endpoint necessary to
+establish an Association or a Listener: interface, port, and transport
+protocol stack information, as well as certificates and associated private
+keys to use to identify this endpoint.
 
 ## Transient
 
@@ -504,34 +534,6 @@ select from. Transport protocol stacks can also provide signaling to devices
 along the path, but this signaling is derived from information provided to the
 Message abstraction.
 
-## Remote
-
-A Remote represents information required to establish and maintain a
-connection with the far end of an Association: name(s), address(es), and
-transport protocol parameters that can be used to establish a Transient;
-transport protocols to use; information about public keys or certificate
-authorities used to identify the remote on connection establishment; and so
-on. Each Association is associated with a single Remote, either explicitly by
-the application (when created by the initiation of a Message Carrier) or a
-Listener (when created by forking a Message Carrier on passive open).
-
-A Remote may be resolved, which results in zero or more Remotes with more
-specific information. For example, an application may want to establish a
-connection to a website identified by a URL https://www.example.com. This URL
-would be wrapped in a Remote and passed to a call to initiate a Message
-Carrier. The first pass resolution might parse the URL, decomposing it into a
-name, a transport port, and a transport protocol to try connecting with. A
-second pass resolution would then look up network-layer addresses associated
-with that name through DNS, and store any certificates available from DANE.
-Once a Remote has been resolved to the point that a transport protocol stack
-can use it to create a Transient, it is considered fully resolved.
-
-## Local
-
-A Local represents all the information about the local endpoint necessary to
-establish an Association or a Listener: interface, port, and transport
-protocol stack information, as well as certificates and associated private
-keys to use to identify this endpoint.
 
 ## Policy Context
 
@@ -641,7 +643,7 @@ func acceptConnections() {
 ~~~~~~~~
 {: #fig-server title="Example server"}
 
-The Responder allows the server to be significantly signified, as shown in {{fig-responder}}.
+The Responder allows the server to be significantly simplified, as shown in {{fig-responder}}.
 
 ~~~~~~~~
 func echo(msg InMessage, reply Sink) {
@@ -724,7 +726,7 @@ Post Sockets is underway.
 
 ### Message Size Limitations
 
-Ideally, Messages can be of inifinite size. However, protocol stacks and
+Ideally, Messages can be of infinite size. However, protocol stacks and
 protocol stack implementations may impose their own limits on message sizing;
 For example, SCTP {{RFC4960}} and TLS {{I-D.ietf-tls-tls13}} impose record size
 limitations of 64kB and 16kB, respectively. Message sizes may also be limited by
