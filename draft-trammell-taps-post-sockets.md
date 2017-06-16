@@ -1,7 +1,7 @@
 ---
 title: Post Sockets, An Abstract Programming Interface for the Transport Layer
 abbrev: Post Sockets
-docname: draft-trammell-taps-post-sockets-00
+docname: draft-trammell-taps-post-sockets-latest
 date:
 category: info
 
@@ -125,7 +125,7 @@ simplistic for many modern application programming models.
 In the meantime, the nature of Internet access, and the variety of Internet
 transport protocols, is evolving. The challenges that new protocols and access
 paradigms present to the sockets API and to programming models based on them
-inspire the design elements of a new approach
+inspire the design elements of a new approach.
 
 Many end-user devices are connected to the Internet via multiple interfaces,
 which suggests it is time to promote the paths by which two endpoints are
@@ -136,10 +136,7 @@ specifically designed to hide multipath communication from the application for
 purposes of compatibility. Since many multihomed nodes are connected to the
 Internet through access paths with widely different properties with respect to
 bandwidth, latency and cost, adding explicit path control to MPTCP's API would
-be useful in many situations. Applications also need control over cooperation
-with path elements via mechanisms such as that proposed by the Path Layer UDP
-Substrate (PLUS) effort (see {{I-D.trammell-plus-statefulness}} and
-{{I-D.trammell-plus-abstract-mech}}).
+be useful in many situations. 
 
 Another trend straining the traditional layering of the transport stack
 associated with the SOCK_STREAM interface is the widespread interest in
@@ -256,10 +253,9 @@ The relationships among them are shown in Figure {{fig-abstractions}} and detail
 
 ## Message Carrier {#carrier}
 
-A Message Carrier (or simply Carrier) is a transport protocol stack-independent 
-interface for sending and receiving messages between an
-application and a remote endpoint; it is roughly analogous to a socket in the
-present sockets API.
+A Message Carrier (or simply Carrier) is a transport protocol stack-independent
+interface for sending and receiving messages between an application and a remote
+endpoint; it is roughly analogous to a socket in the present sockets API.
 
 Sending a Message over a Carrier is driven by the application, while receipt
 is driven by the arrival of the last packet that allows the Message to be
@@ -543,7 +539,6 @@ requirements can be met by having multiple paths with different properties to
 select from. Transport protocol stacks can also provide signaling to devices
 along the path, but this signaling is derived from information provided to the
 Message abstraction.
-
 
 ## Policy Context
 
