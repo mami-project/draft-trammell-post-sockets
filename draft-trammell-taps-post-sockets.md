@@ -152,7 +152,7 @@ setup and maintenance into the path abstraction naturally complements efforts
 in new protocols (e.g. QUIC {{I-D.ietf-quic-transport}}) to
 mitigate this strict layering.
 
-To meet these challenges, we present the Post-Socket Application Programming
+To meet these challenges, we present the Post-Sockets Application Programming
 Interface (API), described in detail in this work. Post is designed to be
 language, transport protocol, and architecture independent, allowing
 applications to be written to a common abstract interface, easily ported among
@@ -203,7 +203,7 @@ This work is the synthesis of many years of Internet transport protocol
 research and development. It is inspired by concepts from the Stream Control
 Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-protocol}},
 and MinimaLT{{MinimaLT}}, among other transport protocol
-modernization efforts. We present Post Sockets as an illustration of what is
+modernization efforts. We present Post as an illustration of what is
 possible with present developments in transport protocols when freed from the
 strictures of the current sockets API. While much of the work for building
 parts of the protocols needed to implement Post are already ongoing in other
