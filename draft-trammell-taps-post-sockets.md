@@ -214,30 +214,30 @@ exploit their potential.
 # Abstractions and Terminology
 
 ~~~~~~~~~~
-        +===============+
-        |    Message    |
-        +===============+
-              |    ^     initiate()       listen()
-          send()  ready()    |               |
-              V    |         V               V
-        +======================+  accept() +============+
-        |                      |<---+------|            |
-        |       Carrier        |    |      |  Listener  |
-        |                      |----+      |            |
-        +======================+           +============+
-                    |        |               |
-                    |        |               |
-                    | +=======================+
-                    | |                       | durable end-to-end
-                    | |      Association      | state via many paths/
-                    | |                       | policies and prefs
-                    | +=======================+
-                    |                 |      |
-                    |                 |      |
-                    |         +=========+  +=========+
-                    |         |  Local  |  | Remote  |
-                    |         +=========+  +=========+
-                    |                 |      |
+           +===============+
+           |    Message    |
+           +===============+
+                |    ^      initiate()       listen()
+            send()  ready()    |               |
+                V    |         V               V
+           +=====================+  accept() +============+
+           |                     |<---+------|            |
+           |      Carrier        |    |      |  Listener  |
+           |                     |----+      |            |
+           +=====================+           +============+
+            |         |         |                  |
+            |         |         |                  |
+            |    +========+   +=======================+
+            |    |        |   |                       | durable end-to-end
+            |    | Policy |---|      Association      | state via many paths/
+            |    |        |   |                       | policies and prefs
+            |    +========+   +=======================+
+            |         |               |      |
+            |         |               |      |
+            +-------+ |       +=========+  +=========+
+                    | |       |  Local  |  | Remote  |
+                    | |       +=========+  +=========+
+                    | |               |      |
                +===========+        +==========+
      ephemeral |           |        |          |
    transport & | Transient |------->|   Path   | properties of
