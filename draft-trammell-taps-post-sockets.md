@@ -217,32 +217,30 @@ exploit their potential.
            +===============+
            |    Message    |
            +===============+
-                |    ^      initiate()       listen()
-            send()  ready()    |               |
+                |    ^         |               |
+          send()|    |ready()  |initiate()     |listen()
                 V    |         V               V
-           +=====================+  accept() +============+
-           |                     |<---+------|            |
-           |      Carrier        |    |      |  Listener  |
-           |                     |----+      |            |
            +=====================+           +============+
-            |         |         |                  |
-            |         |         |                  |
-            |    +========+   +=======================+
-            |    |        |   |                       | durable end-to-end
-            |    | Policy |---|      Association      | state via many paths/
-            |    |        |   |                       | policies and prefs
-            |    +========+   +=======================+
-            |         |               |      |
-            |         |               |      |
-            +-------+ |       +=========+  +=========+
-                    | |       |  Local  |  | Remote  |
-                    | |       +=========+  +=========+
-                    | |               |      |
-               +===========+        +==========+
-     ephemeral |           |        |          |
-   transport & | Transient |------->|   Path   | properties of
-  crypto state |           |        |          | address pair
-               +===========+        +==========+
+           |                     |  accept() |            |
+           |      Carrier        |<----------|  Listener  |
+           |                     |           |            |
+           +=====================+           +============+
+            |1        |        n|                  |          +=========+
+            |         |         |1                 |      +---|  Local  |
+            |    +========+   +=======================+   |   +=========+
+            |    |        |   |                       |---+ 
+            |    | Policy |---|      Association      |       +=========+
+            |    |        |   |                       |-------|  Remote |
+            |    +========+   +=======================+       +=========+
+            |         |                1| durable end-to-end
+            +-------+ |                 | state via many paths,
+                    | |                 | policies, and prefs  
+                   n| |                n|
+               +===========+       +==========+
+     ephemeral |           |       |          |
+   transport & | Transient |-------|   Path   | properties of
+  crypto state |           |n     1|          | address pair
+               +===========+       +==========+
 
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
