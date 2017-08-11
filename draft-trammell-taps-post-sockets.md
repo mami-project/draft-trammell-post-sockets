@@ -717,22 +717,73 @@ func receiveMulticast() {
 Here we discuss an incomplete list of API implementation considerations that
 have arisen with experimentation with the prototype in {{apisketch}}.
 
-### Message Framing and Deframing
+### Message Framing, Parsing, and Serialisation
 
-An obvious goal of Post Sockets is interoperability with non-Post Sockets
-endpoints: a Post Sockets endpoint using a given protocol stack must be able to
-communicate with another endpoint using the same protocol stack, but not using
-Post Sockets. This implies that the underlying transport protocol stack must
-support object framing, in order to delimit Messages carried by protocol stacks
-that are not themselves message-oriented.
+While some transports expose a byte stream abstraction, most higher level
+protocols impose some structure onto that byte stream. That is, the higher
+level protocol operates in terms of messages, protocol data units (PDUs),
+rather than using unstructured sequences of bytes, with each message being
+processed in turn.
+Protocols are specified in terms of state machines acting on semantic
+messages, with parsing the byte stream into messages being a necessary
+annoyance, rather than a semantic concern.
+Accordingly, Post Sockets exposes a message-based API to applications as
+the primary abstraction, offering a stream-based API for ease of porting
+and backwards compatibility only.
 
-Another goal of Post Sockets is to work over unmodified TCP. We could simply
-define a Message Carrier over TCP to support only stream morphing, but this
-would fall far short of our goal to transport independence. Another approach is
-to recognize that almost every protocol using TCP already has its own message
-delimiters, and to allow the receiver of a Message to provide a deframing
-primitive to the API. Experimentation with the best way to achieve this within
-Post Sockets is underway.
+There are other benefits of providing a message-oriented API beyond framing
+PDUs that Post Sockets should provide when supported by the underlying
+transport. These include:
+
+ - the ability to associate deadlines with messages, for transports that
+   care about timing; 
+
+ - the ability to provide control of reliability, choosing what messages to
+   retransmit in the event of packet loss, and how best to make use of the
+   data that arrived;
+
+ - the ability to manage dependencies between messages, when some messages
+   may not be delivered due to either packet loss or missing a deadline, in
+   particular the ability to avoid (re-)sending data that relies on a previous
+   transmission that was never received. 
+
+All require explicit message boundaries, and application-level framing of
+messages, to be effective. Once a message is passed to Post Sockets, it can
+not be cancelled or paused, but prioritization as well as lifetime and
+retransmission management will provide the protocol stack with all needed
+information to send the messages as quickly as possible without blocking
+transmission unnecessarily.  Post Sockets provides this by handling
+message, with known identity (sequence numbers, in the simple case),
+lifetimes, niceness, and antecedents.
+
+Transport protocols such as SCTP provide a message-oriented API that has
+similar features to those we describe. Other transports, such as TCP, do
+not. To support a message oriented API, while still being compatible with
+stream-based transport protocols, Post Sockets must provide APIs for
+parsing and serialising messages that understand the protocol data.  That
+is, we push message parsing and serialisation down into the Post Sockets
+stack, allowing applications to send and receive strongly typed data
+objects (e.g., a receive call on an HTTP Message Carrier should return 
+an object representing the HTTP response, with pre-parsed status code,
+headers, and any message body, rather than returning a byte array that 
+the application has to parse itself).
+This is backwards compatible with existing protocols and APIs, since
+the wire format of messages does not change, but gives a Post Sockets
+stack additional information to allow it to make better use of modern
+transport services. 
+
+The Post Sockets approach is therefore to raise the semantic level of the
+transport API: applications should send and receive messages in the form of
+meaningful, strongly typed, protocol data. Parsing and serialising such
+messages should be a re-usable function of the protocol stack instance not
+the application.  This is well-suited to implementation in modern systems
+languages, such as Swift, Go, Rust, or C++, but can also be implemented
+with some loss of type safety in C. 
+
+{::comment}
+  The paper has an example API in Rust-like syntax. We should probably 
+  figure out a language-neutral way of specifying the Post Sockets API.
+{:/comment}
 
 ### Message Size Limitations
 
