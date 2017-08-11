@@ -228,9 +228,9 @@ exploit their potential.
             |1        |        n|                  |          +=========+
             |         |         |1                 |      +---|  Local  |
             |   +=========+   +=======================+   |   +=========+
-            |   | Policy  |   |                       |---+ 
+            |   | Policy  |n  |                       |---+ 
             |   | Context |---|      Association      |       +=========+
-            |   |         |   |                       |-------|  Remote |
+            |   |         |  1|                       |-------|  Remote |
             |   +=========+   +=======================+       +=========+
             |         |                1| durable end-to-end
             +-------+ |                 | state via many paths,
@@ -477,19 +477,25 @@ keys to use to identify this endpoint.
 
 ## Policy Context {#PolicyContext}
 
-A Local and a Remote is not necessarily enough to establish a Message Carrier
-between two endpoints. For instance, an application may require or prefer
-certain transport features (see {{I-D.ietf-taps-transports}}) in the transport
-protocol stacks used by the Transients underlying the Carrier; it may also
-prefer Paths over one interface to those over another (e.g. WiFi access over LTE
-when roaming on a foreign LTE network, due to cost). These policies are
-expressed in a Policy Context bound to an Association. Multiple policy contexts
-may be active at once; e.g. a system Policy Context expressing administrative
-preferences about interface and protocol selection, an application Policy
-Context expressing transport feature information. The expression of policy
-contexts and the resolution of conflicts among Policy Contexts is currently
-implementation-specific; note that these are equivalent to the Policy API in the
-NEAT architeture {{NEAT}}.
+The Policy Context describes preferences for, and restrictions on, how to
+configure Transients to support communication between a Local and a Remote
+over one or more Paths between endpoints.
+For instance, an application may require, or prefer to use, certain features 
+(see {{I-D.ietf-taps-transports}}) of the transport protocol stacks used by
+the Transients underlying the Carrier. 
+Alternatively, it might also prefer Paths over one interface to those over
+another (e.g., WiFi access over LTE when roaming on a foreign LTE network,
+due to cost). 
+
+These policies are expressed in the Policy Context(s) that are bound to the 
+Association. 
+Multiple policy contexts can be active at once. 
+For example, a system Policy Context can express the administrative preferences
+around network interface and protocol selection, while an application Policy Context
+expresses preferences for use of different transport services. 
+Expression of policy contexts and the resolution of conflicts among Policy
+Contexts is currently implementation-specific (the Policy API in the NEAT 
+architecture {{NEAT}} provides an example of how this can be done).
 
 ## Transient
 
