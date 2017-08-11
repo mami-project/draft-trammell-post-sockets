@@ -706,6 +706,55 @@ func receiveMulticast() {
 Here we discuss an incomplete list of API implementation considerations that
 have arisen with experimentation with the prototype in {{apisketch}}.
 
+### Protocol Stack Instance (PSI)
+
+
+A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over IPv6,
+SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge between the
+interface (Carrier) plus the current state (Transients) and the implementation 
+of a given set of transport services {{I-D.ietf-taps-transports}}. 
+
+A given implementation makes one or more possible protocol stacks available
+to its applications. Selection and configuration among multiple PSIs is
+based on system-level or application policies, as well as on network
+conditions in the provisioning domain in which a connection is made. 
+
+~~~~~~~~~~
++=========+    +=========+   +==========+      +==========+
+| Carrier |    | Carrier |   | Carrier  |      | Carrier  |
++=========+    +=========+   +==========+      +==========+
+     |               |              |                 |
++=========+    +=========+   +==========+      +==========+
+|Transient|    |Transient|   |Transient |      |Transient |
++=========+    +=========+   +==========+      +==========+
+     |                  \     /                 /        \
++=========+           +=========+      +=========+      +=========+
+|   PSI   |           |   PSI   |      |   PSI   |      |   PSI   |
++===+-----++          +===+-----++     +===+-----++    ++-----+===+
+    |TLS   |              |SCTP  |         |TLS   |    |   TLS|
+    |TCP   |              |DTLS  |         |TCP   |    |   TCP|
+    |IPv6  |              |UDP   |         |IPv6  |    |  IPv4|
+    |802.3 |              |IPv6  |         |802.11|    |802.11|
+    +------+              |802.3 |         +------+    +------+
+                          +------+
+(a) Transient  (b) Carrier multiplexing   (c) Multiple candidates
+ bound to PSI   over a multi-streaming     racing during session
+                transport protocol         establishment
+~~~~~~~~~~
+{: #fig-psi title="Example Protocol Stack Instances"}
+
+For example, {{fig-psi}}(a) shows a TLS over TCP stack, usable on most
+network connections. Protocols are layered to ensure that the PSI provides
+all the transport services required by the application. 
+A single PSI may be bound to multiple message carriers, as shown in
+{{fig-psi}}(b): a multi-streaming transport protocol like QUIC or SCTP can
+support one carrier per stream. Where multi-streaming transport is not
+available, these carriers could be serviced by different PSIs on different
+flows. On the other hand, multiple PSIs are bound to a single transient
+during establishment, as shown in {{fig-psi}}(c). Here, the losing
+PSI in a happy-eyeballs race will be terminated, and the carrier will
+continue using the winning PSI.
+
 ### Message Framing, Parsing, and Serialisation
 
 While some transports expose a byte stream abstraction, most higher level
