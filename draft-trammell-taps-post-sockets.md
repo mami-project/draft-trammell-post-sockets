@@ -802,13 +802,115 @@ endpoints have committed persistent storage to the message -- is probably best
 realized as a layer above Post Sockets, and may be added as a new type of
 Message Carrier to a future revision of this document.
 
-### Backpressure
+### Back-pressure
 
 Regardless of how asynchronous reception is implemented, it is important for an
-application to be able to apply receiver backpressure, to allow the protocol
+application to be able to apply receiver back-pressure, to allow the protocol
 stack to perform receiver flow control. Depending on how asynchronous I/O works
 in the platform, this could be implemented by having a maximum number of
 concurrent receive callbacks, for example.
+
+### Associations, Transients, Racing, and Rendezvous
+
+As the network has evolved, even the simple act of establishing a
+connection has become increasingly complex.  Clients now regularly race
+multiple connections, for example over IPv4 and IPv6, to determine which
+protocol to use.  The choice of outgoing interface has also become more
+important, with differential reachability and performance from multiple
+interfaces. Name resolution can also give different outcomes depending on
+the interface the query was issued from. Finally, but often most
+significantly, NAT traversal, relay discovery, and path state maintenance
+messages are an essential part of connection establishment, especially for
+peer-to-peer applications.
+
+Post Sockets accordingly breaks communication establishment down into
+multiple phases:
+
+ - Gathering Locals
+
+   The set of possible Locals is gathered. 
+   In the simple case, this merely enumerates the local interfaces and 
+   protocols, and allocates ephemeral source ports for transients. For
+   example, a system that has WiFi and Ethernet and supports IPv4 and IPv6
+   might gather four candidate locals (IPv4 on Ethernet, IPv6 on Ethernet,
+   IPv4 on WiFi, and IPv6 on WiFi) that can form the source for a transient. 
+
+   If NAT traversal is required, the process of gathering locals becomes
+   broadly equivalent to the ICE candidate gathering phase {{RFC5245}}.
+   The endpoint determines its server reflexive locals (i.e., the
+   translated address of a local, on the other side of a NAT) and relayed
+   locals (e.g., via a TURN server or other relay), for each interface and 
+   network protocol. These are added to the set of candidate locals for
+   this association.
+
+   Gathering locals is primarily an endpoint local operation, although it
+   might involve exchanges with a STUN server to derive server reflexive
+   locals, or with a TURN server or other relay to derive relayed locals.
+   It does not involve communication with the remote.
+
+ - Resolving the Remote
+
+   The remote is typically a name that
+   needs to be resolved into a set of possible addresses that can be used
+   for communication. Resolving the remote is the process of recursively
+   performing such name lookups, until fully resolved, to return the set
+   of candidates for the remote of this association.
+
+   How this is done will depend on the type of the Remote, and can also 
+   be specific to each local.
+   A common case is when the Remote is a DNS name, in which case it is
+   resolved to give a set of IPv4 and IPv6 addresses representing that
+   name.
+   Some types of remote might require more complex resolution. Resolving
+   the remote for a peer-to-peer connection might involve communication
+   with a rendezvous server, which in turn contacts the peer to gain 
+   consent to communicate and retrieve its set of candidate locals, which
+   are returned and form the candidate remote addresses for contacting
+   that peer. 
+
+   Resolving the remote is *not* a local operation. It will involve
+   a directory service, and can require communication with the remote to
+   rendezvous and exchange peer addresses.
+   This can expose some or all of the candidate locals to the remote.
+
+ - Establishing Transients
+
+   The set of candidate locals and the set of candidate remotes are
+   paired, to derive a priority ordered set of Candidate Paths that
+   can potentially be used to establish a connection. 
+   
+   Then, communication is attempted over each candidate path, in
+   priority order. If there are multiple candidates with the same
+   priority, then transient establishment proceeds simultaneously
+   and uses the transient that wins the race to be established.
+   Otherwise, transients establishment is sequential, paced at a 
+   rate that should not congest the network. 
+   Depending on the chosen transport, this phase might involve racing
+   TCP connections to a server over IPv4 and IPv6 {{RFC6555}}, or 
+   it could involve a STUN exchange to establish peer-to-peer UDP
+   connectivity {{RFC5245}}, or some other means.
+
+ - Confirming and Maintaining Transients
+
+   Once connectivity has been established, unused resources can be
+   released and the chosen path can be confirmed. 
+   This is primarily required when establishing peer-to-peer connectivity, 
+   where connections supporting relayed locals that were not required can
+   be closed, and where an associated signalling operation might be needed
+   to inform middleboxes and proxies of the chosen path.
+   Keep-alive messages may also be sent, as appropriate, to ensure NAT and
+   firewall state is maintained, so the transient remains operational.
+
+By encapsulating these four phases of communication establishment into the
+PSI, Post Sockets aims to simplify application development.
+It can provide reusable implementations of connection racing for TCP, to enable
+happy eyeballs, that will be automatically used by all TCP clients, for example.
+With appropriate callbacks to drive the rendezvous signalling as part of
+resolving the remote, we believe a generic ICE implementation ought also to be
+possible. This procedure can even be repeated fully or partially during a 
+connection to enable seamless hand-over and mobility within the network stack.
+
+
 
 # Acknowledgments
 
