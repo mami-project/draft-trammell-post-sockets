@@ -227,11 +227,11 @@ exploit their potential.
            +=====================+           +============+
             |1        |        n|                  |          +=========+
             |         |         |1                 |      +---|  Local  |
-            |    +========+   +=======================+   |   +=========+
-            |    |        |   |                       |---+ 
-            |    | Policy |---|      Association      |       +=========+
-            |    |        |   |                       |-------|  Remote |
-            |    +========+   +=======================+       +=========+
+            |   +=========+   +=======================+   |   +=========+
+            |   | Policy  |   |                       |---+ 
+            |   | Context |---|      Association      |       +=========+
+            |   |         |   |                       |-------|  Remote |
+            |   +=========+   +=======================+       +=========+
             |         |                1| durable end-to-end
             +-------+ |                 | state via many paths,
                     | |                 | policies, and prefs  
@@ -435,7 +435,8 @@ all of these events.
 An Association contains the long-term state necessary to support
 communications between a Local (see {{local}}) and a Remote (see {{remote}})
 endpoint, such as cryptographic session resumption parameters or rendezvous
-information; information about the policies constraining the selection of
+information. It uses information from the Policy Context (see {{PolicyContext}})
+to constrain the selection of
 transport protocols and local interfaces to create Transients (see
 {{transient}}) to carry Messages; and information about the paths through the
 network available available between them (see {{path}}).
@@ -473,6 +474,22 @@ A Local represents all the information about the local endpoint necessary to
 establish an Association or a Listener: interface, port, and transport
 protocol stack information, as well as certificates and associated private
 keys to use to identify this endpoint.
+
+## Policy Context {#PolicyContext}
+
+A Local and a Remote is not necessarily enough to establish a Message Carrier
+between two endpoints. For instance, an application may require or prefer
+certain transport features (see {{I-D.ietf-taps-transports}}) in the transport
+protocol stacks used by the Transients underlying the Carrier; it may also
+prefer Paths over one interface to those over another (e.g. WiFi access over LTE
+when roaming on a foreign LTE network, due to cost). These policies are
+expressed in a Policy Context bound to an Association. Multiple policy contexts
+may be active at once; e.g. a system Policy Context expressing administrative
+preferences about interface and protocol selection, an application Policy
+Context expressing transport feature information. The expression of policy
+contexts and the resolution of conflicts among Policy Contexts is currently
+implementation-specific; note that these are equivalent to the Policy API in the
+NEAT architeture {{NEAT}}.
 
 ## Transient
 
@@ -537,22 +554,6 @@ requirements can be met by having multiple paths with different properties to
 select from. Transport protocol stacks can also provide signaling to devices
 along the path, but this signaling is derived from information provided to the
 Message abstraction.
-
-## Policy Context
-
-A Local and a Remote is not necessarily enough to establish a Message Carrier
-between two endpoints. For instance, an application may require or prefer
-certain transport features (see {{I-D.ietf-taps-transports}}) in the transport
-protocol stacks used by the Transients underlying the Carrier; it may also
-prefer Paths over one interface to those over another (e.g. WiFi access over LTE
-when roaming on a foreign LTE network, due to cost). These policies are
-expressed in a Policy Context bound to an Association. Multiple policy contexts
-may be active at once; e.g. a system Policy Context expressing administrative
-preferences about interface and protocol selection, an application Policy
-Context expressing transport feature information. The expression of policy
-contexts and the resolution of conflicts among Policy Contexts is currently
-implementation-specific; note that these are equivalent to the Policy API in the
-NEAT architeture {{NEAT}}.
 
 # Abstract Programming Interface
 
