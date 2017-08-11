@@ -292,51 +292,46 @@ identities; this is an equivalent to an active open. There are five special
 cases of Message Carriers, as well, supporting different initiation and
 interaction patterns, defined in the subsections below.
 
-### Listener
+ - Listener:
+   A Listener is a special case of Message Carrier which only responds to
+   requests to create a new Carrier from a remote endpoint, analogous to a server
+   or listening socket in the present sockets API. Instead of being bound to a
+   specific remote endpoint, it is bound only to a local identity; however, its
+   interface for accepting fork requests is identical to that for fully fledged
+   Message Carriers.
 
-A Listener is a special case of Message Carrier which only responds to
-requests to create a new Carrier from a remote endpoint, analogous to a server
-or listening socket in the present sockets API. Instead of being bound to a
-specific remote endpoint, it is bound only to a local identity; however, its
-interface for accepting fork requests is identical to that for fully fledged
-Message Carriers.
+ - Source:
+   A Source is a special case of Message Carrier over which messages can only be
+   sent, intended for unidirectional applications such as multicast transmitters.
+   Sources cannot be forked, and need not accept forks.
 
-### Source
+ - Sink:
+   A Sink is a special case of Message Carrier over which messages can only
+   be received, intended for unidirectional applications such as multicast
+   receivers. Sinks cannot be forked, and need not accept forks.
 
-A Source is a special case of Message Carrier over which messages can only be
-sent, intended for unidirectional applications such as multicast transmitters.
-Sources cannot be forked, and need not accept forks.
+ - Responder:
+   A Responder is a special case of Message Carrier which may receive messages
+   from many remote sources, for cases in which an application will only ever
+   send Messages in reply back to the source from which a Message was received.
+   This is a common implementation pattern for servers in client-server
+   applications. A Responder's receiver gets a Message, as well as a Source to
+   send replies to. Responders cannot be forked, and need not accept forks.
 
-### Sink
+ - Stream:
+   A Message Carrier may be irreversibly morphed into a Stream, in order to provide
+   a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
+   Carrier into a Stream should return a "file-like object" as appropriate for the
+   platform implementing the API. Typically, both ends of a communication using a
+   stream service will morph their respective Message Carriers independently before
+   sending any Messages.
 
-A Sink is a special case of Message Carrier over which messages can only be
-received, intended for unidirectional applications such as multicast
-receivers. Sinks cannot be forked, and need not accept forks.
-
-### Responder
-
-A Responder is a special case of Message Carrier which may receive messages
-from many remote sources, for cases in which an application will only ever
-send Messages in reply back to the source from which a Message was received.
-This is a common implementation pattern for servers in client-server
-applications. A Responder's receiver gets a Message, as well as a Source to
-send replies to. Responders cannot be forked, and need not accept forks.
-
-### Stream
-
-A Message Carrier may be irreversibly morphed into a Stream, in order to provide
-a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
-Carrier into a Stream should return a "file-like object" as appropriate for the
-platform implementing the API. Typically, both ends of a communication using a
-stream service will morph their respective Message Carriers independently before
-sending any Messages.
-
-Writing a byte to a Stream will cause it to be received by the remote, in
-order, or will cause an error condition and termination of the stream if the
-byte cannot be delivered. Due to the strong sequential dependence on a stream,
-streams must always be reliable and ordered. A Message Carrier may only be
-morphed to a Stream if it uses transport protocol stack that provides
-reliable, ordered service, and only before it is used to send a Message.
+   Writing a byte to a Stream will cause it to be received by the remote, in
+   order, or will cause an error condition and termination of the stream if the
+   byte cannot be delivered. Due to the strong sequential dependence on a stream,
+   streams must always be reliable and ordered. A Message Carrier may only be
+   morphed to a Stream if it uses transport protocol stack that provides
+   reliable, ordered service, and only before it is used to send a Message.
 
 ## Message
 
@@ -367,67 +362,61 @@ properties which provide additional information to the underlying transport
 protocol stack on how they should be handled, in a protocol-specific way. These
 stacks may also deliver or set properties on received messages, but in the
 general case a received messages contains only a sequence of ordered bytes.
+Message properties include:
 
-### Lifetime and Partial Reliability
+ - Lifetime and Partial Reliability:
+   A Message may have a "lifetime" -- a wall clock duration before which the
+   Message must be available to the application layer at the remote end. If a
+   lifetime cannot be met, the Message is discarded as soon as possible. Messages
+   without lifetimes are sent reliably if supported by the transport protocol
+   stack. Lifetimes are also used to prioritize Message delivery.
 
-A Message may have a "lifetime" -- a wallclock duration before which the
-Message must be available to the application layer at the remote end. If a
-lifetime cannot be met, the Message is discarded as soon as possible. Messages
-without lifetimes are sent reliably if supported by the transport protocol
-stack. Lifetimes are also used to prioritize Message delivery.
+   There is no guarantee that a Message will not be delivered after the end of
+   its lifetime; for example, a Message delivered over a strictly reliable
+   transport will be delivered regardless of its lifetime. Depending on the
+   transport protocol stack used to transmit the message, these lifetimes may
+   also be signalled to path elements by the underlying transport, so that path
+   elements that realize a lifetime cannot be met can discard frames containing
+   the Messages instead of forwarding them.
 
-There is no guarantee that a Message will not be delivered after the end of
-its lifetime; for example, a Message delivered over a strictly reliable
-transport will be delivered regardless of its lifetime. Depending on the
-transport protocol stack used to transmit the message, these lifetimes may
-also be signaled to path elements by the underlying transport, so that path
-elements that realize a lifetime cannot be met can discard frames containing
-the Messages instead of forwarding them.
+ - Priority:
+   Messages have a "niceness" -- a priority among other messages sent over the
+   same Message Carrier in an unbounded hierarchy most naturally represented as a
+   non-negative integer. By default, Messages are in niceness class 0, or highest
+   priority. Niceness class 1 Messages will yield to niceness class 0 Messages
+   sent over the same Carrier, class 2 to class 1, and so on. Niceness may be
+   translated to a priority signal for exposure to path elements (e.g. DSCP
+   code point) to allow prioritization along the path as well as at the sender and
+   receiver. This inversion of normal schemes for expressing priority has a
+   convenient property: priority increases as both niceness and lifetime
+   decrease. A Message may have both a niceness and a lifetime -- Messages with
+   higher niceness classes will yield to lower classes if resource constraints
+   mean only one can meet the lifetime.
 
-### Priority
+ - Dependence:
+   A Message may have "antecedents" -- other Messages on which it
+   depends, which must be delivered before it (the "successor") is delivered.
+   The sending transport uses deadlines, niceness, and antecedents, along with
+   information about the properties of the Paths available, to determine when to
+   send which Message down which Path.
 
-Messages have a "niceness" -- a priority among other messages sent over the
-same Message Carrier in an unbounded hierarchy most naturally represented as a
-non-negative integer. By default, Messages are in niceness class 0, or highest
-priority. Niceness class 1 Messages will yield to niceness class 0 Messages
-sent over the same Carrier, class 2 to class 1, and so on. Niceness may be
-translated to a priority signal for exposure to path elements (e.g. DSCP
-codepoint) to allow prioritization along the path as well as at the sender and
-receiver. This inversion of normal schemes for expressing priority has a
-convenient property: priority increases as both niceness and lifetime
-decrease. A Message may have both a niceness and a lifetime -- Messages with
-higher niceness classes will yield to lower classes if resource constraints
-mean only one can meet the lifetime.
+ - Idempotence:
+   A sending application may mark a Message as "idempotent" to signal to the
+   underlying transport protocol stack that its application semantics make it
+   safe to send in situations that may cause it to be received more than once
+   (i.e., for 0-RTT session resumption as in TCP Fast Open, TLS 1.3, and QUIC).
 
-### Dependence
-
-A Message may have "antecedents" -- other Messages on which it
-depends, which must be delivered before it (the "successor") is delivered.
-The sending transport uses deadlines, niceness, and antecedents, along with
-information about the properties of the Paths available, to determine when to
-send which Message down which Path.
-
-### Idempotence
-
-A sending application may mark a Message as "idempotent" to signal to the
-underlying transport protocol stack that its application semantics make it
-safe to send in situations that may cause it to be received more than once
-(i.e., for 0-RTT session resumption as in TCP Fast Open, TLS 1.3, and QUIC).
-
-### Immediacy
-
-A sending application may mark a Message as "immediate" to signal to the
-underlying transport protocol stack that its application semantics require it to
-be placed in a single packet, on its own, instead of waiting to be combined with
-other messages or parts thereof (i.e., for media transports and interactive
-sessions with small messages).
-
-### Additional Events
+ - Immediacy:
+   A sending application may mark a Message as "immediate" to signal to the
+   underlying transport protocol stack that its application semantics require it to
+   be placed in a single packet, on its own, instead of waiting to be combined with
+   other messages or parts thereof (i.e., for media transports and interactive
+   sessions with small messages).
 
 Senders may also be asynchronously notified of three events on Messages they
 have sent: that the Message has been transmitted, that the Message has been
 acknowledged by the receiver, or that the Message has expired before
-transmission/acknowledgment. Not all transport protocol stacks will support
+transmission/acknowledgement. Not all transport protocol stacks will support
 all of these events.
 
 ## Association
