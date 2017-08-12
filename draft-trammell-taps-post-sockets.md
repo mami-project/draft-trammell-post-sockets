@@ -60,6 +60,7 @@ informative:
     RFC7413:
     RFC7556:
     I-D.ietf-quic-transport:
+    I-D.ietf-taps-crypto-sep:
     I-D.ietf-tls-tls13:
     I-D.iyengar-minion-protocol:
     I-D.trammell-plus-abstract-mech:
@@ -163,7 +164,7 @@ different platforms, and used even in environments where transport protocol
 selection may be done dynamically, as proposed in the IETF's Transport Services
 working group.
 
-Post replaces the traditional SOCK_STREAM abstraction with an Message
+Post replaces the traditional SOCK_STREAM abstraction with a Message
 abstraction, which can be seen as a generalization of the Stream Control
 Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service. Messages are sent
 and received on Carriers, which logically group Messages for transmission and
@@ -205,8 +206,8 @@ The key features of Post as compared with the existing sockets API are:
 This work is the synthesis of many years of Internet transport protocol
 research and development. It is inspired by concepts from the Stream Control
 Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-protocol}},
-and MinimaLT{{MinimaLT}}, among other transport protocol
-modernization efforts. We present Post Sockets as an illustration of what is
+and MinimaLT {{MinimaLT}}, among other transport protocol
+modernization efforts. We present Post as an illustration of what is
 possible with present developments in transport protocols when freed from the
 strictures of the current sockets API. While much of the work for building
 parts of the protocols needed to implement Post are already ongoing in other
@@ -256,7 +257,7 @@ The relationships among them are shown in Figure {{fig-abstractions}} and detail
 
 ## Message Carrier {#carrier}
 
-A Message Carrier (or simply Carrier) is a transport protocol stack-independent 
+A Message Carrier (or simply Carrier) is a transport protocol stack-independent
 interface for sending and receiving messages between an
 application and a remote endpoint; it is roughly analogous to a socket in the
 present sockets API.
@@ -441,24 +442,34 @@ all of these events.
 An Association contains the long-term state necessary to support
 communications between a Local (see {{local}}) and a Remote (see {{remote}})
 endpoint, such as cryptographic session resumption parameters or rendezvous
-information; information about the policies constraining the selection of
-transport protocols and local interfaces to create Transients (see
-{{transient}}) to carry Messages; and information about the paths through the
-network available available between them (see {{path}}).
+information; information about the policies constraining the selection
+of transport protocols and local interfaces to create Transients (see
+{{transient}}) to carry Messages; and information about the paths through
+the network available available between them (see {{path}}).
 
-All Message Carriers are bound to an Association. New Message Carriers will
-reuse an Association if they can be carried from the same Local to the same
-Remote over the same Paths; this re-use of an Association may implies the
-creation of a new Transient.
+All Message Carriers are bound to an Association, yet not all Associations are
+bound to a Message Carrier. New Message Carriers will reuse an Association if they
+can be carried from the same Local to the same Remote over the same Paths; this
+re-use of an Association may implies the creation of a new Transient.
+
+Associations may exist without a Message Carrier if required. This may be done if
+peer cryptographic state, e.g., a pre-shared key, is established out-of-band.
+Thus, Associations may be created without the need to send application data
+to a peer, i.e., without a Remote. Associations may also be created from
+existing Associations. In doing so, some state related with an Association may mutate.
+For example, a pre-shared key may be extended with new Association-specific information for
+diversification purposes. This allows new Associations and their Transients to
+be quickly created without performing in-band cryptographic handshakes.
+See {{I-D.ietf-taps-crypto-sep}} for more details about this separation.
 
 ## Remote
 
 A Remote represents information required to establish and maintain a
 connection with the far end of an Association: name(s), address(es), and
 transport protocol parameters that can be used to establish a Transient;
-transport protocols to use; information about public keys or certificate
+transport protocols to use; trust model information about public keys or certificate
 authorities used to identify the remote on connection establishment; and so
-on. Each Association is associated with a single Remote, either explicitly by
+on. Each Remote is bound to an Association, either explicitly by
 the application (when created by the initiation of a Message Carrier) or a
 Listener (when created by forking a Message Carrier on passive open).
 
@@ -600,6 +611,10 @@ The current state of API development is illustrated as a set of interfaces and
 function prototypes in the Go programming language in {{apisketch}}; future
 revisions of this document will give more a more abstract specification of the
 API as development completes.
+
+## Association Creation
+
+XXX: left off here
 
 ## Example Connection Patterns
 
@@ -757,7 +772,8 @@ Regardless of how asynchronous reception is implemented, it is important for an
 application to be able to apply receiver backpressure, to allow the protocol
 stack to perform receiver flow control. Depending on how asynchronous I/O works
 in the platform, this could be implemented by having a maximum number of
-concurrent receive callbacks, for example.
+concurrent receive callbacks, or by bounding the maximum number of outstanding,
+unread bytes at any given time, for example.
 
 # Acknowledgments
 
@@ -979,4 +995,3 @@ type IPEndpointCertRemote struct {
     Certificates []tls.Certificate
 }
 ~~~~~~~~
-
