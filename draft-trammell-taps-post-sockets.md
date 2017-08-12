@@ -605,10 +605,6 @@ function prototypes in the Go programming language in {{apisketch}}; future
 revisions of this document will give more a more abstract specification of the
 API as development completes.
 
-## Association Creation
-
-XXX: left off here
-
 ## Example Connection Patterns
 
 Here, we illustrate the usage of the API outlined in {{apisketch}} for common
@@ -681,7 +677,7 @@ this connection racing is to use 0-RTT data (i.e., as provided by TCP Fast Open
 {{RFC7413}}, the client must mark the outgoing message as idempotent.
 
 ~~~~~~~~
-// connect to a server given a remote
+// connect to a server given a remote and send some 0-RTT data
 func sayHelloQuickly() {
 
     carrier := Initiate(local, remote)
@@ -720,13 +716,38 @@ func receiveMulticast() {
 }
 ~~~~~~~~
 
+## Association Bootstrapping
+
+Here, we show how Association state may be bootstrapped. The goal is to
+create a long-term Association from which Carriers may be derived and
+immediately used.
+
+~~~~~~~~
+// create an Association
+func bootstrap(key []byte) Association {
+    association := AssociationFromPSK(key)
+    return association
+}
+
+// connect to a server, reusing an existing Association given a remote and
+// send some 0-RTT data
+func sayHelloQuicklyWithAssociation(association Association) {
+    carrier := InitiateWithAssociation(local, association)
+    carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
+    carrier.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg)))
+        return false
+    })
+    carrier.Close()
+}
+~~~~~~~~
+
 ## Implementation Considerations
 
 Here we discuss an incomplete list of API implementation considerations that
 have arisen with experimentation with the prototype in {{apisketch}}.
 
 ### Protocol Stack Instance (PSI)
-
 
 A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over IPv6,
 SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge between the
