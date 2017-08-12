@@ -1,7 +1,7 @@
 ---
 title: Post Sockets, An Abstract Programming Interface for the Transport Layer
 abbrev: Post Sockets
-docname: draft-trammell-taps-post-sockets-00
+docname: draft-trammell-taps-post-sockets-latest
 date:
 category: info
 
@@ -126,7 +126,7 @@ simplistic for many modern application programming models.
 In the meantime, the nature of Internet access, and the variety of Internet
 transport protocols, is evolving. The challenges that new protocols and access
 paradigms present to the sockets API and to programming models based on them
-inspire the design elements of a new approach
+inspire the design elements of a new approach.
 
 Many end-user devices are connected to the Internet via multiple interfaces,
 which suggests it is time to promote the paths by which two endpoints are
@@ -137,10 +137,7 @@ specifically designed to hide multipath communication from the application for
 purposes of compatibility. Since many multihomed nodes are connected to the
 Internet through access paths with widely different properties with respect to
 bandwidth, latency and cost, adding explicit path control to MPTCP's API would
-be useful in many situations. Applications also need control over cooperation
-with path elements via mechanisms such as that proposed by the Path Layer UDP
-Substrate (PLUS) effort (see {{I-D.trammell-plus-statefulness}} and
-{{I-D.trammell-plus-abstract-mech}}).
+be useful in many situations.
 
 Another trend straining the traditional layering of the transport stack
 associated with the SOCK_STREAM interface is the widespread interest in
@@ -156,7 +153,7 @@ setup and maintenance into the path abstraction naturally complements efforts
 in new protocols (e.g. QUIC {{I-D.ietf-quic-transport}}) to
 mitigate this strict layering.
 
-To meet these challenges, we present the Post-Socket Application Programming
+To meet these challenges, we present the Post-Sockets Application Programming
 Interface (API), described in detail in this work. Post is designed to be
 language, transport protocol, and architecture independent, allowing
 applications to be written to a common abstract interface, easily ported among
@@ -218,35 +215,33 @@ exploit their potential.
 # Abstractions and Terminology
 
 ~~~~~~~~~~
-        +===============+
-        |    Message    |
-        +===============+
-              |    ^     initiate()       listen()
-          send()  ready()    |               |
-              V    |         V               V
-        +======================+  accept() +============+
-        |                      |<---+------|            |
-        |       Carrier        |    |      |  Listener  |
-        |                      |----+      |            |
-        +======================+           +============+
-                    |        |               |
-                    |        |               |
-                    | +=======================+
-                    | |                       | durable end-to-end
-                    | |      Association      | state via many paths/
-                    | |                       | policies and prefs
-                    | +=======================+
-                    |                 |      |
-                    |                 |      |
-                    |         +=========+  +=========+
-                    |         |  Local  |  | Remote  |
-                    |         +=========+  +=========+
-                    |                 |      |
-               +===========+        +==========+
-     ephemeral |           |        |          |
-   transport & | Transient |------->|   Path   | properties of
-  crypto state |           |        |          | address pair
-               +===========+        +==========+
+           +===============+
+           |    Message    |
+           +===============+
+                |    ^         |               |
+          send()|    |ready()  |initiate()     |listen()
+                V    |         V               V
+           +=====================+           +============+
+           |                     |  accept() |            |
+           |      Carrier        |<----------|  Listener  |
+           |                     |           |            |
+           +=====================+           +============+
+            |1        |        n|                  |          +=========+
+            |         |         |1                 |      +---|  Local  |
+            |   +=========+   +=======================+   |   +=========+
+            |   | Policy  |n  |                       |---+
+            |   | Context |---|      Association      |       +=========+
+            |   |         |  1|                       |-------|  Remote |
+            |   +=========+   +=======================+       +=========+
+            |         |                1| durable end-to-end
+            +-------+ |                 | state via many paths,
+                    | |                 | policies, and prefs  
+                   n| |                n|
+               +===========+       +==========+
+     ephemeral |           |       |          |
+   transport & | Transient |-------|   Path   | properties of
+  crypto state |           |n     1|          | address pair
+               +===========+       +==========+
 
 ~~~~~~~~~~
 {: #fig-abstractions title="Abstractions and relationships in Post Sockets"}
@@ -258,9 +253,8 @@ The relationships among them are shown in Figure {{fig-abstractions}} and detail
 ## Message Carrier {#carrier}
 
 A Message Carrier (or simply Carrier) is a transport protocol stack-independent
-interface for sending and receiving messages between an
-application and a remote endpoint; it is roughly analogous to a socket in the
-present sockets API.
+interface for sending and receiving messages between an application and a remote
+endpoint; it is roughly analogous to a socket in the present sockets API.
 
 Sending a Message over a Carrier is driven by the application, while receipt
 is driven by the arrival of the last packet that allows the Message to be
@@ -299,51 +293,46 @@ identities; this is an equivalent to an active open. There are five special
 cases of Message Carriers, as well, supporting different initiation and
 interaction patterns, defined in the subsections below.
 
-### Listener
+ - Listener:
+   A Listener is a special case of Message Carrier which only responds to
+   requests to create a new Carrier from a remote endpoint, analogous to a server
+   or listening socket in the present sockets API. Instead of being bound to a
+   specific remote endpoint, it is bound only to a local identity; however, its
+   interface for accepting fork requests is identical to that for fully fledged
+   Message Carriers.
 
-A Listener is a special case of Message Carrier which only responds to
-requests to create a new Carrier from a remote endpoint, analogous to a server
-or listening socket in the present sockets API. Instead of being bound to a
-specific remote endpoint, it is bound only to a local identity; however, its
-interface for accepting fork requests is identical to that for fully fledged
-Message Carriers.
+ - Source:
+   A Source is a special case of Message Carrier over which messages can only be
+   sent, intended for unidirectional applications such as multicast transmitters.
+   Sources cannot be forked, and need not accept forks.
 
-### Source
+ - Sink:
+   A Sink is a special case of Message Carrier over which messages can only
+   be received, intended for unidirectional applications such as multicast
+   receivers. Sinks cannot be forked, and need not accept forks.
 
-A Source is a special case of Message Carrier over which messages can only be
-sent, intended for unidirectional applications such as multicast transmitters.
-Sources cannot be forked, and need not accept forks.
+ - Responder:
+   A Responder is a special case of Message Carrier which may receive messages
+   from many remote sources, for cases in which an application will only ever
+   send Messages in reply back to the source from which a Message was received.
+   This is a common implementation pattern for servers in client-server
+   applications. A Responder's receiver gets a Message, as well as a Source to
+   send replies to. Responders cannot be forked, and need not accept forks.
 
-### Sink
+ - Stream:
+   A Message Carrier may be irreversibly morphed into a Stream, in order to provide
+   a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
+   Carrier into a Stream should return a "file-like object" as appropriate for the
+   platform implementing the API. Typically, both ends of a communication using a
+   stream service will morph their respective Message Carriers independently before
+   sending any Messages.
 
-A Sink is a special case of Message Carrier over which messages can only be
-received, intended for unidirectional applications such as multicast
-receivers. Sinks cannot be forked, and need not accept forks.
-
-### Responder
-
-A Responder is a special case of Message Carrier which may receive messages
-from many remote sources, for cases in which an application will only ever
-send Messages in reply back to the source from which a Message was received.
-This is a common implementation pattern for servers in client-server
-applications. A Responder's receiver gets a Message, as well as a Source to
-send replies to. Responders cannot be forked, and need not accept forks.
-
-### Stream
-
-A Message Carrier may be irreversibly morphed into a Stream, in order to provide
-a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
-Carrier into a Stream should return a "file-like object" as appropriate for the
-platform implementing the API. Typically, both ends of a communication using a
-stream service will morph their respective Message Carriers independently before
-sending any Messages.
-
-Writing a byte to a Stream will cause it to be received by the remote, in
-order, or will cause an error condition and termination of the stream if the
-byte cannot be delivered. Due to the strong sequential dependence on a stream,
-streams must always be reliable and ordered. A Message Carrier may only be
-morphed to a Stream if it uses transport protocol stack that provides
-reliable, ordered service, and only before it is used to send a Message.
+   Writing a byte to a Stream will cause it to be received by the remote, in
+   order, or will cause an error condition and termination of the stream if the
+   byte cannot be delivered. Due to the strong sequential dependence on a stream,
+   streams must always be reliable and ordered. A Message Carrier may only be
+   morphed to a Stream if it uses transport protocol stack that provides
+   reliable, ordered service, and only before it is used to send a Message.
 
 ## Message
 
@@ -374,67 +363,61 @@ properties which provide additional information to the underlying transport
 protocol stack on how they should be handled, in a protocol-specific way. These
 stacks may also deliver or set properties on received messages, but in the
 general case a received messages contains only a sequence of ordered bytes.
+Message properties include:
 
-### Lifetime and Partial Reliability
+ - Lifetime and Partial Reliability:
+   A Message may have a "lifetime" -- a wall clock duration before which the
+   Message must be available to the application layer at the remote end. If a
+   lifetime cannot be met, the Message is discarded as soon as possible. Messages
+   without lifetimes are sent reliably if supported by the transport protocol
+   stack. Lifetimes are also used to prioritize Message delivery.
 
-A Message may have a "lifetime" -- a wallclock duration before which the
-Message must be available to the application layer at the remote end. If a
-lifetime cannot be met, the Message is discarded as soon as possible. Messages
-without lifetimes are sent reliably if supported by the transport protocol
-stack. Lifetimes are also used to prioritize Message delivery.
+   There is no guarantee that a Message will not be delivered after the end of
+   its lifetime; for example, a Message delivered over a strictly reliable
+   transport will be delivered regardless of its lifetime. Depending on the
+   transport protocol stack used to transmit the message, these lifetimes may
+   also be signalled to path elements by the underlying transport, so that path
+   elements that realize a lifetime cannot be met can discard frames containing
+   the Messages instead of forwarding them.
 
-There is no guarantee that a Message will not be delivered after the end of
-its lifetime; for example, a Message delivered over a strictly reliable
-transport will be delivered regardless of its lifetime. Depending on the
-transport protocol stack used to transmit the message, these lifetimes may
-also be signaled to path elements by the underlying transport, so that path
-elements that realize a lifetime cannot be met can discard frames containing
-the Messages instead of forwarding them.
+ - Priority:
+   Messages have a "niceness" -- a priority among other messages sent over the
+   same Message Carrier in an unbounded hierarchy most naturally represented as a
+   non-negative integer. By default, Messages are in niceness class 0, or highest
+   priority. Niceness class 1 Messages will yield to niceness class 0 Messages
+   sent over the same Carrier, class 2 to class 1, and so on. Niceness may be
+   translated to a priority signal for exposure to path elements (e.g. DSCP
+   code point) to allow prioritization along the path as well as at the sender and
+   receiver. This inversion of normal schemes for expressing priority has a
+   convenient property: priority increases as both niceness and lifetime
+   decrease. A Message may have both a niceness and a lifetime -- Messages with
+   higher niceness classes will yield to lower classes if resource constraints
+   mean only one can meet the lifetime.
 
-### Priority
+ - Dependence:
+   A Message may have "antecedents" -- other Messages on which it
+   depends, which must be delivered before it (the "successor") is delivered.
+   The sending transport uses deadlines, niceness, and antecedents, along with
+   information about the properties of the Paths available, to determine when to
+   send which Message down which Path.
 
-Messages have a "niceness" -- a priority among other messages sent over the
-same Message Carrier in an unbounded hierarchy most naturally represented as a
-non-negative integer. By default, Messages are in niceness class 0, or highest
-priority. Niceness class 1 Messages will yield to niceness class 0 Messages
-sent over the same Carrier, class 2 to class 1, and so on. Niceness may be
-translated to a priority signal for exposure to path elements (e.g. DSCP
-codepoint) to allow prioritization along the path as well as at the sender and
-receiver. This inversion of normal schemes for expressing priority has a
-convenient property: priority increases as both niceness and lifetime
-decrease. A Message may have both a niceness and a lifetime -- Messages with
-higher niceness classes will yield to lower classes if resource constraints
-mean only one can meet the lifetime.
+ - Idempotence:
+   A sending application may mark a Message as "idempotent" to signal to the
+   underlying transport protocol stack that its application semantics make it
+   safe to send in situations that may cause it to be received more than once
+   (i.e., for 0-RTT session resumption as in TCP Fast Open, TLS 1.3, and QUIC).
 
-### Dependence
-
-A Message may have "antecedents" -- other Messages on which it
-depends, which must be delivered before it (the "successor") is delivered.
-The sending transport uses deadlines, niceness, and antecedents, along with
-information about the properties of the Paths available, to determine when to
-send which Message down which Path.
-
-### Idempotence
-
-A sending application may mark a Message as "idempotent" to signal to the
-underlying transport protocol stack that its application semantics make it
-safe to send in situations that may cause it to be received more than once
-(i.e., for 0-RTT session resumption as in TCP Fast Open, TLS 1.3, and QUIC).
-
-### Immediacy
-
-A sending application may mark a Message as "immediate" to signal to the
-underlying transport protocol stack that its application semantics require it to
-be placed in a single packet, on its own, instead of waiting to be combined with
-other messages or parts thereof (i.e., for media transports and interactive
-sessions with small messages).
-
-### Additional Events
+ - Immediacy:
+   A sending application may mark a Message as "immediate" to signal to the
+   underlying transport protocol stack that its application semantics require it to
+   be placed in a single packet, on its own, instead of waiting to be combined with
+   other messages or parts thereof (i.e., for media transports and interactive
+   sessions with small messages).
 
 Senders may also be asynchronously notified of three events on Messages they
 have sent: that the Message has been transmitted, that the Message has been
 acknowledged by the receiver, or that the Message has expired before
-transmission/acknowledgment. Not all transport protocol stacks will support
+transmission/acknowledgement. Not all transport protocol stacks will support
 all of these events.
 
 ## Association
@@ -442,15 +425,16 @@ all of these events.
 An Association contains the long-term state necessary to support
 communications between a Local (see {{local}}) and a Remote (see {{remote}})
 endpoint, such as cryptographic session resumption parameters or rendezvous
-information; information about the policies constraining the selection
-of transport protocols and local interfaces to create Transients (see
-{{transient}}) to carry Messages; and information about the paths through
-the network available available between them (see {{path}}).
+information. It uses information from the Policy Context (see {{PolicyContext}})
+to constrain the selection of
+transport protocols and local interfaces to create Transients (see
+{{transient}}) to carry Messages; and information about the paths through the
+network available available between them (see {{path}}).
 
-All Message Carriers are bound to an Association, yet not all Associations are
-bound to a Message Carrier. New Message Carriers will reuse an Association if they
-can be carried from the same Local to the same Remote over the same Paths; this
-re-use of an Association may implies the creation of a new Transient.
+All Message Carriers are bound to an Association. New Message Carriers will
+reuse an Association if they can be carried from the same Local to the same
+Remote over the same Paths; this re-use of an Association may implies the
+creation of a new Transient.
 
 Associations may exist without a Message Carrier if required. This may be done if
 peer cryptographic state, e.g., a pre-shared key, is established out-of-band.
@@ -490,6 +474,28 @@ A Local represents all the information about the local endpoint necessary to
 establish an Association or a Listener: interface, port, and transport
 protocol stack information, as well as certificates and associated private
 keys to use to identify this endpoint.
+
+## Policy Context {#PolicyContext}
+
+The Policy Context describes preferences for, and restrictions on, how to
+configure Transients to support communication between a Local and a Remote
+over one or more Paths between endpoints.
+For instance, an application may require, or prefer to use, certain features
+(see {{I-D.ietf-taps-transports}}) of the transport protocol stacks used by
+the Transients underlying the Carrier.
+Alternatively, it might also prefer Paths over one interface to those over
+another (e.g., WiFi access over LTE when roaming on a foreign LTE network,
+due to cost).
+
+These policies are expressed in the Policy Context(s) that are bound to the
+Association.
+Multiple policy contexts can be active at once.
+For example, a system Policy Context can express the administrative preferences
+around network interface and protocol selection, while an application Policy Context
+expresses preferences for use of different transport services.
+Expression of policy contexts and the resolution of conflicts among Policy
+Contexts is currently implementation-specific (the Policy API in the NEAT
+architecture {{NEAT}} provides an example of how this can be done).
 
 ## Transient
 
@@ -554,23 +560,6 @@ requirements can be met by having multiple paths with different properties to
 select from. Transport protocol stacks can also provide signaling to devices
 along the path, but this signaling is derived from information provided to the
 Message abstraction.
-
-
-## Policy Context
-
-A Local and a Remote is not necessarily enough to establish a Message Carrier
-between two endpoints. For instance, an application may require or prefer
-certain transport features (see {{I-D.ietf-taps-transports}}) in the transport
-protocol stacks used by the Transients underlying the Carrier; it may also
-prefer Paths over one interface to those over another (e.g. WiFi access over LTE
-when roaming on a foreign LTE network, due to cost). These policies are
-expressed in a Policy Context bound to an Association. Multiple policy contexts
-may be active at once; e.g. a system Policy Context expressing administrative
-preferences about interface and protocol selection, an application Policy
-Context expressing transport feature information. The expression of policy
-contexts and the resolution of conflicts among Policy Contexts is currently
-implementation-specific; note that these are equivalent to the Policy API in the
-NEAT architeture {{NEAT}}.
 
 # Abstract Programming Interface
 
@@ -732,22 +721,122 @@ func receiveMulticast() {
 Here we discuss an incomplete list of API implementation considerations that
 have arisen with experimentation with the prototype in {{apisketch}}.
 
-### Message Framing and Deframing
+### Protocol Stack Instance (PSI)
 
-An obvious goal of Post Sockets is interoperability with non-Post Sockets
-endpoints: a Post Sockets endpoint using a given protocol stack must be able to
-communicate with another endpoint using the same protocol stack, but not using
-Post Sockets. This implies that the underlying transport protocol stack must
-support object framing, in order to delimit Messages carried by protocol stacks
-that are not themselves message-oriented.
 
-Another goal of Post Sockets is to work over unmodified TCP. We could simply
-define a Message Carrier over TCP to support only stream morphing, but this
-would fall far short of our goal to transport independence. Another approach is
-to recognize that almost every protocol using TCP already has its own message
-delimiters, and to allow the receiver of a Message to provide a deframing
-primitive to the API. Experimentation with the best way to achieve this within
-Post Sockets is underway.
+A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over IPv6,
+SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge between the
+interface (Carrier) plus the current state (Transients) and the implementation
+of a given set of transport services {{I-D.ietf-taps-transports}}.
+
+A given implementation makes one or more possible protocol stacks available
+to its applications. Selection and configuration among multiple PSIs is
+based on system-level or application policies, as well as on network
+conditions in the provisioning domain in which a connection is made.
+
+~~~~~~~~~~
++=========+    +=========+   +==========+      +==========+
+| Carrier |    | Carrier |   | Carrier  |      | Carrier  |
++=========+    +=========+   +==========+      +==========+
+     |               |              |                 |
++=========+    +=========+   +==========+      +==========+
+|Transient|    |Transient|   |Transient |      |Transient |
++=========+    +=========+   +==========+      +==========+
+     |                  \     /                 /        \
++=========+           +=========+      +=========+      +=========+
+|   PSI   |           |   PSI   |      |   PSI   |      |   PSI   |
++===+-----++          +===+-----++     +===+-----++    ++-----+===+
+    |TLS   |              |SCTP  |         |TLS   |    |   TLS|
+    |TCP   |              |DTLS  |         |TCP   |    |   TCP|
+    |IPv6  |              |UDP   |         |IPv6  |    |  IPv4|
+    |802.3 |              |IPv6  |         |802.11|    |802.11|
+    +------+              |802.3 |         +------+    +------+
+                          +------+
+(a) Transient  (b) Carrier multiplexing   (c) Multiple candidates
+ bound to PSI   over a multi-streaming     racing during session
+                transport protocol         establishment
+~~~~~~~~~~
+{: #fig-psi title="Example Protocol Stack Instances"}
+
+For example, {{fig-psi}}(a) shows a TLS over TCP stack, usable on most
+network connections. Protocols are layered to ensure that the PSI provides
+all the transport services required by the application.
+A single PSI may be bound to multiple message carriers, as shown in
+{{fig-psi}}(b): a multi-streaming transport protocol like QUIC or SCTP can
+support one carrier per stream. Where multi-streaming transport is not
+available, these carriers could be serviced by different PSIs on different
+flows. On the other hand, multiple PSIs are bound to a single transient
+during establishment, as shown in {{fig-psi}}(c). Here, the losing
+PSI in a happy-eyeballs race will be terminated, and the carrier will
+continue using the winning PSI.
+
+### Message Framing, Parsing, and Serialisation
+
+While some transports expose a byte stream abstraction, most higher level
+protocols impose some structure onto that byte stream. That is, the higher
+level protocol operates in terms of messages, protocol data units (PDUs),
+rather than using unstructured sequences of bytes, with each message being
+processed in turn.
+Protocols are specified in terms of state machines acting on semantic
+messages, with parsing the byte stream into messages being a necessary
+annoyance, rather than a semantic concern.
+Accordingly, Post Sockets exposes a message-based API to applications as
+the primary abstraction, offering a stream-based API for ease of porting
+and backwards compatibility only.
+
+There are other benefits of providing a message-oriented API beyond framing
+PDUs that Post Sockets should provide when supported by the underlying
+transport. These include:
+
+ - the ability to associate deadlines with messages, for transports that
+   care about timing;
+
+ - the ability to provide control of reliability, choosing what messages to
+   retransmit in the event of packet loss, and how best to make use of the
+   data that arrived;
+
+ - the ability to manage dependencies between messages, when some messages
+   may not be delivered due to either packet loss or missing a deadline, in
+   particular the ability to avoid (re-)sending data that relies on a previous
+   transmission that was never received.
+
+All require explicit message boundaries, and application-level framing of
+messages, to be effective. Once a message is passed to Post Sockets, it can
+not be cancelled or paused, but prioritization as well as lifetime and
+retransmission management will provide the protocol stack with all needed
+information to send the messages as quickly as possible without blocking
+transmission unnecessarily.  Post Sockets provides this by handling
+message, with known identity (sequence numbers, in the simple case),
+lifetimes, niceness, and antecedents.
+
+Transport protocols such as SCTP provide a message-oriented API that has
+similar features to those we describe. Other transports, such as TCP, do
+not. To support a message oriented API, while still being compatible with
+stream-based transport protocols, Post Sockets must provide APIs for
+parsing and serialising messages that understand the protocol data.  That
+is, we push message parsing and serialisation down into the Post Sockets
+stack, allowing applications to send and receive strongly typed data
+objects (e.g., a receive call on an HTTP Message Carrier should return
+an object representing the HTTP response, with pre-parsed status code,
+headers, and any message body, rather than returning a byte array that
+the application has to parse itself).
+This is backwards compatible with existing protocols and APIs, since
+the wire format of messages does not change, but gives a Post Sockets
+stack additional information to allow it to make better use of modern
+transport services.
+
+The Post Sockets approach is therefore to raise the semantic level of the
+transport API: applications should send and receive messages in the form of
+meaningful, strongly typed, protocol data. Parsing and serialising such
+messages should be a re-usable function of the protocol stack instance not
+the application.  This is well-suited to implementation in modern systems
+languages, such as Swift, Go, Rust, or C++, but can also be implemented
+with some loss of type safety in C.
+
+{::comment}
+  The paper has an example API in Rust-like syntax. We should probably
+  figure out a language-neutral way of specifying the Post Sockets API.
+{:/comment}
 
 ### Message Size Limitations
 
@@ -766,14 +855,116 @@ endpoints have committed persistent storage to the message -- is probably best
 realized as a layer above Post Sockets, and may be added as a new type of
 Message Carrier to a future revision of this document.
 
-### Backpressure
+### Back-pressure
 
 Regardless of how asynchronous reception is implemented, it is important for an
-application to be able to apply receiver backpressure, to allow the protocol
+application to be able to apply receiver back-pressure, to allow the protocol
 stack to perform receiver flow control. Depending on how asynchronous I/O works
 in the platform, this could be implemented by having a maximum number of
 concurrent receive callbacks, or by bounding the maximum number of outstanding,
 unread bytes at any given time, for example.
+
+### Associations, Transients, Racing, and Rendezvous
+
+As the network has evolved, even the simple act of establishing a
+connection has become increasingly complex.  Clients now regularly race
+multiple connections, for example over IPv4 and IPv6, to determine which
+protocol to use.  The choice of outgoing interface has also become more
+important, with differential reachability and performance from multiple
+interfaces. Name resolution can also give different outcomes depending on
+the interface the query was issued from. Finally, but often most
+significantly, NAT traversal, relay discovery, and path state maintenance
+messages are an essential part of connection establishment, especially for
+peer-to-peer applications.
+
+Post Sockets accordingly breaks communication establishment down into
+multiple phases:
+
+ - Gathering Locals
+
+   The set of possible Locals is gathered.
+   In the simple case, this merely enumerates the local interfaces and
+   protocols, and allocates ephemeral source ports for transients. For
+   example, a system that has WiFi and Ethernet and supports IPv4 and IPv6
+   might gather four candidate locals (IPv4 on Ethernet, IPv6 on Ethernet,
+   IPv4 on WiFi, and IPv6 on WiFi) that can form the source for a transient.
+
+   If NAT traversal is required, the process of gathering locals becomes
+   broadly equivalent to the ICE candidate gathering phase {{RFC5245}}.
+   The endpoint determines its server reflexive locals (i.e., the
+   translated address of a local, on the other side of a NAT) and relayed
+   locals (e.g., via a TURN server or other relay), for each interface and
+   network protocol. These are added to the set of candidate locals for
+   this association.
+
+   Gathering locals is primarily an endpoint local operation, although it
+   might involve exchanges with a STUN server to derive server reflexive
+   locals, or with a TURN server or other relay to derive relayed locals.
+   It does not involve communication with the remote.
+
+ - Resolving the Remote
+
+   The remote is typically a name that
+   needs to be resolved into a set of possible addresses that can be used
+   for communication. Resolving the remote is the process of recursively
+   performing such name lookups, until fully resolved, to return the set
+   of candidates for the remote of this association.
+
+   How this is done will depend on the type of the Remote, and can also
+   be specific to each local.
+   A common case is when the Remote is a DNS name, in which case it is
+   resolved to give a set of IPv4 and IPv6 addresses representing that
+   name.
+   Some types of remote might require more complex resolution. Resolving
+   the remote for a peer-to-peer connection might involve communication
+   with a rendezvous server, which in turn contacts the peer to gain
+   consent to communicate and retrieve its set of candidate locals, which
+   are returned and form the candidate remote addresses for contacting
+   that peer.
+
+   Resolving the remote is *not* a local operation. It will involve
+   a directory service, and can require communication with the remote to
+   rendezvous and exchange peer addresses.
+   This can expose some or all of the candidate locals to the remote.
+
+ - Establishing Transients
+
+   The set of candidate locals and the set of candidate remotes are
+   paired, to derive a priority ordered set of Candidate Paths that
+   can potentially be used to establish a connection.
+
+   Then, communication is attempted over each candidate path, in
+   priority order. If there are multiple candidates with the same
+   priority, then transient establishment proceeds simultaneously
+   and uses the transient that wins the race to be established.
+   Otherwise, transients establishment is sequential, paced at a
+   rate that should not congest the network.
+   Depending on the chosen transport, this phase might involve racing
+   TCP connections to a server over IPv4 and IPv6 {{RFC6555}}, or
+   it could involve a STUN exchange to establish peer-to-peer UDP
+   connectivity {{RFC5245}}, or some other means.
+
+ - Confirming and Maintaining Transients
+
+   Once connectivity has been established, unused resources can be
+   released and the chosen path can be confirmed.
+   This is primarily required when establishing peer-to-peer connectivity,
+   where connections supporting relayed locals that were not required can
+   be closed, and where an associated signalling operation might be needed
+   to inform middleboxes and proxies of the chosen path.
+   Keep-alive messages may also be sent, as appropriate, to ensure NAT and
+   firewall state is maintained, so the transient remains operational.
+
+By encapsulating these four phases of communication establishment into the
+PSI, Post Sockets aims to simplify application development.
+It can provide reusable implementations of connection racing for TCP, to enable
+happy eyeballs, that will be automatically used by all TCP clients, for example.
+With appropriate callbacks to drive the rendezvous signalling as part of
+resolving the remote, we believe a generic ICE implementation ought also to be
+possible. This procedure can even be repeated fully or partially during a
+connection to enable seamless hand-over and mobility within the network stack.
+
+
 
 # Acknowledgments
 
