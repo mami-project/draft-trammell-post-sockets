@@ -437,13 +437,16 @@ Remote over the same Paths; this re-use of an Association may implies the
 creation of a new Transient.
 
 Associations may exist without a Message Carrier if required. This may be done if
-peer cryptographic state, e.g., a pre-shared key, is established out-of-band.
+peer cryptographic state such as a pre-shared key is established out-of-band.
 Thus, Associations may be created without the need to send application data
-to a peer, i.e., without a Remote. Associations may also be created from
-existing Associations. In doing so, some state related with an Association may mutate.
-For example, a pre-shared key may be extended with new Association-specific information for
-diversification purposes. This allows new Associations and their Transients to
-be quickly created without performing in-band cryptographic handshakes.
+to a peer, that is, without a Remote. Associations are mutable. Transients
+may export cryptographic state to store in an Association as needed.
+Moreover, this state may be exported directly into the Association or modified
+before insertion. This may be needed to diversify ephemeral Transient keying
+material from the longer-term Association keying material.
+
+A primary use of Association state is to allow new Associations and their derived
+Carriers to be quickly created without performing in-band cryptographic handshakes.
 See {{I-D.ietf-taps-crypto-sep}} for more details about this separation.
 
 ## Remote
@@ -453,7 +456,7 @@ connection with the far end of an Association: name(s), address(es), and
 transport protocol parameters that can be used to establish a Transient;
 transport protocols to use; trust model information about public keys or certificate
 authorities used to identify the remote on connection establishment; and so
-on. Each Remote is bound to an Association, either explicitly by
+on. Each Association is associated with a single Remote, either explicitly by
 the application (when created by the initiation of a Message Carrier) or a
 Listener (when created by forking a Message Carrier on passive open).
 
