@@ -729,10 +729,10 @@ func bootstrap(key []byte) Association {
     return association
 }
 
-// connect to a server, reusing an existing Association given a remote and
-// send some 0-RTT data
+// resume a connection to a server, reusing an existing Association given a
+// remote, and send some 0-RTT data
 func sayHelloQuicklyWithAssociation(association Association) {
-    carrier := InitiateWithAssociation(local, association)
+    carrier := ResumeWithAssociation(local, association)
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
         fmt.Println(string([]byte(msg)))
