@@ -436,15 +436,15 @@ reuse an Association if they can be carried from the same Local to the same
 Remote over the same Paths; this re-use of an Association may implies the
 creation of a new Transient.
 
-Associations may exist without a Message Carrier if required. This may be done if
+Associations may exist and be created without a Message Carrier. This may be done if
 peer cryptographic state such as a pre-shared key is established out-of-band.
 Thus, Associations may be created without the need to send application data
 to a peer, that is, without a Remote. Associations are mutable. Association
-state may expire over time, and Transients may export cryptographic state
-to store in an Association as needed. Moreover, this state may be exported directly
-into the Association or modified before insertion. This may be needed to
-diversify ephemeral Transient keying material from the longer-term Association
-keying material.
+state may expire over time, after which it is removed from the Association,
+and Transients may export cryptographic state to store in an Association as needed.
+Moreover, this state may be exported directly into the Association or modified
+before insertion. This may be needed to diversify ephemeral Transient keying
+material from the longer-term Association keying material.
 
 A primary use of Association state is to allow new Associations and their derived
 Carriers to be quickly created without performing in-band cryptographic handshakes.
