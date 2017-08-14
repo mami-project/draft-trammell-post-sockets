@@ -61,6 +61,7 @@ informative:
     RFC7556:
     I-D.ietf-quic-transport:
     I-D.ietf-taps-crypto-sep:
+    I-D.ietf-taps-transport-security:
     I-D.ietf-tls-tls13:
     I-D.iyengar-minion-protocol:
     I-D.trammell-plus-abstract-mech:
@@ -424,9 +425,10 @@ all of these events.
 
 An Association contains the long-term state necessary to support
 communications between a Local (see {{local}}) and a Remote (see {{remote}})
-endpoint, such as cryptographic session resumption parameters or rendezvous
-information. It uses information from the Policy Context (see {{PolicyContext}})
-to constrain the selection of
+endpoint, such as trust model information, including pinned public
+keys or anchor certificates, cryptographic session resumption parameters,
+or rendezvous information. It uses information from the Policy Context
+(see {{PolicyContext}}) to constrain the selection of
 transport protocols and local interfaces to create Transients (see
 {{transient}}) to carry Messages; and information about the paths through the
 network available available between them (see {{path}}).
@@ -455,9 +457,9 @@ See {{I-D.ietf-taps-crypto-sep}} for more details about this separation.
 A Remote represents information required to establish and maintain a
 connection with the far end of an Association: name(s), address(es), and
 transport protocol parameters that can be used to establish a Transient;
-transport protocols to use; trust model information about public keys or certificate
-authorities used to identify the remote on connection establishment; and so
-on. Each Association is associated with a single Remote, either explicitly by
+transport protocols to use; trust model information, inherited from the
+relevant Association, used to identify the remote on connection establishment;
+and so on. Each Association is associated with a single Remote, either explicitly by
 the application (when created by the initiation of a Message Carrier) or a
 Listener (when created by forking a Message Carrier on passive open).
 
@@ -718,14 +720,46 @@ func receiveMulticast() {
 
 ## Association Bootstrapping
 
-Here, we show how Association state may be bootstrapped. The goal is to
-create a long-term Association from which Carriers may be derived and
-immediately used.
+Here, we show how Association state may be initialized. The goal is to
+create a long-term Association from which Carriers may be derived and,
+if possible, used immediately. We will describe two variations -- one
+where the Association is configured with trust model information
+necessary for the Remote to establish a connection, and another
+where the Association is created from a pre-shared key established
+out-of-band mechanism.
+
+### Association Preparation
+
+Perhaps the more common case for creating Associations is to initialize
+new connections to Remotes. To do so, Associations must possess the
+security information needed to create a fresh connection.
+Per {{I-D.ietf-taps-transport-security}}, this includes, at a minimum:
+
+- An identity and access or an interface to the associated private key.
+- Trust model constraints, such as pinned public keys and anchor certificates.
+
+The following example shows how an Association can be created with this
+information to be later used for creating a remote connection.
 
 ~~~~~~~~
-// create an Association
-func bootstrap(key []byte) Association {
-    association := AssociationFromPSK(key)
+// create an association with a given identity and set of trusted certificates
+func configureAssociation(ident Identity, trustedCerts []Certificate) Association {
+    association := Association(ident)
+    association = association.SetTrustedCerts(trustedCerts)
+    return association
+}
+~~~~~~~~
+
+### Associations from Existing Cryptographic State
+
+In this example, we show how one can bootstrap an Association using
+a pre-shared key (PSK) distributed or otherwise obtained through an
+out-of-band mechanism.
+
+~~~~~~~~
+// create an Association using a pre-shared key
+func bootstrap(preSharedKey []byte) Association {
+    association := AssociationFromPSK(preSharedKey)
     return association
 }
 
