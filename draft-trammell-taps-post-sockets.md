@@ -743,30 +743,38 @@ information to be later used for creating a remote connection.
 
 ~~~~~~~~
 // create an association with a given identity and set of trusted certificates
-func configureAssociation(ident Identity, trustedCerts []Certificate) Association {
-    association := Association(ident)
+func createAssociation(ident Identity, trustedCerts []Certificate) Association {
+    association := Association()
+    association = association.SetIdentity(ident)
     association = association.SetTrustedCerts(trustedCerts)
     return association
 }
 ~~~~~~~~
 
-### Associations from Existing Cryptographic State
-
-In this example, we show how one can bootstrap an Association using
-a pre-shared key (PSK) distributed or otherwise obtained through an
-out-of-band mechanism.
+The following example shows how to bootstrap an Association with a
+pre-shared key (PSK) distributed or otherwise obtained through an out-of-band
+mechanism.
 
 ~~~~~~~~
 // create an Association using a pre-shared key
-func bootstrap(preSharedKey []byte) Association {
+func createAssociationWithPSK(preSharedKey []byte) Association {
     association := AssociationFromPSK(preSharedKey)
     return association
 }
+~~~~~~~~
 
+### Creating Carriers with Associations
+
+In this example, we show how to create a Carrier from an existing, pre-configured
+Association.
+
+~~~~~~~~
 // resume a connection to a server, reusing an existing Association given a
 // remote, and send some 0-RTT data
 func sayHelloQuicklyWithAssociation(association Association) {
-    carrier := ResumeWithAssociation(local, association)
+    parameters := Parameters(local, association)
+    carrier := Initiate(parameters, remote)
+
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
         fmt.Println(string([]byte(msg)))
