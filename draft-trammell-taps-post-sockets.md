@@ -441,7 +441,7 @@ creation of a new Transient.
 Associations may exist and be created without a Message Carrier. This may be done if
 peer cryptographic state such as a pre-shared key is established out-of-band.
 Thus, Associations may be created without the need to send application data
-to a peer, that is, without a Remote. Associations are mutable. Association
+to a peer, that is, without a Carrier. Associations are mutable. Association
 state may expire over time, after which it is removed from the Association,
 and Transients may export cryptographic state to store in an Association as needed.
 Moreover, this state may be exported directly into the Association or modified
