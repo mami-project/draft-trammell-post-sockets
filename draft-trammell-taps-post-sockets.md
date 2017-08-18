@@ -164,8 +164,9 @@ Post replaces the traditional SOCK_STREAM abstraction with an Message
 abstraction, which can be seen as a generalization of the Stream Control
 Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service. Messages are sent
 and received on Carriers, which logically group Messages for transmission and
-reception. For backward compatibility, byte stream protocols are represented
-as a Carrier with a single long message in each direction.
+reception. For backward compatibility, bidirectional byte stream protocols are
+represented as a pair of Messages, one in each direction, that can only be marked
+complete when the sending peer has finished transmitting data.
 
 Post replaces the notions of a socket address and connected
 socket with an Association with a remote endpoint via set of Paths.
@@ -331,27 +332,46 @@ segment messages and/or combine messages into packets. However, a message may be
 marked as immediate, which will cause it to be sent in a single packet when
 possible.
 
-Messages may be sent and received either atomically, or non-atomically. All
-protocols must support non-atomic Messages, but only protocols that have
-fixed maximum lengths may allow clients to treat Messages as atomic.
+Content may be sent and received either as Complete or Partial Messages.
+Dealing with Complete Messages should be preferred for simplicity whenever
+possible based on the underlying protocol. It is always possible to send Complete
+Messages, but only protocols that have a fixed maximum message length may
+allow clients to receive Messages using an API that guarantees Complete Messages.
+Sending and receiving Partial Messages (that is, a Message whose content spans multiple
+calls or callbacks) is always possible.
 
-When a Message is received atomically, the entire content of the Message must
+To send a Message, either Complete or Partial, the Message content is passed into the
+Carrier, and client provides a set of callbacks to know when the Message was delivered or
+acknowledged. The client of the API may use the callbacks to pace the sending of
+Messages.
+
+To receive a Message, the client of the API schedules a completion to be called when
+a Complete or Partial Message is available. If the client is willing to accept Partial Messages,
+it can specify the minimum incomplete Message length it is willing to receive at once,
+and the maximum number of bytes it is willing to receive at once. If the client wants
+Complete Messages, there are no values to tune. The scheduling of the receive completion
+indicates to the Carrier that there is a desire to receive bytes, effectively creating a "pull
+model" in which backpressure may be applied if the client is not receiving Messages
+or Partial Messages quickly enough to match the peer's sending rate. The Carrier may
+have some minimal buffer of incoming Messages ready for the client to read to reduce
+latency.
+
+When receiving a Complete Message, the entire content of the Message must
 be delivered at once, and the Message is not delivered at all if the full Message
 is not received.  This implies that both the sending and receiving endpoint,
 whether in the application or the carrier, must guarantee storage for the full
-size of a Message. Dealing with atomic Messages should be preferred for
-simplicity whenever possible based on the underlying protocol.
+size of a Message.
 
-When Messages are handled non-atomically, they may be sent or received in
-several stages, with a handle representing the total Message being associated
-with each portion of the content. Each call to send or receive also indicates
-whether or not the Message is now complete. This approach is necessary whenever
-the size of the message does not have a known bound, or the size is too large to
-process and hold in memory atomically. Protocols that only present a concept
+Partial Messages may be sent or received in several stages, with a handle
+representing the total Message being associated with each portion of the
+content. Each call to send or receive also indicates whether or not the Message
+is now complete. This approach is necessary whenever the size of the
+Message does not have a known bound, or the size is too large to process
+and hold in memory. Protocols that only present a concept
 of byte streams represent their data as single Messages with unknown bounds.
-In the case of TCP, the client will receive a single Message in non-atomic pieces,
-and the Message will only be marked as complete when the receive side of the
-connection is closed.
+In the case of TCP, the client will receive a single Message in pieces using the
+Partial Message API, and that Message will only be marked as complete when
+the peer has sent a FIN.
 
 Messages are sent over and received from Message Carriers (see {{carrier}}).
 
