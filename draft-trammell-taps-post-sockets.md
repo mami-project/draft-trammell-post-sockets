@@ -585,6 +585,24 @@ simplified interface which uses default message properties (reliable transport
 without priority or deadline, which guarantees ordered delivery over a single
 Carrier when the underlying transport protocol stack supports it).
 
+For each connection between a Local and a Remote a new Carrier is created and 
+destroyed when the connection is closed. However, a new Carrier may use an existing
+Association if present for the requested Local-Remote pair and permitted by the
+PolicyContext that can be provided at Carrier initiation. Further the system-wide
+PolicyContext can contain more information that determine when to create or destroy
+Associations other than at Carrier initiation. E.g. an Association can be created 
+at system start, based on the configured PolicyContext or also by a manual action of 
+an single application, for Local-Remote pairs that are known to be likely used soon, and 
+to pre-establish, e.g., cryptographic context as well as potentially collect current information
+about path capabilities. Every time an actually connection with a specific PSI is established between the 
+Local and Remote, the Association learns new Path information and stores them. This
+information can be used when a new transient is created, e.g. to decide which PSI
+to use (to provide the highest probably for a successful connection attempt) or which
+PSIs to probe for (first). A Transient is created when an application actually sends a 
+Message over a Carrier. As further explained below this step can actually create multiple 
+transients for probing or assign a new transient to an already active PSI, e.g. if multi-streaming
+is provided and supported for these kind of use on both sides.
+
 The current state of API development is illustrated as a set of interfaces and
 function prototypes in the Go programming language in {{apisketch}}; future
 revisions of this document will give more a more abstract specification of the
