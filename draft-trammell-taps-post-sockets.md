@@ -594,7 +594,7 @@ Associations other than at Carrier initiation. E.g. an Association can be create
 at system start, based on the configured PolicyContext or also by a manual action of 
 an single application, for Local-Remote pairs that are known to be likely used soon, and 
 to pre-establish, e.g., cryptographic context as well as potentially collect current information
-about path capabilities. Every time an actually connection with a specific PSI is established between the 
+about path capabilities. Every time an actual connection with a specific PSI is established between the 
 Local and Remote, the Association learns new Path information and stores them. This
 information can be used when a new transient is created, e.g. to decide which PSI
 to use (to provide the highest probably for a successful connection attempt) or which
