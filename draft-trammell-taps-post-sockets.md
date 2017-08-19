@@ -478,8 +478,9 @@ can use it to create a Transient, it is considered fully resolved.
 
 A Local represents all the information about the local endpoint necessary to
 establish an Association or a Listener: interface, port, and transport
-protocol stack information, as well as certificates and associated private
-keys to use to identify this endpoint.
+protocol stack information, and, per {{I-D.ietf-taps-transport-security}},
+cryptographic identities (certificates and associated private keys) bound to
+this endpoint.
 
 ## Policy Context {#PolicyContext}
 
@@ -720,60 +721,55 @@ func receiveMulticast() {
 
 ## Association Bootstrapping
 
-Here, we show how Association state may be initialized. The goal is to
-create a long-term Association from which Carriers may be derived and,
-if possible, used immediately. We will describe two variations -- one
-where the Association is configured with trust model information
-necessary for the Remote to establish a connection, and another
-where the Association is created from a pre-shared key established
-out-of-band mechanism.
+Here, we show how Association state may be initialized without a carrier.
+The goal is to create a long-term Association from which Carriers may be derived
+and, if possible, used immediately. Per {{I-D.ietf-taps-transport-security}},
+a first step is to specify trust model constraints, such as pinned public keys
+and anchor certificates, which are needed to create Remote connections.
 
-### Association Preparation
-
-Perhaps the more common case for creating Associations is to initialize
-new connections to Remotes. To do so, Associations must possess the
-security information needed to create a fresh connection.
-Per {{I-D.ietf-taps-transport-security}}, this includes, at a minimum:
-
-- An identity and access or an interface to the associated private key.
-- Trust model constraints, such as pinned public keys and anchor certificates.
-
-The following example shows how an Association can be created with this
-information to be later used for creating a remote connection.
+We begin by creating shared security parameters that will be used later for creating
+a remote connection.
 
 ~~~~~~~~
-// create an association with a given identity and set of trusted certificates
-func createAssociation(ident Identity, trustedCerts []Certificate) Association {
-    association := Association()
-    association = association.SetIdentity(ident)
-    association = association.SetTrustedCerts(trustedCerts)
+// create security parameters with a set of trusted certificates
+func createParameters(trustedCerts []Certificate) Parameters {
+    parameters := Parameters()
+    parameters = parameters.SetTrustedCerts(trustedCerts)
+    return parameters
+}
+~~~~~~~~
+
+Using these statically configured parameters, we now show how to create an Association
+between a Local and Remote using these parameters.
+
+~~~~~~~~
+// create an Association using shared parameters
+func createAssociation(local Local, remote Remote, parameters Parameters) Association {
+    association := AssociationWithParameters(local, remote, parameters)
     return association
 }
 ~~~~~~~~
 
-The following example shows how to bootstrap an Association with a
-pre-shared key (PSK) distributed or otherwise obtained through an out-of-band
-mechanism.
+We may also create an Association with a pre-shared key configured out-of-band.
 
 ~~~~~~~~
 // create an Association using a pre-shared key
-func createAssociationWithPSK(preSharedKey []byte) Association {
-    association := AssociationFromPSK(preSharedKey)
+func createAssociationWithPSK(local Local, remote Remote, parameters Parameters, preSharedKey []byte) Association {
+    association := AssociationWithParameters(local, remote, parameters)
+    association = association.SetPreSharedKey(preSharedKey)
     return association
 }
 ~~~~~~~~
 
-### Creating Carriers with Associations
-
-In this example, we show how to create a Carrier from an existing, pre-configured
-Association.
+We now show how to create a Carrier from an existing, pre-configured Association.
+This Association may or may not contain shared cryptographic static between the
+Local and Remote, depending on how it was configured.
 
 ~~~~~~~~
-// resume a connection to a server, reusing an existing Association given a
-// remote, and send some 0-RTT data
-func sayHelloQuicklyWithAssociation(association Association) {
-    parameters := Parameters(local, association)
-    carrier := Initiate(parameters, remote)
+// open a connection to a server using an existing Association and send some data,
+// which will be sent early if possible.
+func sayHelloWithAssociation(association Association) {
+    carrier := InitiateWithAssociation(association)
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
