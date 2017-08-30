@@ -322,9 +322,10 @@ interaction patterns, defined in the subsections below.
 ## Message
 
 A Message is the unit of communication between applications. Messages
-can represent both relatively small structures, such as requests in a
-request/response protocol such as HTTP; as well as relatively large
-structures, such as files of arbitrary size in a filesystem.
+can represent relatively small structures, such as requests in a
+request/response protocol such as HTTP; relatively large
+structures, such as files of arbitrary size in a filesystem; and structures of
+indeterminate length, such as a stream of bytes in a protocol like TCP.
 
 In the general case, there is no mapping between a Message and packets sent by
 the underlying protocol stack on the wire: the transport protocol may freely
@@ -787,7 +788,9 @@ messages, with parsing the byte stream into messages being a necessary
 annoyance, rather than a semantic concern.
 Accordingly, Post Sockets exposes a message-based API to applications as
 the primary abstraction. Protocols that deal only in byte streams, such as TCP,
-represent their data in each direction as a single, long message.
+represent their data in each direction as a single, long message. When framing
+protocols are placed on top of byte streams, the messages used in the API
+represent the framed messages within the stream.
 
 There are other benefits of providing a message-oriented API beyond framing
 PDUs that Post Sockets should provide when supported by the underlying
