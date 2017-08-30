@@ -164,8 +164,9 @@ Post replaces the traditional SOCK_STREAM abstraction with an Message
 abstraction, which can be seen as a generalization of the Stream Control
 Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service. Messages are sent
 and received on Carriers, which logically group Messages for transmission and
-reception. For backward compatibility, these Carriers can also be opened as
-Streams, presenting a file-like interface to the network as with SOCK_STREAM.
+reception. For backward compatibility, bidirectional byte stream protocols are
+represented as a pair of Messages, one in each direction, that can only be marked
+complete when the sending peer has finished transmitting data.
 
 Post replaces the notions of a socket address and connected
 socket with an Association with a remote endpoint via set of Paths.
@@ -288,7 +289,7 @@ multistreaming transport protocols.
 
 To exchange messages with a given remote endpoint, an application may initiate
 a Message Carrier given its remote (see {{remote}} and local (see {{local}})
-identities; this is an equivalent to an active open. There are five special
+identities; this is an equivalent to an active open. There are four special
 cases of Message Carriers, as well, supporting different initiation and
 interaction patterns, defined in the subsections below.
 
@@ -318,40 +319,60 @@ interaction patterns, defined in the subsections below.
    applications. A Responder's receiver gets a Message, as well as a Source to
    send replies to. Responders cannot be forked, and need not accept forks.
 
- - Stream:
-   A Message Carrier may be irreversibly morphed into a Stream, in order to provide
-   a strictly ordered, reliable service as with SOCK_STREAM. Morphing a Message
-   Carrier into a Stream should return a "file-like object" as appropriate for the
-   platform implementing the API. Typically, both ends of a communication using a
-   stream service will morph their respective Message Carriers independently before
-   sending any Messages.
-
-   Writing a byte to a Stream will cause it to be received by the remote, in
-   order, or will cause an error condition and termination of the stream if the
-   byte cannot be delivered. Due to the strong sequential dependence on a stream,
-   streams must always be reliable and ordered. A Message Carrier may only be
-   morphed to a Stream if it uses transport protocol stack that provides
-   reliable, ordered service, and only before it is used to send a Message.
-
 ## Message
 
-A Message is an atomic unit of communication between applications. A Message
-that cannot be delivered in its entirety within the constraints of the network
-connectivity and the requirements of the application is not delivered at all.
-
-Messages can represent both relatively small structures, such as requests in a
-request/response protocol such as HTTP; as well as relatively large
-structures, such as files of arbitrary size in a filesystem.
+A Message is the unit of communication between applications. Messages
+can represent relatively small structures, such as requests in a
+request/response protocol such as HTTP; relatively large
+structures, such as files of arbitrary size in a filesystem; and structures of
+indeterminate length, such as a stream of bytes in a protocol like TCP.
 
 In the general case, there is no mapping between a Message and packets sent by
 the underlying protocol stack on the wire: the transport protocol may freely
 segment messages and/or combine messages into packets. However, a message may be
-marked as immediate, which will cause it to be sent in a single packet, if it
-will fit.
+marked as immediate, which will cause it to be sent in a single packet when
+possible.
 
-This implies that both the sending and receiving endpoint, whether in the
-application layer or the transport layer, must guarantee storage for the full
-size of an Message.
+Content may be sent and received either as Complete or Partial Messages.
+Dealing with Complete Messages should be preferred for simplicity whenever
+possible based on the underlying protocol. It is always possible to send Complete
+Messages, but only protocols that have a fixed maximum message length may
+allow clients to receive Messages using an API that guarantees Complete Messages.
+Sending and receiving Partial Messages (that is, a Message whose content spans multiple
+calls or callbacks) is always possible.
+
+To send a Message, either Complete or Partial, the Message content is passed into the
+Carrier, and client provides a set of callbacks to know when the Message was delivered or
+acknowledged. The client of the API may use the callbacks to pace the sending of
+Messages.
+
+To receive a Message, the client of the API schedules a completion to be called when
+a Complete or Partial Message is available. If the client is willing to accept Partial Messages,
+it can specify the minimum incomplete Message length it is willing to receive at once,
+and the maximum number of bytes it is willing to receive at once. If the client wants
+Complete Messages, there are no values to tune. The scheduling of the receive completion
+indicates to the Carrier that there is a desire to receive bytes, effectively creating a "pull
+model" in which backpressure may be applied if the client is not receiving Messages
+or Partial Messages quickly enough to match the peer's sending rate. The Carrier may
+have some minimal buffer of incoming Messages ready for the client to read to reduce
+latency.
+
+When receiving a Complete Message, the entire content of the Message must
+be delivered at once, and the Message is not delivered at all if the full Message
+is not received.  This implies that both the sending and receiving endpoint,
+whether in the application or the carrier, must guarantee storage for the full
+size of a Message.
+
+Partial Messages may be sent or received in several stages, with a handle
+representing the total Message being associated with each portion of the
+content. Each call to send or receive also indicates whether or not the Message
+is now complete. This approach is necessary whenever the size of the
+Message does not have a known bound, or the size is too large to process
+and hold in memory. Protocols that only present a concept
+of byte streams represent their data as single Messages with unknown bounds.
+In the case of TCP, the client will receive a single Message in pieces using the
+Partial Message API, and that Message will only be marked as complete when
+the peer has sent a FIN.
 
 Messages are sent over and received from Message Carriers (see {{carrier}}).
 
@@ -755,7 +776,7 @@ during establishment, as shown in {{fig-psi}}(c). Here, the losing
 PSI in a happy-eyeballs race will be terminated, and the carrier will
 continue using the winning PSI.
 
-### Message Framing, Parsing, and Serialisation
+### Message Framing, Parsing, and Serialization
 
 While some transports expose a byte stream abstraction, most higher level
 protocols impose some structure onto that byte stream. That is, the higher
@@ -766,8 +787,10 @@ Protocols are specified in terms of state machines acting on semantic
 messages, with parsing the byte stream into messages being a necessary
 annoyance, rather than a semantic concern.
 Accordingly, Post Sockets exposes a message-based API to applications as
-the primary abstraction, offering a stream-based API for ease of porting
-and backwards compatibility only.
+the primary abstraction. Protocols that deal only in byte streams, such as TCP,
+represent their data in each direction as a single, long message. When framing
+protocols are placed on top of byte streams, the messages used in the API
+represent the framed messages within the stream.
 
 There are other benefits of providing a message-oriented API beyond framing
 PDUs that Post Sockets should provide when supported by the underlying
@@ -985,8 +1008,6 @@ type Association interface {
 
 // A message together with with metadata needed to send it
 type OutMessage struct {
-    // The content of this message, as a byte array
-    Content []byte
     // The niceness of this message. 0 is highest priority.
     Niceness uint
     // The lifetime of this message. After this duration, the message may expire.
@@ -998,16 +1019,14 @@ type OutMessage struct {
 }
 
 // A message received from a stream
-type InMessage []byte
+type InMessage struct {
+
+}
 
 // A Carrier is a transport protocol stack-independent interface for sending and
 // receiving messages between an application and a remote endpoint; it is roughly
 // analogous to a socket in the present sockets API.
 type Carrier interface {
-    // Send a byte array on this Carrier as a message with default metadata
-    // and no notifications.
-    Send(buf []byte) error
-
     // Send a message on this Carrier. The optional onSent function will be
     // called when the protocol stack instance has sent the message. The
     // optional onAcked function will be called when the receiver has
@@ -1015,12 +1034,26 @@ type Carrier interface {
     // called if the message's lifetime expired before the message coult be
     // sent. If the Carrier is not active, attempt to activate the Carrier
     // before sending.
-    Sendmsg(msg *OutMessage, onSent func(), onAcked func(), onExpired func()) error
+    SendMessage(content []byte, msg *OutMessage, complete bool, onSent func(), onAcked func(), onExpired func()) error
 
-    // Signal that an application is ready to receive messages via a given callback.
-    // Messages will be given to the callback until it returns false, or until the
-    // Carrier is closed.
-    Ready(receive func(InMessage) bool) error
+	// Send a byte array on this Carrier as a message with default metadata
+	// and no notifications.
+	Send(content []byte) error
+
+    // Signal that the application is ready to receive a single atomic message via
+    // the given callback.
+    // This will deliver a single message, or an error if the carrier failed before
+	// a message could be delivered.
+    ReceiveMessage(receive func(content []byte, InMessage, error) bool) error
+
+	// Signal that the application is ready to receive a complete or partial message
+	// via the given callback. The minimum incomplete bytes specifies a length of the
+	// message content that is expected before delivery, and the maximum bytes specifies
+	// the number of content bytes that can be received at once. If the message is complete
+	// with fewer than the minimum incomplete bytes, the message will be delivered.
+	// This will deliver a single callback, with the available content, the message associated
+	// with the content, whether or not the content is complete, and an error.
+	Receive(minimumIncompleteBytes uint, maximumBytes uint, receive func(content []byte, InMessage, complete bool, error) bool) error
 
     // Retrieve the Association over which this Carrier is running.
     Association() *Association
@@ -1037,9 +1070,6 @@ type Carrier interface {
 
     // Terminate the Carrier
     Close()
-
-    // Mutate to a file-like object
-    AsStream() io.ReadWriteCloser
 
     // Attempt to fork a new Carrier for communicating with the same Remote
     Fork() (Carrier, error)
