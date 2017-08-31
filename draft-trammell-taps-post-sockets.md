@@ -60,6 +60,8 @@ informative:
     RFC7413:
     RFC7556:
     I-D.ietf-quic-transport:
+    I-D.ietf-taps-crypto-sep:
+    I-D.ietf-taps-transport-security:
     I-D.ietf-tls-tls13:
     I-D.iyengar-minion-protocol:
     I-D.trammell-plus-abstract-mech:
@@ -136,7 +138,7 @@ specifically designed to hide multipath communication from the application for
 purposes of compatibility. Since many multihomed nodes are connected to the
 Internet through access paths with widely different properties with respect to
 bandwidth, latency and cost, adding explicit path control to MPTCP's API would
-be useful in many situations. 
+be useful in many situations.
 
 Another trend straining the traditional layering of the transport stack
 associated with the SOCK_STREAM interface is the widespread interest in
@@ -160,7 +162,7 @@ different platforms, and used even in environments where transport protocol
 selection may be done dynamically, as proposed in the IETF's Transport Services
 working group.
 
-Post replaces the traditional SOCK_STREAM abstraction with an Message
+Post replaces the traditional SOCK_STREAM abstraction with a Message
 abstraction, which can be seen as a generalization of the Stream Control
 Transmission Protocol's {{RFC4960}} SOCK_SEQPACKET service. Messages are sent
 and received on Carriers, which logically group Messages for transmission and
@@ -203,7 +205,7 @@ The key features of Post as compared with the existing sockets API are:
 This work is the synthesis of many years of Internet transport protocol
 research and development. It is inspired by concepts from the Stream Control
 Transmission Protocol (SCTP) {{RFC4960}}, TCP Minion {{I-D.iyengar-minion-protocol}},
-and MinimaLT{{MinimaLT}}, among other transport protocol
+and MinimaLT {{MinimaLT}}, among other transport protocol
 modernization efforts. We present Post as an illustration of what is
 possible with present developments in transport protocols when freed from the
 strictures of the current sockets API. While much of the work for building
@@ -229,7 +231,7 @@ exploit their potential.
             |1        |        n|                  |          +=========+
             |         |         |1                 |      +---|  Local  |
             |   +=========+   +=======================+   |   +=========+
-            |   | Policy  |n  |                       |---+ 
+            |   | Policy  |n  |                       |---+
             |   | Context |---|      Association      |       +=========+
             |   |         |  1|                       |-------|  Remote |
             |   +=========+   +=======================+       +=========+
@@ -444,9 +446,10 @@ all of these events.
 
 An Association contains the long-term state necessary to support
 communications between a Local (see {{local}}) and a Remote (see {{remote}})
-endpoint, such as cryptographic session resumption parameters or rendezvous
-information. It uses information from the Policy Context (see {{PolicyContext}})
-to constrain the selection of
+endpoint, such as trust model information, including pinned public
+keys or anchor certificates, cryptographic session resumption parameters,
+or rendezvous information. It uses information from the Policy Context
+(see {{PolicyContext}}) to constrain the selection of
 transport protocols and local interfaces to create Transients (see
 {{transient}}) to carry Messages; and information about the paths through the
 network available available between them (see {{path}}).
@@ -456,14 +459,28 @@ reuse an Association if they can be carried from the same Local to the same
 Remote over the same Paths; this re-use of an Association may implies the
 creation of a new Transient.
 
+Associations may exist and be created without a Message Carrier. This may be done if
+peer cryptographic state such as a pre-shared key is established out-of-band.
+Thus, Associations may be created without the need to send application data
+to a peer, that is, without a Carrier. Associations are mutable. Association
+state may expire over time, after which it is removed from the Association,
+and Transients may export cryptographic state to store in an Association as needed.
+Moreover, this state may be exported directly into the Association or modified
+before insertion. This may be needed to diversify ephemeral Transient keying
+material from the longer-term Association keying material.
+
+A primary use of Association state is to allow new Associations and their derived
+Carriers to be quickly created without performing in-band cryptographic handshakes.
+See {{I-D.ietf-taps-crypto-sep}} for more details about this separation.
+
 ## Remote
 
 A Remote represents information required to establish and maintain a
 connection with the far end of an Association: name(s), address(es), and
 transport protocol parameters that can be used to establish a Transient;
-transport protocols to use; information about public keys or certificate
-authorities used to identify the remote on connection establishment; and so
-on. Each Association is associated with a single Remote, either explicitly by
+transport protocols to use; trust model information, inherited from the
+relevant Association, used to identify the remote on connection establishment;
+and so on. Each Association is associated with a single Remote, either explicitly by
 the application (when created by the initiation of a Message Carrier) or a
 Listener (when created by forking a Message Carrier on passive open).
 
@@ -482,29 +499,30 @@ can use it to create a Transient, it is considered fully resolved.
 
 A Local represents all the information about the local endpoint necessary to
 establish an Association or a Listener: interface, port, and transport
-protocol stack information, as well as certificates and associated private
-keys to use to identify this endpoint.
+protocol stack information, and, per {{I-D.ietf-taps-transport-security}},
+cryptographic identities (certificates and associated private keys) bound to
+this endpoint.
 
 ## Policy Context {#PolicyContext}
 
 The Policy Context describes preferences for, and restrictions on, how to
 configure Transients to support communication between a Local and a Remote
 over one or more Paths between endpoints.
-For instance, an application may require, or prefer to use, certain features 
+For instance, an application may require, or prefer to use, certain features
 (see {{I-D.ietf-taps-transports}}) of the transport protocol stacks used by
-the Transients underlying the Carrier. 
+the Transients underlying the Carrier.
 Alternatively, it might also prefer Paths over one interface to those over
 another (e.g., WiFi access over LTE when roaming on a foreign LTE network,
-due to cost). 
+due to cost).
 
-These policies are expressed in the Policy Context(s) that are bound to the 
-Association. 
-Multiple policy contexts can be active at once. 
+These policies are expressed in the Policy Context(s) that are bound to the
+Association.
+Multiple policy contexts can be active at once.
 For example, a system Policy Context can express the administrative preferences
 around network interface and protocol selection, while an application Policy Context
-expresses preferences for use of different transport services. 
+expresses preferences for use of different transport services.
 Expression of policy contexts and the resolution of conflicts among Policy
-Contexts is currently implementation-specific (the Policy API in the NEAT 
+Contexts is currently implementation-specific (the Policy API in the NEAT
 architecture {{NEAT}} provides an example of how this can be done).
 
 ## Transient
@@ -683,7 +701,7 @@ this connection racing is to use 0-RTT data (i.e., as provided by TCP Fast Open
 {{RFC7413}}, the client must mark the outgoing message as idempotent.
 
 ~~~~~~~~
-// connect to a server given a remote
+// connect to a server given a remote and send some 0-RTT data
 func sayHelloQuickly() {
 
     carrier := Initiate(local, remote)
@@ -722,6 +740,67 @@ func receiveMulticast() {
 }
 ~~~~~~~~
 
+## Association Bootstrapping
+
+Here, we show how Association state may be initialized without a carrier.
+The goal is to create a long-term Association from which Carriers may be derived
+and, if possible, used immediately. Per {{I-D.ietf-taps-transport-security}},
+a first step is to specify trust model constraints, such as pinned public keys
+and anchor certificates, which are needed to create Remote connections.
+
+We begin by creating shared security parameters that will be used later for creating
+a remote connection.
+
+~~~~~~~~
+// create security parameters with a set of trusted certificates
+func createParameters(trustedCerts []Certificate) Parameters {
+    parameters := Parameters()
+    parameters = parameters.SetTrustedCerts(trustedCerts)
+    return parameters
+}
+~~~~~~~~
+
+Using these statically configured parameters, we now show how to create an Association
+between a Local and Remote using these parameters.
+
+~~~~~~~~
+// create an Association using shared parameters
+func createAssociation(local Local, remote Remote, parameters Parameters) Association {
+    association := AssociationWithParameters(local, remote, parameters)
+    return association
+}
+~~~~~~~~
+
+We may also create an Association with a pre-shared key configured out-of-band.
+
+~~~~~~~~
+// create an Association using a pre-shared key
+func createAssociationWithPSK(local Local, remote Remote, parameters Parameters, preSharedKey []byte) Association {
+    association := AssociationWithParameters(local, remote, parameters)
+    association = association.SetPreSharedKey(preSharedKey)
+    return association
+}
+~~~~~~~~
+
+We now show how to create a Carrier from an existing, pre-configured Association.
+This Association may or may not contain shared cryptographic static between the
+Local and Remote, depending on how it was configured.
+
+~~~~~~~~
+// open a connection to a server using an existing Association and send some data,
+// which will be sent early if possible.
+func sayHelloWithAssociation(association Association) {
+    carrier := InitiateWithAssociation(association)
+
+    carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
+    carrier.Ready(func (msg InMessage) {
+        fmt.Println(string([]byte(msg)))
+        return false
+    })
+    carrier.Close()
+}
+~~~~~~~~
+
 ## Implementation Considerations
 
 Here we discuss an incomplete list of API implementation considerations that
@@ -729,16 +808,15 @@ have arisen with experimentation with the prototype in {{apisketch}}.
 
 ### Protocol Stack Instance (PSI)
 
-
 A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over IPv6,
 SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge between the
-interface (Carrier) plus the current state (Transients) and the implementation 
-of a given set of transport services {{I-D.ietf-taps-transports}}. 
+interface (Carrier) plus the current state (Transients) and the implementation
+of a given set of transport services {{I-D.ietf-taps-transports}}.
 
 A given implementation makes one or more possible protocol stacks available
 to its applications. Selection and configuration among multiple PSIs is
 based on system-level or application policies, as well as on network
-conditions in the provisioning domain in which a connection is made. 
+conditions in the provisioning domain in which a connection is made.
 
 ~~~~~~~~~~
 +=========+    +=========+   +==========+      +==========+
@@ -766,7 +844,7 @@ conditions in the provisioning domain in which a connection is made.
 
 For example, {{fig-psi}}(a) shows a TLS over TCP stack, usable on most
 network connections. Protocols are layered to ensure that the PSI provides
-all the transport services required by the application. 
+all the transport services required by the application.
 A single PSI may be bound to multiple message carriers, as shown in
 {{fig-psi}}(b): a multi-streaming transport protocol like QUIC or SCTP can
 support one carrier per stream. Where multi-streaming transport is not
@@ -797,7 +875,7 @@ PDUs that Post Sockets should provide when supported by the underlying
 transport. These include:
 
  - the ability to associate deadlines with messages, for transports that
-   care about timing; 
+   care about timing;
 
  - the ability to provide control of reliability, choosing what messages to
    retransmit in the event of packet loss, and how best to make use of the
@@ -806,7 +884,7 @@ transport. These include:
  - the ability to manage dependencies between messages, when some messages
    may not be delivered due to either packet loss or missing a deadline, in
    particular the ability to avoid (re-)sending data that relies on a previous
-   transmission that was never received. 
+   transmission that was never received.
 
 All require explicit message boundaries, and application-level framing of
 messages, to be effective. Once a message is passed to Post Sockets, it can
@@ -824,14 +902,14 @@ stream-based transport protocols, Post Sockets must provide APIs for
 parsing and serialising messages that understand the protocol data.  That
 is, we push message parsing and serialisation down into the Post Sockets
 stack, allowing applications to send and receive strongly typed data
-objects (e.g., a receive call on an HTTP Message Carrier should return 
+objects (e.g., a receive call on an HTTP Message Carrier should return
 an object representing the HTTP response, with pre-parsed status code,
-headers, and any message body, rather than returning a byte array that 
+headers, and any message body, rather than returning a byte array that
 the application has to parse itself).
 This is backwards compatible with existing protocols and APIs, since
 the wire format of messages does not change, but gives a Post Sockets
 stack additional information to allow it to make better use of modern
-transport services. 
+transport services.
 
 The Post Sockets approach is therefore to raise the semantic level of the
 transport API: applications should send and receive messages in the form of
@@ -839,10 +917,10 @@ meaningful, strongly typed, protocol data. Parsing and serialising such
 messages should be a re-usable function of the protocol stack instance not
 the application.  This is well-suited to implementation in modern systems
 languages, such as Swift, Go, Rust, or C++, but can also be implemented
-with some loss of type safety in C. 
+with some loss of type safety in C.
 
 {::comment}
-  The paper has an example API in Rust-like syntax. We should probably 
+  The paper has an example API in Rust-like syntax. We should probably
   figure out a language-neutral way of specifying the Post Sockets API.
 {:/comment}
 
@@ -869,7 +947,8 @@ Regardless of how asynchronous reception is implemented, it is important for an
 application to be able to apply receiver back-pressure, to allow the protocol
 stack to perform receiver flow control. Depending on how asynchronous I/O works
 in the platform, this could be implemented by having a maximum number of
-concurrent receive callbacks, for example.
+concurrent receive callbacks, or by bounding the maximum number of outstanding,
+unread bytes at any given time, for example.
 
 ### Associations, Transients, Racing, and Rendezvous
 
@@ -889,18 +968,18 @@ multiple phases:
 
  - Gathering Locals
 
-   The set of possible Locals is gathered. 
-   In the simple case, this merely enumerates the local interfaces and 
+   The set of possible Locals is gathered.
+   In the simple case, this merely enumerates the local interfaces and
    protocols, and allocates ephemeral source ports for transients. For
    example, a system that has WiFi and Ethernet and supports IPv4 and IPv6
    might gather four candidate locals (IPv4 on Ethernet, IPv6 on Ethernet,
-   IPv4 on WiFi, and IPv6 on WiFi) that can form the source for a transient. 
+   IPv4 on WiFi, and IPv6 on WiFi) that can form the source for a transient.
 
    If NAT traversal is required, the process of gathering locals becomes
    broadly equivalent to the ICE candidate gathering phase {{RFC5245}}.
    The endpoint determines its server reflexive locals (i.e., the
    translated address of a local, on the other side of a NAT) and relayed
-   locals (e.g., via a TURN server or other relay), for each interface and 
+   locals (e.g., via a TURN server or other relay), for each interface and
    network protocol. These are added to the set of candidate locals for
    this association.
 
@@ -917,17 +996,17 @@ multiple phases:
    performing such name lookups, until fully resolved, to return the set
    of candidates for the remote of this association.
 
-   How this is done will depend on the type of the Remote, and can also 
+   How this is done will depend on the type of the Remote, and can also
    be specific to each local.
    A common case is when the Remote is a DNS name, in which case it is
    resolved to give a set of IPv4 and IPv6 addresses representing that
    name.
    Some types of remote might require more complex resolution. Resolving
    the remote for a peer-to-peer connection might involve communication
-   with a rendezvous server, which in turn contacts the peer to gain 
+   with a rendezvous server, which in turn contacts the peer to gain
    consent to communicate and retrieve its set of candidate locals, which
    are returned and form the candidate remote addresses for contacting
-   that peer. 
+   that peer.
 
    Resolving the remote is *not* a local operation. It will involve
    a directory service, and can require communication with the remote to
@@ -938,24 +1017,24 @@ multiple phases:
 
    The set of candidate locals and the set of candidate remotes are
    paired, to derive a priority ordered set of Candidate Paths that
-   can potentially be used to establish a connection. 
-   
+   can potentially be used to establish a connection.
+
    Then, communication is attempted over each candidate path, in
    priority order. If there are multiple candidates with the same
    priority, then transient establishment proceeds simultaneously
    and uses the transient that wins the race to be established.
-   Otherwise, transients establishment is sequential, paced at a 
-   rate that should not congest the network. 
+   Otherwise, transients establishment is sequential, paced at a
+   rate that should not congest the network.
    Depending on the chosen transport, this phase might involve racing
-   TCP connections to a server over IPv4 and IPv6 {{RFC6555}}, or 
+   TCP connections to a server over IPv4 and IPv6 {{RFC6555}}, or
    it could involve a STUN exchange to establish peer-to-peer UDP
    connectivity {{RFC5245}}, or some other means.
 
  - Confirming and Maintaining Transients
 
    Once connectivity has been established, unused resources can be
-   released and the chosen path can be confirmed. 
-   This is primarily required when establishing peer-to-peer connectivity, 
+   released and the chosen path can be confirmed.
+   This is primarily required when establishing peer-to-peer connectivity,
    where connections supporting relayed locals that were not required can
    be closed, and where an associated signalling operation might be needed
    to inform middleboxes and proxies of the chosen path.
@@ -968,7 +1047,7 @@ It can provide reusable implementations of connection racing for TCP, to enable
 happy eyeballs, that will be automatically used by all TCP clients, for example.
 With appropriate callbacks to drive the rendezvous signalling as part of
 resolving the remote, we believe a generic ICE implementation ought also to be
-possible. This procedure can even be repeated fully or partially during a 
+possible. This procedure can even be repeated fully or partially during a
 connection to enable seamless hand-over and mobility within the network stack.
 
 
@@ -1200,4 +1279,3 @@ type IPEndpointCertRemote struct {
     Certificates []tls.Certificate
 }
 ~~~~~~~~
-
