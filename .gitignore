@@ -10,3 +10,5 @@ venv/
 issues.json
 lib
 draft-trammell-post-sockets.md
+
+.targets.mk
