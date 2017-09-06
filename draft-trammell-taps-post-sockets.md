@@ -60,8 +60,8 @@ informative:
     RFC7413:
     RFC7556:
     I-D.ietf-quic-transport:
-    I-D.ietf-taps-crypto-sep:
-    I-D.ietf-taps-transport-security:
+    I-D.kuehlewind-taps-crypto-sep:
+    I-D.pauly-taps-transport-security:
     I-D.ietf-tls-tls13:
     I-D.iyengar-minion-protocol:
     I-D.trammell-plus-abstract-mech:
@@ -471,7 +471,7 @@ material from the longer-term Association keying material.
 
 A primary use of Association state is to allow new Associations and their derived
 Carriers to be quickly created without performing in-band cryptographic handshakes.
-See {{I-D.ietf-taps-crypto-sep}} for more details about this separation.
+See {{I-D.kuehlewind-taps-crypto-sep}} for more details about this separation.
 
 ## Remote
 
@@ -499,7 +499,7 @@ can use it to create a Transient, it is considered fully resolved.
 
 A Local represents all the information about the local endpoint necessary to
 establish an Association or a Listener: interface, port, and transport
-protocol stack information, and, per {{I-D.ietf-taps-transport-security}},
+protocol stack information, and, per {{I-D.pauly-taps-transport-security}},
 cryptographic identities (certificates and associated private keys) bound to
 this endpoint.
 
@@ -762,7 +762,7 @@ func receiveMulticast() {
 
 Here, we show how Association state may be initialized without a carrier.
 The goal is to create a long-term Association from which Carriers may be derived
-and, if possible, used immediately. Per {{I-D.ietf-taps-transport-security}},
+and, if possible, used immediately. Per {{I-D.pauly-taps-transport-security}},
 a first step is to specify trust model constraints, such as pinned public keys
 and anchor certificates, which are needed to create Remote connections.
 
