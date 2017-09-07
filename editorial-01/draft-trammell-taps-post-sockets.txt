@@ -342,37 +342,35 @@ Internet-Draft                Post Sockets                September 2017
    only for a way for the application to register how it wants to handle
    incoming messages.
 
-   All the Messages sent to a Message Carrier will be received on the
-   corresponding Message Carrier at the remote endpoint, though not
-   necessarily reliably or in order, depending on Message properties and
-   the underlying transport protocol stack.
+   All the Messages sent to a Carrier will be received on the
+   corresponding Carrier at the remote endpoint, though not necessarily
+   reliably or in order, depending on Message properties and the
+   underlying transport protocol stack.
 
-   A Message Carrier that is backed by current transport protocol stack
-   state (such as a TCP connection; see Section 2.7) is said to be
-   "active": messages can be sent and received over it.  A Message
-   Carrier can also be "dormant": there is long-term state associated
-   with it (via the underlying Association; see Section 2.3), and it may
-   be able to reactivated, but messages cannot be sent and received
-   immediately.
+   A Carrier that is backed by current transport protocol stack state
+   (such as a TCP connection; see Section 2.7) is said to be "active":
+   messages can be sent and received over it.  A Carrier can also be
+   "dormant": there is long-term state associated with it (via the
+   underlying Association; see Section 2.3), and it may be able to
+   reactivated, but messages cannot be sent and received immediately.
 
-   If supported by the underlying transport protocol stack, a Message
-   Carrier may be forked: creating a new Message Carrier associated with
-   a new Message Carrier at the same remote endpoint.  The semantics of
-   the usage of multiple Message Carriers based on the same Association
-   are application-specific.  When a Message Carrier is forked, its
-   corresponding Message Carrier at the remote endpoint receives a fork
-   request, which it must accept in order to fully establish the new
-   carrier.  Multiple message carriers between endpoints are implemented
-   differently by different transport protocol stacks, either using
-   multiple separate transport-layer connections, or using multiple
-   streams of multistreaming transport protocols.
+   If supported by the underlying transport protocol stack, a Carrier
+   may be forked: creating a new Carrier associated with a new Carrier
+   at the same remote endpoint.  The semantics of the usage of multiple
+   Carriers based on the same Association are application-specific.
+   When a Carrier is forked, its corresponding Carrier at the remote
+   endpoint receives a fork request, which it must accept in order to
+   fully establish the new carrier.  Multiple Carriers between endpoints
+   are implemented differently by different transport protocol stacks,
+   either using multiple separate transport-layer connections, or using
+   multiple streams of multistreaming transport protocols.
 
    To exchange messages with a given remote endpoint, an application may
-   initiate a Message Carrier given its remote (see Section 2.4 and
-   local (see Section 2.5) identities; this is an equivalent to an
-   active open.  There are four special cases of Message Carriers, as
-   well, supporting different initiation and interaction patterns,
-   defined in the subsections below.
+   initiate a Carrier given its remote (see Section 2.4 and local (see
+   Section 2.5) identities; this is an equivalent to an active open.
+   There are four special cases of Carriers, as well, supporting
+   different initiation and interaction patterns, defined in the
+   subsections below.
 
    o  Listener: A Listener is a special case of Message Carrier which
       only responds to requests to create a new Carrier from a remote
@@ -380,12 +378,14 @@ Internet-Draft                Post Sockets                September 2017
       sockets API.  Instead of being bound to a specific remote
       endpoint, it is bound only to a local identity; however, its
       interface for accepting fork requests is identical to that for
-      fully fledged Message Carriers.
+      fully fledged Carriers.
 
    o  Source: A Source is a special case of Message Carrier over which
       messages can only be sent, intended for unidirectional
       applications such as multicast transmitters.  Sources cannot be
       forked, and need not accept forks.
+
+
 
 
 
@@ -516,20 +516,19 @@ Internet-Draft                Post Sockets                September 2017
       containing the Messages instead of forwarding them.
 
    o  Priority: Messages have a "niceness" - a priority among other
-      messages sent over the same Message Carrier in an unbounded
-      hierarchy most naturally represented as a non-negative integer.
-      By default, Messages are in niceness class 0, or highest priority.
-      Niceness class 1 Messages will yield to niceness class 0 Messages
-      sent over the same Carrier, class 2 to class 1, and so on.
-      Niceness may be translated to a priority signal for exposure to
-      path elements (e.g.  DSCP code point) to allow prioritization
-      along the path as well as at the sender and receiver.  This
-      inversion of normal schemes for expressing priority has a
-      convenient property: priority increases as both niceness and
-      lifetime decrease.  A Message may have both a niceness and a
-      lifetime - Messages with higher niceness classes will yield to
-      lower classes if resource constraints mean only one can meet the
-      lifetime.
+      messages sent over the same Carrier in an unbounded hierarchy most
+      naturally represented as a non-negative integer.  By default,
+      Messages are in niceness class 0, or highest priority.  Niceness
+      class 1 Messages will yield to niceness class 0 Messages sent over
+      the same Carrier, class 2 to class 1, and so on.  Niceness may be
+      translated to a priority signal for exposure to path elements
+      (e.g.  DSCP code point) to allow prioritization along the path as
+      well as at the sender and receiver.  This inversion of normal
+      schemes for expressing priority has a convenient property:
+      priority increases as both niceness and lifetime decrease.  A
+      Message may have both a niceness and a lifetime - Messages with
+      higher niceness classes will yield to lower classes if resource
+      constraints mean only one can meet the lifetime.
 
    o  Dependence: A Message may have "antecedents" - other Messages on
       which it depends, which must be delivered before it (the
@@ -557,6 +556,7 @@ Internet-Draft                Post Sockets                September 2017
 
 
 
+
 Trammell, et al.         Expires March 11, 2018                [Page 10]
 
 Internet-Draft                Post Sockets                September 2017
@@ -578,16 +578,16 @@ Internet-Draft                Post Sockets                September 2017
    the paths through the network available available between them (see
    Section 2.8).
 
-   All Message Carriers are bound to an Association.  New Message
-   Carriers will reuse an Association if they can be carried from the
-   same Local to the same Remote over the same Paths; this re-use of an
-   Association may implies the creation of a new Transient.
+   All Carriers are bound to an Association.  New Carriers will reuse an
+   Association if they can be carried from the same Local to the same
+   Remote over the same Paths; this re-use of an Association may implies
+   the creation of a new Transient.
 
-   Associations may exist and be created without a Message Carrier.
-   This may be done if peer cryptographic state such as a pre-shared key
-   is established out-of-band.  Thus, Associations may be created
-   without the need to send application data to a peer, that is, without
-   a Carrier.  Associations are mutable.  Association state may expire
+   Associations may exist and be created without a Carrier.  This may be
+   done if peer cryptographic state such as a pre-shared key is
+   established out-of-band.  Thus, Associations may be created without
+   the need to send application data to a peer, that is, without a
+   Carrier.  Associations are mutable.  Association state may expire
    over time, after which it is removed from the Association, and
    Transients may export cryptographic state to store in an Association
    as needed.  Moreover, this state may be exported directly into the
@@ -618,21 +618,21 @@ Trammell, et al.         Expires March 11, 2018                [Page 11]
 Internet-Draft                Post Sockets                September 2017
 
 
-   (when created by the initiation of a Message Carrier) or a Listener
-   (when created by forking a Message Carrier on passive open).
+   (when created by the initiation of a Carrier) or a Listener (when
+   created by forking a Carrier on passive open).
 
    A Remote may be resolved, which results in zero or more Remotes with
    more specific information.  For example, an application may want to
    establish a connection to a website identified by a URL
    https://www.example.com.  This URL would be wrapped in a Remote and
-   passed to a call to initiate a Message Carrier.  The first pass
-   resolution might parse the URL, decomposing it into a name, a
-   transport port, and a transport protocol to try connecting with.  A
-   second pass resolution would then look up network-layer addresses
-   associated with that name through DNS, and store any certificates
-   available from DANE.  Once a Remote has been resolved to the point
-   that a transport protocol stack can use it to create a Transient, it
-   is considered fully resolved.
+   passed to a call to initiate a Carrier.  The first pass resolution
+   might parse the URL, decomposing it into a name, a transport port,
+   and a transport protocol to try connecting with.  A second pass
+   resolution would then look up network-layer addresses associated with
+   that name through DNS, and store any certificates available from
+   DANE.  Once a Remote has been resolved to the point that a transport
+   protocol stack can use it to create a Transient, it is considered
+   fully resolved.
 
 2.5.  Local
 
@@ -676,19 +676,18 @@ Internet-Draft                Post Sockets                September 2017
 
 2.7.  Transient
 
-   A Transient represents a binding between a Message Carrier and the
-   instance of the transport protocol stack that implements it.  As an
+   A Transient represents a binding between a Carrier and the instance
+   of the transport protocol stack that implements it.  As an
    Association contains long-term state for communications between two
    endpoints, a Transient contains ephemeral state for a single
    transport protocol over a single Path at a given point in time.
 
-   A Message Carrier may be served by multiple Transients at once, e.g.
-   when implementing multipath communication such that the separate
-   paths are exposed to the API by the underlying transport protocol
-   stack.  Each Transient serves only one Message Carrier, although
-   multiple Transients may share the same underlying protocol stack;
-   e.g. when multiplexing Carriers over streams in a multistreaming
-   protocol.
+   A Carrier may be served by multiple Transients at once, e.g. when
+   implementing multipath communication such that the separate paths are
+   exposed to the API by the underlying transport protocol stack.  Each
+   Transient serves only one Carrier, although multiple Transients may
+   share the same underlying protocol stack; e.g. when multiplexing
+   Carriers over streams in a multistreaming protocol.
 
    Transients are generally not exposed by the API to the application,
    though they may be accessible for debugging and logging purposes.
@@ -722,6 +721,7 @@ Internet-Draft                Post Sockets                September 2017
 
    o  Loss Probability Expectation: expected probability of a loss of
       any given single frame along the Path.  Generally provided by
+
 
 
 
@@ -1092,7 +1092,7 @@ Internet-Draft                Post Sockets                September 2017
    For example, Figure 5(a) shows a TLS over TCP stack, usable on most
    network connections.  Protocols are layered to ensure that the PSI
    provides all the transport services required by the application.  A
-   single PSI may be bound to multiple message carriers, as shown in
+   single PSI may be bound to multiple Carriers, as shown in
    Figure 5(b): a multi-streaming transport protocol like QUIC or SCTP
    can support one carrier per stream.  Where multi-streaming transport
    is not available, these carriers could be serviced by different PSIs
