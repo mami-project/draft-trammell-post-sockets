@@ -758,7 +758,11 @@ func receiveMulticast() {
 }
 ~~~~~~~~
 
-## Association Bootstrapping
+### Streams as Incomplete Messages
+
+[EDITOR'S NOTE: write me]
+
+### Association Bootstrapping
 
 Here, we show how Association state may be initialized without a carrier.
 The goal is to create a long-term Association from which Carriers may be derived
@@ -784,7 +788,7 @@ between a Local and Remote using these parameters.
 ~~~~~~~~
 // create an Association using shared parameters
 func createAssociation(local Local, remote Remote, parameters Parameters) Association {
-    association := AssociationWithParameters(local, remote, parameters)
+    association := NewAssociation(local, remote, parameters)
     return association
 }
 ~~~~~~~~
@@ -794,7 +798,7 @@ We may also create an Association with a pre-shared key configured out-of-band.
 ~~~~~~~~
 // create an Association using a pre-shared key
 func createAssociationWithPSK(local Local, remote Remote, parameters Parameters, preSharedKey []byte) Association {
-    association := AssociationWithParameters(local, remote, parameters)
+    association := NewAssociation(local, remote, parameters)
     association = association.SetPreSharedKey(preSharedKey)
     return association
 }
@@ -808,7 +812,7 @@ Local and Remote, depending on how it was configured.
 // open a connection to a server using an existing Association and send some data,
 // which will be sent early if possible.
 func sayHelloWithAssociation(association Association) {
-    carrier := InitiateWithAssociation(association)
+    carrier := association.Initiate()
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
@@ -819,12 +823,60 @@ func sayHelloWithAssociation(association Association) {
 }
 ~~~~~~~~
 
-## Implementation Considerations
+## API Dynamics
+
+As Carriers provide the central entry point to Post, they are key to API
+dynamics. The lifecycle of a carrier is shown in {{fig-carrier-lc}}. By default
+Carriers are created given a Local and a Remote, and management of the
+underlying Association done by the API automatically. This Association is
+available via the Carrier's Association method, and new Carriers created by the
+Association's Initiate method. Once a Carrier has been created with an
+appropriate constructor (Initiate, NewSource, or NewSink) it can be deactivated
+by the Close method and reactivated by the Activate method. Carriers can also be
+created explicitly bound to an Associated created by a call to NewAssociation.
+
+~~~~~~~
+                    Initiate(local,remote) -+
+                   NewSource(local,remote)  |      +-------Activate()
+                            NewSink(local)  |      V            |
+Listen(local) --Carrier-> Carrier.Accept() -+-> [Carrier] -> .Close() 
+               (listener)                        |    ^
+                         +----.Association()-----+    |
+                         V                            |
+NewAssociation() --Association-> .Initiate() ---------+
+~~~~~~~
+{: #fig-carrier-lc title="Carrier and Association Life Cycle"}
+
+Access to more detailed information is possible through accessors on Carriers
+and Associations, following the relationships shown in {{fig-abstractions}}.
+Carriers allow their Transients to be accessed and enumerated, primarily for
+logging and debugging purposes; Associations likewise allow their Paths to be
+enumerated for access to cached path properties.
+
+An application may have a global PolicyContext, as well as more specific
+PolicyContexts to apply to the establishment of a given Association or Carrier
+[EDITOR'S NOTE isn't a Parameters object just a PolicyContext? Discuss at
+https://github.com/mami-project/draft-trammell-post-sockets/issues/15]. 
+
+[EDITOR'S NOTE: more on policy contexts -- basically these are key value stores, no?]
+
+[EDITOR'S NOTE: talk about remotes and how they are created and resolved]
+
+~~~~~~~
+   +------------------+
+   V                  |
+[Remote] --.Resolve()-+
+~~~~~~~
+{: #fig-remote-lc title="Resolution of Remotes"}
+
+[EDITOR'S NOTE: talk about locals and how they are like PvDs]
+
+# Implementation Considerations
 
 Here we discuss an incomplete list of API implementation considerations that
 have arisen with experimentation with the prototype in {{apisketch}}.
 
-### Protocol Stack Instance (PSI)
+## Protocol Stack Instance (PSI)
 
 A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over IPv6,
 SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge between the
@@ -872,7 +924,7 @@ during establishment, as shown in {{fig-psi}}(c). Here, the losing
 PSI in a happy-eyeballs race will be terminated, and the carrier will
 continue using the winning PSI.
 
-### Message Framing, Parsing, and Serialization
+## Message Framing, Parsing, and Serialization
 
 While some transports expose a byte stream abstraction, most higher level
 protocols impose some structure onto that byte stream. That is, the higher
@@ -942,7 +994,7 @@ with some loss of type safety in C.
   figure out a language-neutral way of specifying the Post Sockets API.
 {:/comment}
 
-### Message Size Limitations
+## Message Size Limitations
 
 Ideally, Messages can be of infinite size. However, protocol stacks and protocol
 stack implementations may impose their own limits on message sizing; For
@@ -959,7 +1011,7 @@ endpoints have committed persistent storage to the message -- is probably best
 realized as a layer above Post Sockets, and may be added as a new type of
 Message Carrier to a future revision of this document.
 
-### Back-pressure
+## Back-pressure
 
 Regardless of how asynchronous reception is implemented, it is important for an
 application to be able to apply receiver back-pressure, to allow the protocol
@@ -968,7 +1020,7 @@ in the platform, this could be implemented by having a maximum number of
 concurrent receive callbacks, or by bounding the maximum number of outstanding,
 unread bytes at any given time, for example.
 
-### Associations, Transients, Racing, and Rendezvous
+## Associations, Transients, Racing, and Rendezvous
 
 As the network has evolved, even the simple act of establishing a
 connection has become increasingly complex.  Clients now regularly race
