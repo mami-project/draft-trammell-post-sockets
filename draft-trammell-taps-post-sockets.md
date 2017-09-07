@@ -273,33 +273,31 @@ supported by different platforms, it may be implemented in any number of ways.
 The abstract API provides only for a way for the application to register
 how it wants to handle incoming messages.
 
-All the Messages sent to a Message Carrier will be received on the
-corresponding Message Carrier at the remote endpoint, though not necessarily
+All the Messages sent to a Carrier will be received on the
+corresponding Carrier at the remote endpoint, though not necessarily
 reliably or in order, depending on Message properties and the underlying
 transport protocol stack.
 
-A Message Carrier that is backed by current transport protocol stack state
+A Carrier that is backed by current transport protocol stack state
 (such as a TCP connection; see {{transient}}) is said to be "active": messages
-can be sent and received over it. A Message Carrier can also be "dormant":
+can be sent and received over it. A Carrier can also be "dormant":
 there is long-term state associated with it (via the underlying Association;
 see {{association}}), and it may be able to reactivated, but messages cannot
 be sent and received immediately.
 
-If supported by the underlying transport protocol stack, a Message Carrier may
-be forked: creating a new Message Carrier associated with a new Message
-Carrier at the same remote endpoint. The semantics of the usage of multiple
-Message Carriers based on the same Association are application-specific. When a
-Message Carrier is forked, its corresponding Message Carrier at the remote
+If supported by the underlying transport protocol stack, a Carrier may
+be forked: creating a new Carrier associated with a new
+Carrier at the same remote endpoint. The semantics of the usage of multiple Carriers based on the same Association are application-specific. When a Carrier is forked, its corresponding Carrier at the remote
 endpoint receives a fork request, which it must accept in order to fully
-establish the new carrier. Multiple message carriers between endpoints are
+establish the new carrier. Multiple Carriers between endpoints are
 implemented differently by different transport protocol stacks, either using
 multiple separate transport-layer connections, or using multiple streams of
 multistreaming transport protocols.
 
 To exchange messages with a given remote endpoint, an application may initiate
-a Message Carrier given its remote (see {{remote}} and local (see {{local}})
+a Carrier given its remote (see {{remote}} and local (see {{local}})
 identities; this is an equivalent to an active open. There are four special
-cases of Message Carriers, as well, supporting different initiation and
+cases of Carriers, as well, supporting different initiation and
 interaction patterns, defined in the subsections below.
 
  - Listener:
@@ -308,7 +306,7 @@ interaction patterns, defined in the subsections below.
    or listening socket in the present sockets API. Instead of being bound to a
    specific remote endpoint, it is bound only to a local identity; however, its
    interface for accepting fork requests is identical to that for fully fledged
-   Message Carriers.
+   Carriers.
 
  - Source:
    A Source is a special case of Message Carrier over which messages can only be
@@ -411,7 +409,7 @@ Message properties include:
 
  - Priority:
    Messages have a "niceness" -- a priority among other messages sent over the
-   same Message Carrier in an unbounded hierarchy most naturally represented as a
+   same Carrier in an unbounded hierarchy most naturally represented as a
    non-negative integer. By default, Messages are in niceness class 0, or highest
    priority. Niceness class 1 Messages will yield to niceness class 0 Messages
    sent over the same Carrier, class 2 to class 1, and so on. Niceness may be
@@ -461,12 +459,12 @@ transport protocols and local interfaces to create Transients (see
 {{transient}}) to carry Messages; and information about the paths through the
 network available available between them (see {{path}}).
 
-All Message Carriers are bound to an Association. New Message Carriers will
+All Carriers are bound to an Association. New Carriers will
 reuse an Association if they can be carried from the same Local to the same
 Remote over the same Paths; this re-use of an Association may implies the
 creation of a new Transient.
 
-Associations may exist and be created without a Message Carrier. This may be done if
+Associations may exist and be created without a Carrier. This may be done if
 peer cryptographic state such as a pre-shared key is established out-of-band.
 Thus, Associations may be created without the need to send application data
 to a peer, that is, without a Carrier. Associations are mutable. Association
@@ -488,13 +486,13 @@ transport protocol parameters that can be used to establish a Transient;
 transport protocols to use; trust model information, inherited from the
 relevant Association, used to identify the remote on connection establishment;
 and so on. Each Association is associated with a single Remote, either explicitly by
-the application (when created by the initiation of a Message Carrier) or a
-Listener (when created by forking a Message Carrier on passive open).
+the application (when created by the initiation of a Carrier) or a
+Listener (when created by forking a Carrier on passive open).
 
 A Remote may be resolved, which results in zero or more Remotes with more
 specific information. For example, an application may want to establish a
 connection to a website identified by a URL https://www.example.com. This URL
-would be wrapped in a Remote and passed to a call to initiate a Message
+would be wrapped in a Remote and passed to a call to initiate a 
 Carrier. The first pass resolution might parse the URL, decomposing it into a
 name, a transport port, and a transport protocol to try connecting with. A
 second pass resolution would then look up network-layer addresses associated
@@ -534,16 +532,16 @@ architecture {{NEAT}} provides an example of how this can be done).
 
 ## Transient
 
-A Transient represents a binding between a Message Carrier and the instance of
+A Transient represents a binding between a Carrier and the instance of
 the transport protocol stack that implements it. As an Association contains
 long-term state for communications between two endpoints, a Transient contains
 ephemeral state for a single transport protocol over a single Path at a given
 point in time.
 
-A Message Carrier may be served by multiple Transients at once, e.g. when
+A Carrier may be served by multiple Transients at once, e.g. when
 implementing multipath communication such that the separate paths are exposed to
 the API by the underlying transport protocol stack. Each Transient serves only
-one Message Carrier, although multiple Transients may share the same underlying
+one Carrier, although multiple Transients may share the same underlying
 protocol stack; e.g. when multiplexing Carriers over streams in a multistreaming
 protocol.
 
@@ -864,7 +862,7 @@ conditions in the provisioning domain in which a connection is made.
 For example, {{fig-psi}}(a) shows a TLS over TCP stack, usable on most
 network connections. Protocols are layered to ensure that the PSI provides
 all the transport services required by the application.
-A single PSI may be bound to multiple message carriers, as shown in
+A single PSI may be bound to multiple Carriers, as shown in
 {{fig-psi}}(b): a multi-streaming transport protocol like QUIC or SCTP can
 support one carrier per stream. Where multi-streaming transport is not
 available, these carriers could be serviced by different PSIs on different
