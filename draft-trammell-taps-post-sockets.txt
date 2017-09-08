@@ -5,12 +5,14 @@
 TAPS Working Group                                           B. Trammell
 Internet-Draft                                                ETH Zurich
 Intended status: Informational                                C. Perkins
-Expires: March 10, 2018                            University of Glasgow
+Expires: March 12, 2018                            University of Glasgow
                                                                 T. Pauly
                                                               Apple Inc.
                                                            M. Kuehlewind
                                                               ETH Zurich
-                                                      September 06, 2017
+                                                                 C. Wood
+                                                              Apple Inc.
+                                                      September 08, 2017
 
 
 Post Sockets, An Abstract Programming Interface for the Transport Layer
@@ -42,21 +44,24 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on March 10, 2018.
+   This Internet-Draft will expire on March 12, 2018.
+
+
+
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 1]
+
+Internet-Draft                Post Sockets                September 2017
+
 
 Copyright Notice
 
    Copyright (c) 2017 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 1]
-
-Internet-Draft                Post Sockets                September 2017
-
 
    This document is subject to BCP 78 and the IETF Trust's Legal
    Provisions Relating to IETF Documents
@@ -70,50 +75,50 @@ Internet-Draft                Post Sockets                September 2017
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
    2.  Abstractions and Terminology  . . . . . . . . . . . . . . . .   5
      2.1.  Message Carrier . . . . . . . . . . . . . . . . . . . . .   6
-     2.2.  Message . . . . . . . . . . . . . . . . . . . . . . . . .   7
-     2.3.  Association . . . . . . . . . . . . . . . . . . . . . . .  10
+     2.2.  Message . . . . . . . . . . . . . . . . . . . . . . . . .   8
+     2.3.  Association . . . . . . . . . . . . . . . . . . . . . . .  11
      2.4.  Remote  . . . . . . . . . . . . . . . . . . . . . . . . .  11
-     2.5.  Local . . . . . . . . . . . . . . . . . . . . . . . . . .  11
-     2.6.  Policy Context  . . . . . . . . . . . . . . . . . . . . .  11
-     2.7.  Transient . . . . . . . . . . . . . . . . . . . . . . . .  12
-     2.8.  Path  . . . . . . . . . . . . . . . . . . . . . . . . . .  12
-   3.  Abstract Programming Interface  . . . . . . . . . . . . . . .  13
+     2.5.  Local . . . . . . . . . . . . . . . . . . . . . . . . . .  12
+     2.6.  Policy Context  . . . . . . . . . . . . . . . . . . . . .  12
+     2.7.  Transient . . . . . . . . . . . . . . . . . . . . . . . .  13
+     2.8.  Path  . . . . . . . . . . . . . . . . . . . . . . . . . .  13
+   3.  Abstract Programming Interface  . . . . . . . . . . . . . . .  14
      3.1.  Example Connection Patterns . . . . . . . . . . . . . . .  15
-       3.1.1.  Client-Server . . . . . . . . . . . . . . . . . . . .  15
+       3.1.1.  Client-Server . . . . . . . . . . . . . . . . . . . .  16
        3.1.2.  Client-Server with Happy Eyeballs and 0-RTT
-               establishment . . . . . . . . . . . . . . . . . . . .  16
+               establishment . . . . . . . . . . . . . . . . . . . .  17
        3.1.3.  Peer to Peer with Network Address Translation . . . .  17
        3.1.4.  Multicast Receiver  . . . . . . . . . . . . . . . . .  17
-     3.2.  Association Bootstrapping . . . . . . . . . . . . . . . .  17
-     3.3.  Implementation Considerations . . . . . . . . . . . . . .  19
-       3.3.1.  Protocol Stack Instance (PSI) . . . . . . . . . . . .  19
-       3.3.2.  Message Framing, Parsing, and Serialization . . . . .  20
-       3.3.3.  Message Size Limitations  . . . . . . . . . . . . . .  21
-       3.3.4.  Back-pressure . . . . . . . . . . . . . . . . . . . .  22
-       3.3.5.  Associations, Transients, Racing, and Rendezvous  . .  22
-   4.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  24
-   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  24
-     5.1.  Normative References  . . . . . . . . . . . . . . . . . .  24
-     5.2.  Informative References  . . . . . . . . . . . . . . . . .  24
-   Appendix A.  API sketch in Golang . . . . . . . . . . . . . . . .  26
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  31
+     3.2.  Association Bootstrapping . . . . . . . . . . . . . . . .  18
+   4.  Implementation Considerations . . . . . . . . . . . . . . . .  19
+     4.1.  Protocol Stack Instance (PSI) . . . . . . . . . . . . . .  19
+     4.2.  Message Framing, Parsing, and Serialization . . . . . . .  20
+     4.3.  Message Size Limitations  . . . . . . . . . . . . . . . .  22
+     4.4.  Back-pressure . . . . . . . . . . . . . . . . . . . . . .  22
+     4.5.  Associations, Transients, Racing, and Rendezvous  . . . .  22
+   5.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  25
+   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  25
+     6.1.  Normative References  . . . . . . . . . . . . . . . . . .  25
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .  25
+   Appendix A.  Open Issues  . . . . . . . . . . . . . . . . . . . .  27
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  27
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 2]
+
+Internet-Draft                Post Sockets                September 2017
+
 
 1.  Introduction
 
    The BSD Unix Sockets API's SOCK_STREAM abstraction, by bringing
    network sockets into the UNIX programming model, allowing anyone who
    knew how to write programs that dealt with sequential-access files to
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 2]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    also write network applications, was a revolution in simplicity.  It
    would not be an overstatement to say that this simple API is the
    reason the Internet won the protocol wars of the 1980s.  SOCK_STREAM
@@ -156,20 +161,21 @@ Internet-Draft                Post Sockets                September 2017
    in new protocols (e.g.  QUIC [I-D.ietf-quic-transport]) to mitigate
    this strict layering.
 
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 3]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    To meet these challenges, we present the Post-Sockets Application
    Programming Interface (API), described in detail in this work.  Post
    is designed to be language, transport protocol, and architecture
    independent, allowing applications to be written to a common abstract
    interface, easily ported among different platforms, and used even in
    environments where transport protocol selection may be done
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 3]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    dynamically, as proposed in the IETF's Transport Services working
    group.
 
@@ -211,20 +217,21 @@ Internet-Draft                Post Sockets                September 2017
       as connection racing [RFC6555] and peer-to-peer rendezvous
       [RFC5245].
 
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 4]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    o  Transport protocol stack independence, allowing applications to be
       written in terms of the semantics best for the application's own
       design, separate from the protocol(s) used on the wire to achieve
       them.  This enables applications written to a single API to make
       use of transport protocols in terms of the features they provide,
       as in [I-D.ietf-taps-transports].
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 4]
-
-Internet-Draft                Post Sockets                September 2017
-
 
    This work is the synthesis of many years of Internet transport
    protocol research and development.  It is inspired by concepts from
@@ -240,6 +247,40 @@ Internet-Draft                Post Sockets                September 2017
    to fully exploit their potential.
 
 2.  Abstractions and Terminology
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 5]
+
+Internet-Draft                Post Sockets                September 2017
+
 
            +===============+
            |    Message    |
@@ -274,14 +315,6 @@ Internet-Draft                Post Sockets                September 2017
 
    Post is based on a small set of abstractions, centered around a
    Message Carrier as the entry point for an application to the
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 5]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    networking API.  The relationships among them are shown in
    Figure Figure 1 and detailed in this section.
 
@@ -297,49 +330,47 @@ Internet-Draft                Post Sockets                September 2017
    Message to be assembled, decrypted, and passed to the application.
    Receipt is therefore asynchronous; given the different models for
    asynchronous I/O and concurrency supported by different platforms, it
-   may be implemented in any number of ways.  The abstract API provides
-   only for a way for the application to register how it wants to handle
-   incoming messages.
-
-   All the Messages sent to a Message Carrier will be received on the
-   corresponding Message Carrier at the remote endpoint, though not
-   necessarily reliably or in order, depending on Message properties and
-   the underlying transport protocol stack.
-
-   A Message Carrier that is backed by current transport protocol stack
-   state (such as a TCP connection; see Section 2.7) is said to be
-   "active": messages can be sent and received over it.  A Message
-   Carrier can also be "dormant": there is long-term state associated
-   with it (via the underlying Association; see Section 2.3), and it may
-   be able to reactivated, but messages cannot be sent and received
-   immediately.
-
-   If supported by the underlying transport protocol stack, a Message
-   Carrier may be forked: creating a new Message Carrier associated with
-   a new Message Carrier at the same remote endpoint.  The semantics of
-   the usage of multiple Message Carriers based on the same Association
-   are application-specific.  When a Message Carrier is forked, its
-   corresponding Message Carrier at the remote endpoint receives a fork
-   request, which it must accept in order to fully establish the new
-   carrier.  Multiple message carriers between endpoints are implemented
-   differently by different transport protocol stacks, either using
-   multiple separate transport-layer connections, or using multiple
-   streams of multistreaming transport protocols.
-
-   To exchange messages with a given remote endpoint, an application may
-   initiate a Message Carrier given its remote (see Section 2.4 and
-   local (see Section 2.5) identities; this is an equivalent to an
-   active open.  There are four special cases of Message Carriers, as
 
 
 
-Trammell, et al.         Expires March 10, 2018                 [Page 6]
+Trammell, et al.         Expires March 12, 2018                 [Page 6]
 
 Internet-Draft                Post Sockets                September 2017
 
 
-   well, supporting different initiation and interaction patterns,
-   defined in the subsections below.
+   may be implemented in any number of ways.  The abstract API provides
+   only for a way for the application to register how it wants to handle
+   incoming messages.
+
+   All the Messages sent to a Carrier will be received on the
+   corresponding Carrier at the remote endpoint, though not necessarily
+   reliably or in order, depending on Message properties and the
+   underlying transport protocol stack.
+
+   A Carrier that is backed by current transport protocol stack state
+   (such as a TCP connection; see Section 2.7) is said to be "active":
+   messages can be sent and received over it.  A Carrier can also be
+   "dormant": there is long-term state associated with it (via the
+   underlying Association; see Section 2.3), and it may be able to
+   reactivated, but messages cannot be sent and received immediately.
+
+   If supported by the underlying transport protocol stack, a Carrier
+   may be forked: creating a new Carrier associated with a new Carrier
+   at the same remote endpoint.  The semantics of the usage of multiple
+   Carriers based on the same Association are application-specific.
+   When a Carrier is forked, its corresponding Carrier at the remote
+   endpoint receives a fork request, which it must accept in order to
+   fully establish the new carrier.  Multiple Carriers between endpoints
+   are implemented differently by different transport protocol stacks,
+   either using multiple separate transport-layer connections, or using
+   multiple streams of multistreaming transport protocols.
+
+   To exchange messages with a given remote endpoint, an application may
+   initiate a Carrier given its remote (see Section 2.4 and local (see
+   Section 2.5) identities; this is an equivalent to an active open.
+   There are four special cases of Carriers, as well, supporting
+   different initiation and interaction patterns, defined in the
+   subsections below.
 
    o  Listener: A Listener is a special case of Message Carrier which
       only responds to requests to create a new Carrier from a remote
@@ -347,12 +378,21 @@ Internet-Draft                Post Sockets                September 2017
       sockets API.  Instead of being bound to a specific remote
       endpoint, it is bound only to a local identity; however, its
       interface for accepting fork requests is identical to that for
-      fully fledged Message Carriers.
+      fully fledged Carriers.
 
    o  Source: A Source is a special case of Message Carrier over which
       messages can only be sent, intended for unidirectional
       applications such as multicast transmitters.  Sources cannot be
       forked, and need not accept forks.
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 7]
+
+Internet-Draft                Post Sockets                September 2017
+
 
    o  Sink: A Sink is a special case of Message Carrier over which
       messages can only be received, intended for unidirectional
@@ -386,14 +426,6 @@ Internet-Draft                Post Sockets                September 2017
 
    Content may be sent and received either as Complete or Partial
    Messages.  Dealing with Complete Messages should be preferred for
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 7]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    simplicity whenever possible based on the underlying protocol.  It is
    always possible to send Complete Messages, but only protocols that
    have a fixed maximum message length may allow clients to receive
@@ -410,6 +442,14 @@ Internet-Draft                Post Sockets                September 2017
    be called when a Complete or Partial Message is available.  If the
    client is willing to accept Partial Messages, it can specify the
    minimum incomplete Message length it is willing to receive at once,
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 8]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    and the maximum number of bytes it is willing to receive at once.  If
    the client wants Complete Messages, there are no values to tune.  The
    scheduling of the receive completion indicates to the Carrier that
@@ -442,14 +482,6 @@ Internet-Draft                Post Sockets                September 2017
 
    On sending, Messages have properties that allow the application to
    specify its requirements with respect to reliability, ordering,
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 8]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    priority, idempotence, and immediacy; these are described in detail
    below.  Messages may also have arbitrary properties which provide
    additional information to the underlying transport protocol stack on
@@ -466,6 +498,14 @@ Internet-Draft                Post Sockets                September 2017
       protocol stack.  Lifetimes are also used to prioritize Message
       delivery.
 
+
+
+
+Trammell, et al.         Expires March 12, 2018                 [Page 9]
+
+Internet-Draft                Post Sockets                September 2017
+
+
       There is no guarantee that a Message will not be delivered after
       the end of its lifetime; for example, a Message delivered over a
       strictly reliable transport will be delivered regardless of its
@@ -476,20 +516,19 @@ Internet-Draft                Post Sockets                September 2017
       containing the Messages instead of forwarding them.
 
    o  Priority: Messages have a "niceness" - a priority among other
-      messages sent over the same Message Carrier in an unbounded
-      hierarchy most naturally represented as a non-negative integer.
-      By default, Messages are in niceness class 0, or highest priority.
-      Niceness class 1 Messages will yield to niceness class 0 Messages
-      sent over the same Carrier, class 2 to class 1, and so on.
-      Niceness may be translated to a priority signal for exposure to
-      path elements (e.g.  DSCP code point) to allow prioritization
-      along the path as well as at the sender and receiver.  This
-      inversion of normal schemes for expressing priority has a
-      convenient property: priority increases as both niceness and
-      lifetime decrease.  A Message may have both a niceness and a
-      lifetime - Messages with higher niceness classes will yield to
-      lower classes if resource constraints mean only one can meet the
-      lifetime.
+      messages sent over the same Carrier in an unbounded hierarchy most
+      naturally represented as a non-negative integer.  By default,
+      Messages are in niceness class 0, or highest priority.  Niceness
+      class 1 Messages will yield to niceness class 0 Messages sent over
+      the same Carrier, class 2 to class 1, and so on.  Niceness may be
+      translated to a priority signal for exposure to path elements
+      (e.g.  DSCP code point) to allow prioritization along the path as
+      well as at the sender and receiver.  This inversion of normal
+      schemes for expressing priority has a convenient property:
+      priority increases as both niceness and lifetime decrease.  A
+      Message may have both a niceness and a lifetime - Messages with
+      higher niceness classes will yield to lower classes if resource
+      constraints mean only one can meet the lifetime.
 
    o  Dependence: A Message may have "antecedents" - other Messages on
       which it depends, which must be delivered before it (the
@@ -497,14 +536,6 @@ Internet-Draft                Post Sockets                September 2017
       niceness, and antecedents, along with information about the
       properties of the Paths available, to determine when to send which
       Message down which Path.
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                 [Page 9]
-
-Internet-Draft                Post Sockets                September 2017
-
 
    o  Idempotence: A sending application may mark a Message as
       "idempotent" to signal to the underlying transport protocol stack
@@ -522,6 +553,15 @@ Internet-Draft                Post Sockets                September 2017
    Senders may also be asynchronously notified of three events on
    Messages they have sent: that the Message has been transmitted, that
    the Message has been acknowledged by the receiver, or that the
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 10]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    Message has expired before transmission/acknowledgement.  Not all
    transport protocol stacks will support all of these events.
 
@@ -538,29 +578,22 @@ Internet-Draft                Post Sockets                September 2017
    the paths through the network available available between them (see
    Section 2.8).
 
-   All Message Carriers are bound to an Association.  New Message
-   Carriers will reuse an Association if they can be carried from the
-   same Local to the same Remote over the same Paths; this re-use of an
-   Association may implies the creation of a new Transient.
+   All Carriers are bound to an Association.  New Carriers will reuse an
+   Association if they can be carried from the same Local to the same
+   Remote over the same Paths; this re-use of an Association may implies
+   the creation of a new Transient.
 
-   Associations may exist and be created without a Message Carrier.
-   This may be done if peer cryptographic state such as a pre-shared key
-   is established out-of-band.  Thus, Associations may be created
-   without the need to send application data to a peer, that is, without
-   a Carrier.  Associations are mutable.  Association state may expire
+   Associations may exist and be created without a Carrier.  This may be
+   done if peer cryptographic state such as a pre-shared key is
+   established out-of-band.  Thus, Associations may be created without
+   the need to send application data to a peer, that is, without a
+   Carrier.  Associations are mutable.  Association state may expire
    over time, after which it is removed from the Association, and
    Transients may export cryptographic state to store in an Association
    as needed.  Moreover, this state may be exported directly into the
    Association or modified before insertion.  This may be needed to
    diversify ephemeral Transient keying material from the longer-term
    Association keying material.
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 10]
-
-Internet-Draft                Post Sockets                September 2017
-
 
    A primary use of Association state is to allow new Associations and
    their derived Carriers to be quickly created without performing in-
@@ -576,21 +609,30 @@ Internet-Draft                Post Sockets                September 2017
    inherited from the relevant Association, used to identify the remote
    on connection establishment; and so on.  Each Association is
    associated with a single Remote, either explicitly by the application
-   (when created by the initiation of a Message Carrier) or a Listener
-   (when created by forking a Message Carrier on passive open).
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 11]
+
+Internet-Draft                Post Sockets                September 2017
+
+
+   (when created by the initiation of a Carrier) or a Listener (when
+   created by forking a Carrier on passive open).
 
    A Remote may be resolved, which results in zero or more Remotes with
    more specific information.  For example, an application may want to
    establish a connection to a website identified by a URL
    https://www.example.com.  This URL would be wrapped in a Remote and
-   passed to a call to initiate a Message Carrier.  The first pass
-   resolution might parse the URL, decomposing it into a name, a
-   transport port, and a transport protocol to try connecting with.  A
-   second pass resolution would then look up network-layer addresses
-   associated with that name through DNS, and store any certificates
-   available from DANE.  Once a Remote has been resolved to the point
-   that a transport protocol stack can use it to create a Transient, it
-   is considered fully resolved.
+   passed to a call to initiate a Carrier.  The first pass resolution
+   might parse the URL, decomposing it into a name, a transport port,
+   and a transport protocol to try connecting with.  A second pass
+   resolution would then look up network-layer addresses associated with
+   that name through DNS, and store any certificates available from
+   DANE.  Once a Remote has been resolved to the point that a transport
+   protocol stack can use it to create a Transient, it is considered
+   fully resolved.
 
 2.5.  Local
 
@@ -611,13 +653,6 @@ Internet-Draft                Post Sockets                September 2017
    prefer Paths over one interface to those over another (e.g., WiFi
    access over LTE when roaming on a foreign LTE network, due to cost).
 
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 11]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    These policies are expressed in the Policy Context(s) that are bound
    to the Association.  Multiple policy contexts can be active at once.
    For example, a system Policy Context can express the administrative
@@ -628,21 +663,31 @@ Internet-Draft                Post Sockets                September 2017
    specific (the Policy API in the NEAT architecture [NEAT] provides an
    example of how this can be done).
 
+
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 12]
+
+Internet-Draft                Post Sockets                September 2017
+
+
 2.7.  Transient
 
-   A Transient represents a binding between a Message Carrier and the
-   instance of the transport protocol stack that implements it.  As an
+   A Transient represents a binding between a Carrier and the instance
+   of the transport protocol stack that implements it.  As an
    Association contains long-term state for communications between two
    endpoints, a Transient contains ephemeral state for a single
    transport protocol over a single Path at a given point in time.
 
-   A Message Carrier may be served by multiple Transients at once, e.g.
-   when implementing multipath communication such that the separate
-   paths are exposed to the API by the underlying transport protocol
-   stack.  Each Transient serves only one Message Carrier, although
-   multiple Transients may share the same underlying protocol stack;
-   e.g. when multiplexing Carriers over streams in a multistreaming
-   protocol.
+   A Carrier may be served by multiple Transients at once, e.g. when
+   implementing multipath communication such that the separate paths are
+   exposed to the API by the underlying transport protocol stack.  Each
+   Transient serves only one Carrier, although multiple Transients may
+   share the same underlying protocol stack; e.g. when multiplexing
+   Carriers over streams in a multistreaming protocol.
 
    Transients are generally not exposed by the API to the application,
    though they may be accessible for debugging and logging purposes.
@@ -666,14 +711,6 @@ Internet-Draft                Post Sockets                September 2017
 
    o  Maximum Transmission Unit (MTU): the maximum size of an Message's
       payload (subtracting transport, network, and link layer overhead)
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 12]
-
-Internet-Draft                Post Sockets                September 2017
-
-
       which will likely fit into a single frame.  Derived from signals
       sent by path elements, where available, and/or path MTU discovery
       processes run by the transport layer.
@@ -684,6 +721,15 @@ Internet-Draft                Post Sockets                September 2017
 
    o  Loss Probability Expectation: expected probability of a loss of
       any given single frame along the Path.  Generally provided by
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 13]
+
+Internet-Draft                Post Sockets                September 2017
+
+
       inline measurements performed by the transport layer, as opposed
       to signaled by path elements.
 
@@ -723,13 +769,6 @@ Internet-Draft                Post Sockets                September 2017
       interface must be no more complicated than BSD sockets, and must
       do something reasonable.
 
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 13]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    o  Reception is an inherently asynchronous activity.  While the API
       is designed to be as platform-independent as possible, one key
       insight it is based on is that an Message receiver's behavior in a
@@ -738,6 +777,14 @@ Internet-Draft                Post Sockets                September 2017
       in the API.  The actual implementation of receive and event
       handling will need to be aligned to the method a given platform
       provides for asynchronous I/O.
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 14]
+
+Internet-Draft                Post Sockets                September 2017
+
 
    o  A new API cannot be bound to a single transport protocol and
       expect wide deployment.  As the API is transport-independent and
@@ -777,28 +824,23 @@ Internet-Draft                Post Sockets                September 2017
    actually sends a Message over a Carrier.  As further explained below
    this step can actually create multiple transients for probing or
    assign a new transient to an already active PSI, e.g. if multi-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 14]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    streaming is provided and supported for these kind of use on both
    sides.
 
-   The current state of API development is illustrated as a set of
-   interfaces and function prototypes in the Go programming language in
-   Appendix A; future revisions of this document will give more a more
-   abstract specification of the API as development completes.
-
 3.1.  Example Connection Patterns
 
-   Here, we illustrate the usage of the API outlined in Appendix A for
-   common connection patterns.  Note that error handling is ignored in
-   these illustrations for ease of reading.
+   Here, we illustrate the usage of the API for common connection
+   patterns.  Note that error handling is ignored in these illustrations
+   for ease of reading.
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 15]
+
+Internet-Draft                Post Sockets                September 2017
+
 
 3.1.1.  Client-Server
 
@@ -829,19 +871,6 @@ Internet-Draft                Post Sockets                September 2017
    passes them to a server.  The server echos the content of each
    message it receives.
 
-
-
-
-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 15]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    // run a server for a specific carrier, echo all its messages
    func runMyServerOn(carrier Carrier) {
        carrier.Ready(func (msg InMessage) {
@@ -859,6 +888,15 @@ Internet-Draft                Post Sockets                September 2017
    }
 
                          Figure 3: Example server
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 16]
+
+Internet-Draft                Post Sockets                September 2017
+
 
    The Responder allows the server to be significantly simplified, as
    shown in Figure 4.
@@ -879,24 +917,6 @@ Internet-Draft                Post Sockets                September 2017
    implementation automatically.  If this connection racing is to use
    0-RTT data (i.e., as provided by TCP Fast Open [RFC7413], the client
    must mark the outgoing message as idempotent.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 16]
-
-Internet-Draft                Post Sockets                September 2017
-
 
 // connect to a server given a remote and send some 0-RTT data
 func sayHelloQuickly() {
@@ -925,6 +945,15 @@ func sayHelloQuickly() {
 
    A multicast receiver is implemented using a Sink attached to a Local
    encapsulating a multicast address on which to receive multicast
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 17]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    datagrams.  The following example prints messages received on the
    multicast address forever.
 
@@ -944,15 +973,6 @@ func sayHelloQuickly() {
    [I-D.pauly-taps-transport-security], a first step is to specify trust
    model constraints, such as pinned public keys and anchor
    certificates, which are needed to create Remote connections.
-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 17]
-
-Internet-Draft                Post Sockets                September 2017
-
 
    We begin by creating shared security parameters that will be used
    later for creating a remote connection.
@@ -976,6 +996,19 @@ func createAssociation(local Local, remote Remote, parameters Parameters) Associ
 
    We may also create an Association with a pre-shared key configured
    out-of-band.
+
+
+
+
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 18]
+
+Internet-Draft                Post Sockets                September 2017
+
 
 // create an Association using a pre-shared key
 func createAssociationWithPSK(local Local, remote Remote, parameters Parameters, preSharedKey []byte) Association {
@@ -1002,21 +1035,13 @@ func sayHelloWithAssociation(association Association) {
     carrier.Close()
 }
 
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 18]
-
-Internet-Draft                Post Sockets                September 2017
-
-
-3.3.  Implementation Considerations
+4.  Implementation Considerations
 
    Here we discuss an incomplete list of API implementation
-   considerations that have arisen with experimentation with the
-   prototype in Appendix A.
+   considerations that have arisen with experimentation with prototype
+   implementations of Post.
 
-3.3.1.  Protocol Stack Instance (PSI)
+4.1.  Protocol Stack Instance (PSI)
 
    A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over
    IPv6, SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge
@@ -1029,6 +1054,17 @@ Internet-Draft                Post Sockets                September 2017
    multiple PSIs is based on system-level or application policies, as
    well as on network conditions in the provisioning domain in which a
    connection is made.
+
+
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 19]
+
+Internet-Draft                Post Sockets                September 2017
+
 
    +=========+    +=========+   +==========+      +==========+
    | Carrier |    | Carrier |   | Carrier  |      | Carrier  |
@@ -1056,16 +1092,8 @@ Internet-Draft                Post Sockets                September 2017
    For example, Figure 5(a) shows a TLS over TCP stack, usable on most
    network connections.  Protocols are layered to ensure that the PSI
    provides all the transport services required by the application.  A
-   single PSI may be bound to multiple message carriers, as shown in
+   single PSI may be bound to multiple Carriers, as shown in
    Figure 5(b): a multi-streaming transport protocol like QUIC or SCTP
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 19]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    can support one carrier per stream.  Where multi-streaming transport
    is not available, these carriers could be serviced by different PSIs
    on different flows.  On the other hand, multiple PSIs are bound to a
@@ -1073,7 +1101,7 @@ Internet-Draft                Post Sockets                September 2017
    Here, the losing PSI in a happy-eyeballs race will be terminated, and
    the carrier will continue using the winning PSI.
 
-3.3.2.  Message Framing, Parsing, and Serialization
+4.2.  Message Framing, Parsing, and Serialization
 
    While some transports expose a byte stream abstraction, most higher
    level protocols impose some structure onto that byte stream.  That
@@ -1086,6 +1114,14 @@ Internet-Draft                Post Sockets                September 2017
    message-based API to applications as the primary abstraction.
    Protocols that deal only in byte streams, such as TCP, represent
    their data in each direction as a single, long message.  When framing
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 20]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    protocols are placed on top of byte streams, the messages used in the
    API represent the framed messages within the stream.
 
@@ -1115,13 +1151,6 @@ Internet-Draft                Post Sockets                September 2017
    (sequence numbers, in the simple case), lifetimes, niceness, and
    antecedents.
 
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 20]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    Transport protocols such as SCTP provide a message-oriented API that
    has similar features to those we describe.  Other transports, such as
    TCP, do not.  To support a message oriented API, while still being
@@ -1141,13 +1170,21 @@ Internet-Draft                Post Sockets                September 2017
    The Post Sockets approach is therefore to raise the semantic level of
    the transport API: applications should send and receive messages in
    the form of meaningful, strongly typed, protocol data.  Parsing and
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 21]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    serialising such messages should be a re-usable function of the
    protocol stack instance not the application.  This is well-suited to
    implementation in modern systems languages, such as Swift, Go, Rust,
    or C++, but can also be implemented with some loss of type safety in
    C.
 
-3.3.3.  Message Size Limitations
+4.3.  Message Size Limitations
 
    Ideally, Messages can be of infinite size.  However, protocol stacks
    and protocol stack implementations may impose their own limits on
@@ -1167,18 +1204,7 @@ Internet-Draft                Post Sockets                September 2017
    added as a new type of Message Carrier to a future revision of this
    document.
 
-
-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 21]
-
-Internet-Draft                Post Sockets                September 2017
-
-
-3.3.4.  Back-pressure
+4.4.  Back-pressure
 
    Regardless of how asynchronous reception is implemented, it is
    important for an application to be able to apply receiver back-
@@ -1188,7 +1214,7 @@ Internet-Draft                Post Sockets                September 2017
    receive callbacks, or by bounding the maximum number of outstanding,
    unread bytes at any given time, for example.
 
-3.3.5.  Associations, Transients, Racing, and Rendezvous
+4.5.  Associations, Transients, Racing, and Rendezvous
 
    As the network has evolved, even the simple act of establishing a
    connection has become increasingly complex.  Clients now regularly
@@ -1199,6 +1225,15 @@ Internet-Draft                Post Sockets                September 2017
    different outcomes depending on the interface the query was issued
    from.  Finally, but often most significantly, NAT traversal, relay
    discovery, and path state maintenance messages are an essential part
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 22]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    of connection establishment, especially for peer-to-peer
    applications.
 
@@ -1226,14 +1261,6 @@ Internet-Draft                Post Sockets                September 2017
       Gathering locals is primarily an endpoint local operation,
       although it might involve exchanges with a STUN server to derive
       server reflexive locals, or with a TURN server or other relay to
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 22]
-
-Internet-Draft                Post Sockets                September 2017
-
-
       derive relayed locals.  It does not involve communication with the
       remote.
 
@@ -1255,6 +1282,13 @@ Internet-Draft                Post Sockets                September 2017
       to communicate and retrieve its set of candidate locals, which are
       returned and form the candidate remote addresses for contacting
       that peer.
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 23]
+
+Internet-Draft                Post Sockets                September 2017
+
 
       Resolving the remote is _not_ a local operation.  It will involve
       a directory service, and can require communication with the remote
@@ -1282,14 +1316,6 @@ Internet-Draft                Post Sockets                September 2017
 
       Once connectivity has been established, unused resources can be
       released and the chosen path can be confirmed.  This is primarily
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 23]
-
-Internet-Draft                Post Sockets                September 2017
-
-
       required when establishing peer-to-peer connectivity, where
       connections supporting relayed locals that were not required can
       be closed, and where an associated signalling operation might be
@@ -1308,7 +1334,19 @@ Internet-Draft                Post Sockets                September 2017
    can even be repeated fully or partially during a connection to enable
    seamless hand-over and mobility within the network stack.
 
-4.  Acknowledgments
+
+
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 24]
+
+Internet-Draft                Post Sockets                September 2017
+
+
+5.  Acknowledgments
 
    Many thanks to Laurent Chuat and Jason Lee at the Network Security
    Group at ETH Zurich for contributions to the initial design of Post
@@ -1323,9 +1361,9 @@ Internet-Draft                Post Sockets                September 2017
    for Education, Research, and Innovation under contract no. 15.0268.
    This support does not imply endorsement.
 
-5.  References
+6.  References
 
-5.1.  Normative References
+6.1.  Normative References
 
    [I-D.ietf-taps-transports]
               Fairhurst, G., Trammell, B., and M. Kuehlewind, "Services
@@ -1333,18 +1371,7 @@ Internet-Draft                Post Sockets                September 2017
               control mechanisms", draft-ietf-taps-transports-14 (work
               in progress), December 2016.
 
-5.2.  Informative References
-
-
-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 24]
-
-Internet-Draft                Post Sockets                September 2017
-
+6.2.  Informative References
 
    [I-D.ietf-quic-transport]
               Iyengar, J. and M. Thomson, "QUIC: A UDP-Based Multiplexed
@@ -1365,6 +1392,15 @@ Internet-Draft                Post Sockets                September 2017
               Kuehlewind, M., Pauly, T., and C. Wood, "Separating Crypto
               Negotiation and Communication", draft-kuehlewind-taps-
               crypto-sep-00 (work in progress), July 2017.
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 25]
+
+Internet-Draft                Post Sockets                September 2017
+
 
    [I-D.pauly-taps-transport-security]
               Pauly, T. and C. Wood, "A Survey of Transport Security
@@ -1392,16 +1428,6 @@ Internet-Draft                Post Sockets                September 2017
               Flexible Internet Transport Layer Architecture", June
               2016.
 
-
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 25]
-
-Internet-Draft                Post Sockets                September 2017
-
-
    [RFC0793]  Postel, J., "Transmission Control Protocol", STD 7,
               RFC 793, DOI 10.17487/RFC0793, September 1981,
               <https://www.rfc-editor.org/info/rfc793>.
@@ -1425,6 +1451,13 @@ Internet-Draft                Post Sockets                September 2017
               Addresses", RFC 6824, DOI 10.17487/RFC6824, January 2013,
               <https://www.rfc-editor.org/info/rfc6824>.
 
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 26]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    [RFC7258]  Farrell, S. and H. Tschofenig, "Pervasive Monitoring Is an
               Attack", BCP 188, RFC 7258, DOI 10.17487/RFC7258, May
               2014, <https://www.rfc-editor.org/info/rfc7258>.
@@ -1437,257 +1470,11 @@ Internet-Draft                Post Sockets                September 2017
               Architecture", RFC 7556, DOI 10.17487/RFC7556, June 2015,
               <https://www.rfc-editor.org/info/rfc7556>.
 
-Appendix A.  API sketch in Golang
-
-   The following sketch is a snapshot of an API currently under
-   development in Go, available at https://github.com/mami-project/
-   postsocket.  The details of the API are still under development; once
-   the API definition stabilizes, this will be expanded into prose in a
-   future revision of this draft.
-
-// The interface to path information is TBD
-type Path interface{}
-
-// An association encapsulates an endpoint pair and the set of paths between them.
-type Association interface {
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 26]
-
-Internet-Draft                Post Sockets                September 2017
-
-
-    Local() Local
-    Remote() Remote
-    Paths() []Path
-}
-
-// A message together with with metadata needed to send it
-type OutMessage struct {
-    // The niceness of this message. 0 is highest priority.
-    Niceness uint
-    // The lifetime of this message. After this duration, the message may expire.
-    Lifetime time.Duration
-    // Pointers to messages that must be sent before this one.
-    Antecedent []*OutMessage
-    // True if the message is safe to send such that it may be received multiple times (i.e. for 0-RTT).
-    Idempotent bool
-}
-
-// A message received from a stream
-type InMessage struct {
-
-}
-
-// A Carrier is a transport protocol stack-independent interface for sending and
-// receiving messages between an application and a remote endpoint; it is roughly
-// analogous to a socket in the present sockets API.
-type Carrier interface {
-    // Send a message on this Carrier. The optional onSent function will be
-    // called when the protocol stack instance has sent the message. The
-    // optional onAcked function will be called when the receiver has
-    // acknowledged the message. The optional onExpired function will be
-    // called if the message's lifetime expired before the message coult be
-    // sent. If the Carrier is not active, attempt to activate the Carrier
-    // before sending.
-    SendMessage(content []byte, msg *OutMessage, complete bool, onSent func(), onAcked func(), onExpired func()) error
-
-        // Send a byte array on this Carrier as a message with default metadata
-        // and no notifications.
-        Send(content []byte) error
-
-    // Signal that the application is ready to receive a single atomic message via
-    // the given callback.
-    // This will deliver a single message, or an error if the carrier failed before
-        // a message could be delivered.
-    ReceiveMessage(receive func(content []byte, InMessage, error) bool) error
-
-        // Signal that the application is ready to receive a complete or partial message
-        // via the given callback. The minimum incomplete bytes specifies a length of the
-        // message content that is expected before delivery, and the maximum bytes specifies
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 27]
-
-Internet-Draft                Post Sockets                September 2017
-
-
-        // the number of content bytes that can be received at once. If the message is complete
-        // with fewer than the minimum incomplete bytes, the message will be delivered.
-        // This will deliver a single callback, with the available content, the message associated
-        // with the content, whether or not the content is complete, and an error.
-        Receive(minimumIncompleteBytes uint, maximumBytes uint, receive func(content []byte, InMessage, complete bool, error) bool) error
-
-    // Retrieve the Association over which this Carrier is running.
-    Association() *Association
-
-    // Retrieve the active Transients over which this carrier is running, if active.
-    Transients() []Transient
-
-    // Determine whether the Carrier is currently active
-    IsActive() bool
-
-    // Ensure that the Carrier is active and ready to send and receive messages.
-    // Attempts to bring up at least one Transient.
-    Activate(isActive func()) error
-
-    // Terminate the Carrier
-    Close()
-
-    // Attempt to fork a new Carrier for communicating with the same Remote
-    Fork() (Carrier, error)
-
-    // Signal that an application is ready to accept forks via a given callback.
-    // Forked carriers will be given to the callback until it returns false or
-    // until the Carrier is closed.
-    Accept(accept func(Carrier) bool) error
-}
-
-// Initiate a Carrier from a given Local to a given Remote. Returns a new
-// Carrier, which may be bound to an existing or a new Association. The
-// initiated Carrier is not yet active.
-func Initiate(local Local, remote Remote) (Carrier, error)
-
-type Listener interface {
-    // Signal that an application is ready to accept forks via a given callback.
-    // Accept will terminate when the callback returns false, or until the
-    // Listener is closed.
-    Accept(accept func(Carrier) bool) error
-
-    // Terminate this Listener
-    Close()
-}
-
-// Create a Listener on a given Local which will pass new Carriers to the
-// given channel until that channel is closed.
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 28]
-
-Internet-Draft                Post Sockets                September 2017
-
-
-func Listen(local Local) (Listener, error)
-
-// A Source is a unidirectional, send-only Carrier.
-type Source interface {
-    // Send a byte array on this Source as a message with default metadata
-    // and no notifications.
-    Send(buf []byte) error
-
-    // Send a message on this Source. The optional onSent function will be
-    // called when the protocol stack instance has sent the message. The
-    // optional onAcked function will be called when the receiver has
-    // acknowledged the message. The optional onExpired function will be
-    // called if the message's lifetime expired before the message coult be
-    // sent. If the Source is not active, attempt to activate the Source
-    // before sending.
-    Sendmsg(msg *OutMessage, onSent func(), onAcked func(), onExpired func()) error
-
-    // Retrieve the Association over which this Source is running.
-    Association() *Association
-
-    // Determine whether the Source is currently active
-    IsActive() bool
-
-    // Ensure that the Source is active and ready to send messages.
-    // Attempts to bring up at least one Transient.
-    Activate() error
-
-    // Terminate the Source
-    Close()
-}
-
-// Initiate a Source from a given Local to a given Remote. Returns a new
-// Source, which may be bound to an existing or a new Association. The
-// initiated Source is not yet active.
-func NewSource(local Local, remote Remote) (Source, error)
-
-// A Sink is a unidirectional, receive-only Carrier, bound only to a local.
-type Sink interface {
-    // Signal that an application is ready to receive messages via a given callback.
-    // Messages will be given to the callback until it returns false, or until the
-    // Sink is closed.
-    Ready(receive func(InMessage) bool) error
-
-    // Retrieve the Association over which this Sink is running.
-    Association() *Association
-
-    // Terminate the Sink
-    Close()
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 29]
-
-Internet-Draft                Post Sockets                September 2017
-
-
-}
-
-// Initiate a Sink on a given Local. Returns a new
-// Sink, which may be bound to an existing or a new Association.
-func NewSink(local Local) (Sink, error)
-
-// Initiate a Responder on a given Local. For each incoming Message, calls the
-// respond function with the Message and a Sink to send replies to. Calls the
-// Responder until it returns False, then terminates
-func Respond(local Local, respond func(msg InMessage, reply Sink) bool) error
-
-// A local identity
-type Local struct {
-    // A string identifying an interface or set of interfaces to accept messages and new carriers on.
-    Interface string
-    // A transport layer port
-    Port int
-    // A set of zero or more end entity certificates, together with private
-    // keys, to identify this application with.
-    Certificates []tls.Certificate
-}
-
-// Encapsulate a remote identity. Since the contents of a Remote are highly
-// dependent on its level of resolution; some examples are below.
-type Remote interface {
-    // Resolve this Remote Identity to a
-    Resolve() ([]RemoteIdentity, error)
-    // Returns True if the Remote is completely resolved; i.e., cannot be resol
-    Complete() bool
-}
-
-// Remote consisting of a URL
-type URLRemote struct {
-    URL string
-}
-
-// Remote encapsulating a name and port number
-type NamedEndpointRemote struct {
-    Hostname string
-    Port     int
-}
-
-// Remote encapsulating an IP address and port number
-type IPEndpointRemote struct {
-    Address net.IP
-    Port    int
-}
-
-
-
-
-Trammell, et al.         Expires March 10, 2018                [Page 30]
-
-Internet-Draft                Post Sockets                September 2017
-
-
-// Remote encapsulating an IP address and port number, and a set of presented certificates
-type IPEndpointCertRemote struct {
-    Address      net.IP
-    Port         int
-    Certificates []tls.Certificate
-}
+Appendix A.  Open Issues
+
+   This document is under active development; a list of current open
+   issues is available at https://github.com/mami-project/draft-
+   trammell-post-sockets/issues
 
 Authors' Addresses
 
@@ -1718,6 +1505,15 @@ Authors' Addresses
    Email: tpauly@apple.com
 
 
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 27]
+
+Internet-Draft                Post Sockets                September 2017
+
+
    Mirja Kuehlewind
    ETH Zurich
    Gloriastrasse 35
@@ -1727,10 +1523,46 @@ Authors' Addresses
    Email: mirja.kuehlewind@tik.ee.ethz.ch
 
 
+   Chris Wood
+   Apple Inc.
+   1 Infinite Loop
+   Cupertino, California 95014
+   United States of America
+
+   Email: cawood@apple.com
 
 
 
 
 
 
-Trammell, et al.         Expires March 10, 2018                [Page 31]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trammell, et al.         Expires March 12, 2018                [Page 28]
