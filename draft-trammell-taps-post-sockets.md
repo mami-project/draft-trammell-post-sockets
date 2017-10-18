@@ -230,18 +230,18 @@ exploit their potential.
                 |    ^         |               |
           send()|    |ready()  |initiate()     |listen()
                 V    |         V               V
-           +=====================+           +============+
-           |                     |  accept() |            |
-           |      Carrier        |<----------|  Listener  |
-           |                     |           |            |
-           +=====================+           +============+
-            |1        |        n|                  |          +=========+
-            |         |         |1                 |      +---|  Local  |
-            |   +=========+   +=======================+   |   +=========+
-            |   | Policy  |n  |                       |---+
-            |   | Context |---|      Association      |       +=========+
-            |   |         |  1|                       |-------|  Remote |
-            |   +=========+   +=======================+       +=========+
+           +=======================+         +============+
+           |                       | accept()|            |
+           |       Carrier         |<--------|  Listener  |
+           |                       |         |            |
+           +=======================+         +============+
+            |1        |          n|                |             +=========+
+            |         |           |1               |         +---|  Local  |
+            | +===============+  +=======================+   |   +=========+
+            | |               |  |                       |---+
+            | | Configuration |--|      Association      |       +=========+
+            | |               |  |                       |-------|  Remote |
+            | +===============+  +=======================+       +=========+
             |         |                1| durable end-to-end
             +-------+ |                 | state via many paths,
                     | |                 | policies, and prefs  
@@ -453,8 +453,8 @@ An Association contains the long-term state necessary to support
 communications between a Local (see {{local}}) and a Remote (see {{remote}})
 endpoint, such as trust model information, including pinned public
 keys or anchor certificates, cryptographic session resumption parameters,
-or rendezvous information. It uses information from the Policy Context
-(see {{PolicyContext}}) to constrain the selection of
+or rendezvous information. It uses information from the Configuration
+(see {{Configuration}}) to constrain the selection of
 transport protocols and local interfaces to create Transients (see
 {{transient}}) to carry Messages; and information about the paths through the
 network available available between them (see {{path}}).
@@ -508,27 +508,43 @@ protocol stack information, and, per {{I-D.pauly-taps-transport-security}},
 cryptographic identities (certificates and associated private keys) bound to
 this endpoint.
 
-## Policy Context {#PolicyContext}
+## Configuration {#Configuration}
 
-The Policy Context describes preferences for, and restrictions on, how to
-configure Transients to support communication between a Local and a Remote
-over one or more Paths between endpoints.
-For instance, an application may require, or prefer to use, certain features
-(see {{I-D.ietf-taps-transports}}) of the transport protocol stacks used by
-the Transients underlying the Carrier.
-Alternatively, it might also prefer Paths over one interface to those over
-another (e.g., WiFi access over LTE when roaming on a foreign LTE network,
-due to cost).
+A Configuration encapsulates an application's preferences around Path
+selection and protocol options.
 
-These policies are expressed in the Policy Context(s) that are bound to the
-Association.
-Multiple policy contexts can be active at once.
-For example, a system Policy Context can express the administrative preferences
-around network interface and protocol selection, while an application Policy Context
-expresses preferences for use of different transport services.
-Expression of policy contexts and the resolution of conflicts among Policy
-Contexts is currently implementation-specific (the Policy API in the NEAT
-architecture {{NEAT}} provides an example of how this can be done).
+Each Association has exactly one Configuration, and all Carriers belonging
+to that Association share the same Configuration.
+
+The application cannot modify the Configuration for a Carrier or Association
+once it is set. If a new set of options needs to be used, then the application needs
+a new Carrier or Association instance. This is necessary to ensure that a
+single Carrier can consistently track the Paths and protocol options it uses,
+since it is usually not possible to modify these properties without breaking connectivity.
+
+To influence Path selection, the application can configure a set of requirements,
+preferences, and restrictions concerning which Paths may be selected by the
+Association to use for creating Transients between a Local and a Remote. For example,
+a Configuration can specify that the application prefers Wi-Fi access over
+LTE when roaming on a foreign LTE network, due to monetary cost to the user.
+
+The Association uses the Configuration's Path preferences as a key part of determining
+the Paths to use for its Transients. The Configuration is provided as input when examining
+the complete list of available Paths on the system (to limit the list, or order the Paths by
+preference). The system's policy will further restrict and modify the Path that is ultimately
+selected, using other aspects of the Configuration (protocol options and originating application)
+to select the most appropriate Path.
+
+To influence protocol selection and options, the Configuration contains one
+or more allowed Protocol Stack Configurations. Each of these is comprised of
+application- and transport-layer protocols that may be used together to communicate
+to the Remote, along with any protocol-specific options. For example, a
+Configuration could specify two alternate, but equivalent, protocol stacks:
+one using HTTP/2 over TLS over TCP, and the other using QUIC over UDP.
+Alternatively, the Configuration could specify two protocol stacks with the same
+protocols, but different protocol options: one using TLS with TLS 1.3 0-RTT enabled
+and TCP with TCP Fast-Open enabled, and one using TLS with out 0-RTT and TCP
+without TCP Fast-Open.
 
 ## Transient
 
@@ -950,8 +966,8 @@ limitations of 64kB and 16kB, respectively. Message sizes may also be limited by
 the available buffer at the receiver, since a Message must be fully assembled by
 the transport layer before it can be passed on to the application layer. Since
 not every transport protocol stack implements the signaling necessary to
-negotiate or expose message size limitations, these are currently configured out
-of band, and are probably best exposed through the policy context.
+negotiate or expose message size limitations, these are currently negotiated out
+of band, and are probably best exposed through the Configuration.
 
 A truly infinite message service -- e.g. large file transfer where both
 endpoints have committed persistent storage to the message -- is probably best
