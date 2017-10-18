@@ -880,7 +880,21 @@ Each Carrier has a .Send() method, by which Messages can be sent with given
 properties, and a .Ready() method, which supplies a callback for reading
 Messages from the remote side. .Send() is not available on Sinks, and .Ready()
 is not available on Sources. Carriers also provide .OnSent(), .OnAcked(), and
-.OnExpired() calls for binding default send event handlers to the Carrier.
+.OnExpired() calls for binding default send event handlers to the Carrier, and
+.OnClosed() for handling passive close notifications.
+
+~~~~~~~
+                                  +---------[incoming]-----------+
+                                  |         [Message ]           V
+[outgoing] ---> .Send() --->  [Carrier] <---- .Ready() <---- [Receiver]
+[Message ]                        |
+                                  +--- .OnSent()
+                                  +--- .OnAcked()
+                                  +--- .OnExpired()
+                                  +--- .OnClosed()       
+~~~~~~~
+{: #fig-message-lc title="Sending and Receiving Messages and Events"}
+
 
 \[EDITOR'S NOTE (bht) on the text below: Parameters, as above, PolicyContext, and
 a Configuration are the same thing, as in
