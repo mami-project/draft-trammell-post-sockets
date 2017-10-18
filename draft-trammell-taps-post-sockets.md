@@ -46,7 +46,14 @@ author:
     street: Gloriastrasse 35
     city: 8092 Zurich
     country: Switzerland
-
+  -
+    ins: C. Wood
+    name: Chris Wood
+    org: Apple Inc.
+    street: 1 Infinite Loop
+    city: Cupertino, California 95014
+    country: United States of America
+    email: cawood@apple.com
 normative:
   I-D.ietf-taps-transports:
 
@@ -266,33 +273,31 @@ supported by different platforms, it may be implemented in any number of ways.
 The abstract API provides only for a way for the application to register
 how it wants to handle incoming messages.
 
-All the Messages sent to a Message Carrier will be received on the
-corresponding Message Carrier at the remote endpoint, though not necessarily
+All the Messages sent to a Carrier will be received on the
+corresponding Carrier at the remote endpoint, though not necessarily
 reliably or in order, depending on Message properties and the underlying
 transport protocol stack.
 
-A Message Carrier that is backed by current transport protocol stack state
+A Carrier that is backed by current transport protocol stack state
 (such as a TCP connection; see {{transient}}) is said to be "active": messages
-can be sent and received over it. A Message Carrier can also be "dormant":
+can be sent and received over it. A Carrier can also be "dormant":
 there is long-term state associated with it (via the underlying Association;
 see {{association}}), and it may be able to reactivated, but messages cannot
 be sent and received immediately.
 
-If supported by the underlying transport protocol stack, a Message Carrier may
-be forked: creating a new Message Carrier associated with a new Message
-Carrier at the same remote endpoint. The semantics of the usage of multiple
-Message Carriers based on the same Association are application-specific. When a
-Message Carrier is forked, its corresponding Message Carrier at the remote
+If supported by the underlying transport protocol stack, a Carrier may
+be forked: creating a new Carrier associated with a new
+Carrier at the same remote endpoint. The semantics of the usage of multiple Carriers based on the same Association are application-specific. When a Carrier is forked, its corresponding Carrier at the remote
 endpoint receives a fork request, which it must accept in order to fully
-establish the new carrier. Multiple message carriers between endpoints are
+establish the new carrier. Multiple Carriers between endpoints are
 implemented differently by different transport protocol stacks, either using
 multiple separate transport-layer connections, or using multiple streams of
 multistreaming transport protocols.
 
 To exchange messages with a given remote endpoint, an application may initiate
-a Message Carrier given its remote (see {{remote}} and local (see {{local}})
+a Carrier given its remote (see {{remote}} and local (see {{local}})
 identities; this is an equivalent to an active open. There are four special
-cases of Message Carriers, as well, supporting different initiation and
+cases of Carriers, as well, supporting different initiation and
 interaction patterns, defined in the subsections below.
 
  - Listener:
@@ -301,7 +306,7 @@ interaction patterns, defined in the subsections below.
    or listening socket in the present sockets API. Instead of being bound to a
    specific remote endpoint, it is bound only to a local identity; however, its
    interface for accepting fork requests is identical to that for fully fledged
-   Message Carriers.
+   Carriers.
 
  - Source:
    A Source is a special case of Message Carrier over which messages can only be
@@ -404,7 +409,7 @@ Message properties include:
 
  - Priority:
    Messages have a "niceness" -- a priority among other messages sent over the
-   same Message Carrier in an unbounded hierarchy most naturally represented as a
+   same Carrier in an unbounded hierarchy most naturally represented as a
    non-negative integer. By default, Messages are in niceness class 0, or highest
    priority. Niceness class 1 Messages will yield to niceness class 0 Messages
    sent over the same Carrier, class 2 to class 1, and so on. Niceness may be
@@ -454,12 +459,12 @@ transport protocols and local interfaces to create Transients (see
 {{transient}}) to carry Messages; and information about the paths through the
 network available available between them (see {{path}}).
 
-All Message Carriers are bound to an Association. New Message Carriers will
+All Carriers are bound to an Association. New Carriers will
 reuse an Association if they can be carried from the same Local to the same
 Remote over the same Paths; this re-use of an Association may implies the
 creation of a new Transient.
 
-Associations may exist and be created without a Message Carrier. This may be done if
+Associations may exist and be created without a Carrier. This may be done if
 peer cryptographic state such as a pre-shared key is established out-of-band.
 Thus, Associations may be created without the need to send application data
 to a peer, that is, without a Carrier. Associations are mutable. Association
@@ -481,13 +486,13 @@ transport protocol parameters that can be used to establish a Transient;
 transport protocols to use; trust model information, inherited from the
 relevant Association, used to identify the remote on connection establishment;
 and so on. Each Association is associated with a single Remote, either explicitly by
-the application (when created by the initiation of a Message Carrier) or a
-Listener (when created by forking a Message Carrier on passive open).
+the application (when created by the initiation of a Carrier) or a
+Listener (when created by forking a Carrier on passive open).
 
 A Remote may be resolved, which results in zero or more Remotes with more
 specific information. For example, an application may want to establish a
 connection to a website identified by a URL https://www.example.com. This URL
-would be wrapped in a Remote and passed to a call to initiate a Message
+would be wrapped in a Remote and passed to a call to initiate a 
 Carrier. The first pass resolution might parse the URL, decomposing it into a
 name, a transport port, and a transport protocol to try connecting with. A
 second pass resolution would then look up network-layer addresses associated
@@ -527,16 +532,16 @@ architecture {{NEAT}} provides an example of how this can be done).
 
 ## Transient
 
-A Transient represents a binding between a Message Carrier and the instance of
+A Transient represents a binding between a Carrier and the instance of
 the transport protocol stack that implements it. As an Association contains
 long-term state for communications between two endpoints, a Transient contains
 ephemeral state for a single transport protocol over a single Path at a given
 point in time.
 
-A Message Carrier may be served by multiple Transients at once, e.g. when
+A Carrier may be served by multiple Transients at once, e.g. when
 implementing multipath communication such that the separate paths are exposed to
 the API by the underlying transport protocol stack. Each Transient serves only
-one Message Carrier, although multiple Transients may share the same underlying
+one Carrier, although multiple Transients may share the same underlying
 protocol stack; e.g. when multiplexing Carriers over streams in a multistreaming
 protocol.
 
@@ -642,16 +647,10 @@ Message over a Carrier. As further explained below this step can actually create
 transients for probing or assign a new transient to an already active PSI, e.g. if multi-streaming
 is provided and supported for these kind of use on both sides.
 
-The current state of API development is illustrated as a set of interfaces and
-function prototypes in the Go programming language in {{apisketch}}; future
-revisions of this document will give more a more abstract specification of the
-API as development completes.
-
 ## Example Connection Patterns
 
-Here, we illustrate the usage of the API outlined in {{apisketch}} for common
-connection patterns. Note that error handling is ignored in these
-illustrations for ease of reading.
+Here, we illustrate the usage of the API for common connection patterns. Note
+that error handling is ignored in these illustrations for ease of reading.
 
 ### Client-Server
 
@@ -823,6 +822,7 @@ func sayHelloWithAssociation(association Association) {
 }
 ~~~~~~~~
 
+<<<<<<< HEAD
 ## API Dynamics
 
 As Carriers provide the central entry point to Post, they are key to API
@@ -871,10 +871,12 @@ https://github.com/mami-project/draft-trammell-post-sockets/issues/15].
 
 [EDITOR'S NOTE: talk about locals and how they are like PvDs]
 
+=======
+>>>>>>> master
 # Implementation Considerations
 
 Here we discuss an incomplete list of API implementation considerations that
-have arisen with experimentation with the prototype in {{apisketch}}.
+have arisen with experimentation with prototype implementations of Post.
 
 ## Protocol Stack Instance (PSI)
 
@@ -915,7 +917,7 @@ conditions in the provisioning domain in which a connection is made.
 For example, {{fig-psi}}(a) shows a TLS over TCP stack, usable on most
 network connections. Protocols are layered to ensure that the PSI provides
 all the transport services required by the application.
-A single PSI may be bound to multiple message carriers, as shown in
+A single PSI may be bound to multiple Carriers, as shown in
 {{fig-psi}}(b): a multi-streaming transport protocol like QUIC or SCTP can
 support one carrier per stream. Where multi-streaming transport is not
 available, these carriers could be serviced by different PSIs on different
@@ -1137,215 +1139,7 @@ Innovation under contract no. 15.0268. This support does not imply endorsement.
 
 --- back
 
-# API sketch in Golang {#apisketch}
+# Open Issues
 
-The following sketch is a snapshot of an API currently under development in Go,
-available at https://github.com/mami-project/postsocket. The details of the API
-are still under development; once the API definition stabilizes, this will be
-expanded into prose in a future revision of this draft.
+This document is under active development; a list of current open issues is available at https://github.com/mami-project/draft-trammell-post-sockets/issues
 
-~~~~~~~~
-// The interface to path information is TBD
-type Path interface{}
-
-// An association encapsulates an endpoint pair and the set of paths between them.
-type Association interface {
-    Local() Local
-    Remote() Remote
-    Paths() []Path
-}
-
-// A message together with with metadata needed to send it
-type OutMessage struct {
-    // The niceness of this message. 0 is highest priority.
-    Niceness uint
-    // The lifetime of this message. After this duration, the message may expire.
-    Lifetime time.Duration
-    // Pointers to messages that must be sent before this one.
-    Antecedent []*OutMessage
-    // True if the message is safe to send such that it may be received multiple times (i.e. for 0-RTT).
-    Idempotent bool
-}
-
-// A message received from a stream
-type InMessage struct {
-
-}
-
-// A Carrier is a transport protocol stack-independent interface for sending and
-// receiving messages between an application and a remote endpoint; it is roughly
-// analogous to a socket in the present sockets API.
-type Carrier interface {
-    // Send a message on this Carrier. The optional onSent function will be
-    // called when the protocol stack instance has sent the message. The
-    // optional onAcked function will be called when the receiver has
-    // acknowledged the message. The optional onExpired function will be
-    // called if the message's lifetime expired before the message coult be
-    // sent. If the Carrier is not active, attempt to activate the Carrier
-    // before sending.
-    SendMessage(content []byte, msg *OutMessage, complete bool, onSent func(), onAcked func(), onExpired func()) error
-
-	// Send a byte array on this Carrier as a message with default metadata
-	// and no notifications.
-	Send(content []byte) error
-
-    // Signal that the application is ready to receive a single atomic message via
-    // the given callback.
-    // This will deliver a single message, or an error if the carrier failed before
-	// a message could be delivered.
-    ReceiveMessage(receive func(content []byte, InMessage, error) bool) error
-
-	// Signal that the application is ready to receive a complete or partial message
-	// via the given callback. The minimum incomplete bytes specifies a length of the
-	// message content that is expected before delivery, and the maximum bytes specifies
-	// the number of content bytes that can be received at once. If the message is complete
-	// with fewer than the minimum incomplete bytes, the message will be delivered.
-	// This will deliver a single callback, with the available content, the message associated
-	// with the content, whether or not the content is complete, and an error.
-	Receive(minimumIncompleteBytes uint, maximumBytes uint, receive func(content []byte, InMessage, complete bool, error) bool) error
-
-    // Retrieve the Association over which this Carrier is running.
-    Association() *Association
-
-    // Retrieve the active Transients over which this carrier is running, if active.
-    Transients() []Transient
-
-    // Determine whether the Carrier is currently active
-    IsActive() bool
-
-    // Ensure that the Carrier is active and ready to send and receive messages.
-    // Attempts to bring up at least one Transient.
-    Activate(isActive func()) error
-
-    // Terminate the Carrier
-    Close()
-
-    // Attempt to fork a new Carrier for communicating with the same Remote
-    Fork() (Carrier, error)
-
-    // Signal that an application is ready to accept forks via a given callback.
-    // Forked carriers will be given to the callback until it returns false or
-    // until the Carrier is closed.
-    Accept(accept func(Carrier) bool) error
-}
-
-// Initiate a Carrier from a given Local to a given Remote. Returns a new
-// Carrier, which may be bound to an existing or a new Association. The
-// initiated Carrier is not yet active.
-func Initiate(local Local, remote Remote) (Carrier, error)
-
-type Listener interface {
-    // Signal that an application is ready to accept forks via a given callback.
-    // Accept will terminate when the callback returns false, or until the
-    // Listener is closed.
-    Accept(accept func(Carrier) bool) error
-
-    // Terminate this Listener
-    Close()
-}
-
-// Create a Listener on a given Local which will pass new Carriers to the
-// given channel until that channel is closed.
-func Listen(local Local) (Listener, error)
-
-// A Source is a unidirectional, send-only Carrier.
-type Source interface {
-    // Send a byte array on this Source as a message with default metadata
-    // and no notifications.
-    Send(buf []byte) error
-
-    // Send a message on this Source. The optional onSent function will be
-    // called when the protocol stack instance has sent the message. The
-    // optional onAcked function will be called when the receiver has
-    // acknowledged the message. The optional onExpired function will be
-    // called if the message's lifetime expired before the message coult be
-    // sent. If the Source is not active, attempt to activate the Source
-    // before sending.
-    Sendmsg(msg *OutMessage, onSent func(), onAcked func(), onExpired func()) error
-
-    // Retrieve the Association over which this Source is running.
-    Association() *Association
-
-    // Determine whether the Source is currently active
-    IsActive() bool
-
-    // Ensure that the Source is active and ready to send messages.
-    // Attempts to bring up at least one Transient.
-    Activate() error
-
-    // Terminate the Source
-    Close()
-}
-
-// Initiate a Source from a given Local to a given Remote. Returns a new
-// Source, which may be bound to an existing or a new Association. The
-// initiated Source is not yet active.
-func NewSource(local Local, remote Remote) (Source, error)
-
-// A Sink is a unidirectional, receive-only Carrier, bound only to a local.
-type Sink interface {
-    // Signal that an application is ready to receive messages via a given callback.
-    // Messages will be given to the callback until it returns false, or until the
-    // Sink is closed.
-    Ready(receive func(InMessage) bool) error
-
-    // Retrieve the Association over which this Sink is running.
-    Association() *Association
-
-    // Terminate the Sink
-    Close()
-}
-
-// Initiate a Sink on a given Local. Returns a new
-// Sink, which may be bound to an existing or a new Association.
-func NewSink(local Local) (Sink, error)
-
-// Initiate a Responder on a given Local. For each incoming Message, calls the
-// respond function with the Message and a Sink to send replies to. Calls the
-// Responder until it returns False, then terminates
-func Respond(local Local, respond func(msg InMessage, reply Sink) bool) error
-
-// A local identity
-type Local struct {
-    // A string identifying an interface or set of interfaces to accept messages and new carriers on.
-    Interface string
-    // A transport layer port
-    Port int
-    // A set of zero or more end entity certificates, together with private
-    // keys, to identify this application with.
-    Certificates []tls.Certificate
-}
-
-// Encapsulate a remote identity. Since the contents of a Remote are highly
-// dependent on its level of resolution; some examples are below.
-type Remote interface {
-    // Resolve this Remote Identity to a
-    Resolve() ([]RemoteIdentity, error)
-    // Returns True if the Remote is completely resolved; i.e., cannot be resol
-    Complete() bool
-}
-
-// Remote consisting of a URL
-type URLRemote struct {
-    URL string
-}
-
-// Remote encapsulating a name and port number
-type NamedEndpointRemote struct {
-    Hostname string
-    Port     int
-}
-
-// Remote encapsulating an IP address and port number
-type IPEndpointRemote struct {
-    Address net.IP
-    Port    int
-}
-
-// Remote encapsulating an IP address and port number, and a set of presented certificates
-type IPEndpointCertRemote struct {
-    Address      net.IP
-    Port         int
-    Certificates []tls.Certificate
-}
-~~~~~~~~
