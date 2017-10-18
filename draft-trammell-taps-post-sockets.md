@@ -769,10 +769,6 @@ func receiveMulticast() {
 }
 ~~~~~~~~
 
-### Streams as Incomplete Messages
-
-[EDITOR'S NOTE: write me]
-
 ### Association Bootstrapping
 
 Here, we show how Association state may be initialized without a carrier.
