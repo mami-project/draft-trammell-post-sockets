@@ -819,7 +819,7 @@ Local and Remote, depending on how it was configured.
 // open a connection to a server using an existing Association and send some data,
 // which will be sent early if possible.
 func sayHelloWithAssociation(association Association) {
-    carrier := association.Initiate()
+    carrier := association.GetCarrier()
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
@@ -871,10 +871,24 @@ environment, configuration, and protocol stacks available.
 {: #fig-carrier-lc title="Carrier and Association Life Cycle"}
 
 Access to more detailed information is possible through accessors on Carriers
-and Associations, following the relationships shown in {{fig-abstractions}}.
-Carriers allow their Transients to be accessed and enumerated, primarily for
-logging and debugging purposes; Associations likewise allow their Paths to be
-enumerated for access to cached path properties.
+and Associations, as shown in {{fig-accessors}}. The set of currently active
+Transients can be accessed through the Carrier's .Transients() methods. The
+active path(s) used by a Transient can be accessed through the Transient's
+.Paths() method, and the set of all paths for which properties are cached by
+an Association can be accessed through the Association's Paths() method.
+Access to transients and paths is not necessary in normal operation; these
+accessors are provided primarily for logging and debugging purposes.
+
+~~~~~~~
+          [Carrier]---.Transients()--->[Transient]
+           |     ^                       |
+           |     |                       |
+.Association()  .GetCarrier()          .Paths()
+           |     |                       |
+           V     |                       V
+        [Association]---.Paths()------>[Path]       
+~~~~~~~
+{: #fig-accessors title="Accessors on Carriers and Associations"}
 
 Each Carrier has a .Send() method, by which Messages can be sent with given
 properties, and a .Ready() method, which supplies a callback for reading
@@ -893,25 +907,24 @@ is not available on Sources. Carriers also provide .OnSent(), .OnAcked(), and
                                   +--- .OnExpired()
                                   +--- .OnClosed()       
 ~~~~~~~
-{: #fig-message-lc title="Sending and Receiving Messages and Events"}
+{: #fig-message title="Sending and Receiving Messages and Events"}
 
-
-\[EDITOR'S NOTE (bht) on the text below: Parameters, as above, PolicyContext, and
-a Configuration are the same thing, as in
-https://github.com/mami-project/draft-trammell-post-sockets/issues/15 -- I'll
-use Configuration here, since that's where we're going, but won't modify this in
-the rest of the document]. 
 
 An application may have a global Configuation, as well as more specific
 Configurations to apply to the establishment of a given Association or Carrier.
 These Configurations are optional arguments to the Association and Carrier
-creation calls. Each Configuration is conceptually a key-value store, where
-information in more specific scopes overrides information in less specific
-scopes: application defaults can be overriden by specific Configurations bound
-to Carriers or Associations, all of which may be overriden by system or
+creation calls. 
+
+\[EDITOR'S NOTE (bht): the text below does not belong here, figure out what to
+do with it when
+https://github.com/mami-project/draft-trammell-post-sockets/pull/23 lands:
+Each Configuration is conceptually a key-value store, where information in
+more specific scopes overrides information in less specific scopes:
+application defaults can be overriden by specific Configurations bound to
+Carriers or Associations, all of which may be overriden by system or
 user-scoped configuration parameters. Configurations are also made directly
 available to protocol stack instances (PSIs, see {{sec-psi}}) for fine-grained
-control of implementation-specific configuration parameters.
+control of implementation-specific configuration parameters.]
 
 In order to initiate a connection with a remote endpoint, a user of Post Sockets
 must start from a Remote (see {{remote}}). A Remote encapsulates identifying
@@ -919,7 +932,7 @@ information about a remote endpoint at a specific level of resolution. A new
 Remote can be wrapped around some identifying information by via the NewRemote()
 call. A Remote has a .Resolve() method, which can be iteratively revoked to
 increase the level of resolution; a call to Resolve on a given Remote may result
-in one to many Remotes, as shown in {{fig-remote-lc}}.  Remotes at any level of
+in one to many Remotes, as shown in {{fig-remote}}.  Remotes at any level of
 resolution may be passed to Post Sockets calls; each call will continue
 resolution to the point necessary to establish or resume a Carrier.
 
@@ -928,13 +941,14 @@ resolution to the point necessary to establish or resume a Carrier.
                         n |                            | 1
 NewRemote(identifiers) ---+--->[Remote] --.Resolve()---+
 ~~~~~~~
-{: #fig-remote-lc title="Recursive resolution of Remotes"}
+{: #fig-remote title="Recursive resolution of Remotes"}
 
-Information about the local endpoint is also necessary to establish
-communication. This is passed in the form of a Local (see {{local}}). A
-Local is created with a NewLocal() call, which takes a Configuration (including
-certificates to present and secret keys associated with them) and identifying
-information (interface(s) and port(s) to use).
+Information about the local endpoint is also necessary to establish an
+Association, whether explicitly or implicitly through the creation of a
+Carrier or Listener. This is passed in the form of a Local (see {{local}}). A
+Local is created with a NewLocal() call, which takes a Configuration
+(including certificates to present and secret keys associated with them) and
+identifying information (interface(s) and port(s) to use).
 
 # Implementation Considerations
 
