@@ -550,8 +550,8 @@ Protocol-specific options within the Configuration include trust settings and ac
 cryptographic algorithms to be used by security protocols. These may be configured for
 specific protocols to allow different settings for each (such as between TLS over TCP and
 TLS for use with QUIC), or set as default security settings on the Configuration to
-be used by any protocol that needs to evaluate trust or generate keys. Trust settings may
-include client certificates and certificate pinning options.
+be used by any protocol that needs to evaluate trust. Trust settings may
+include certificate anchors and certificate pinning options.
 
 ## Transient
 
