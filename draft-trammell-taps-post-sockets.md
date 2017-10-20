@@ -546,6 +546,13 @@ protocols, but different protocol options: one using TLS with TLS 1.3 0-RTT enab
 and TCP with TCP Fast-Open enabled, and one using TLS with out 0-RTT and TCP
 without TCP Fast-Open.
 
+Protocol-specific options within the Configuration include trust settings and acceptable
+cryptographic algorithms to be used by security protocols. These may be configured for
+specific protocols to allow different settings for each (such as between TLS over TCP and
+TLS for use with QUIC), or set as default security settings on the Configuration to
+be used by any protocol that needs to evaluate trust or generate keys. Trust settings may
+include client certificates and certificate pinning options.
+
 ## Transient
 
 A Transient represents a binding between a Carrier and the instance of
@@ -966,7 +973,7 @@ limitations of 64kB and 16kB, respectively. Message sizes may also be limited by
 the available buffer at the receiver, since a Message must be fully assembled by
 the transport layer before it can be passed on to the application layer. Since
 not every transport protocol stack implements the signaling necessary to
-negotiate or expose message size limitations, these are currently negotiated out
+negotiate or expose message size limitations, these may need to be defined out
 of band, and are probably best exposed through the Configuration.
 
 A truly infinite message service -- e.g. large file transfer where both
