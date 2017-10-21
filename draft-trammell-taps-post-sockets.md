@@ -279,19 +279,16 @@ corresponding Carrier at the remote endpoint, though not necessarily
 reliably or in order, depending on Message properties and the underlying
 transport protocol stack.
 
-A Carrier that is backed by current transport protocol stack state
-(such as a TCP connection; see {{transient}}) is said to be "active": messages
-can be sent and received over it. A Carrier can also be "dormant":
-there is long-term state associated with it (via the underlying Association;
-see {{association}}), and it may be able to reactivated, but messages cannot
-be sent and received immediately.
-
-Carriers may actively be made dormant and disposed of, or may become dormant
-because the underlying transport protocol stack determines that an underlying
-connection has been lost and there is insufficient state in the Association to
-re-establish it (e.g., in the case of a server-side Carrier where the client's
-address has changed unexpectedly). Passive close can be handled by the
-application via an event on the carrier.
+A Carrier that is backed by current transport protocol stack state (such as a
+TCP connection; see {{transient}}) is said to be "active": messages can be sent
+and received over it. A Carrier can also be "dormant": there is long-term state
+associated with it (via the underlying Association; see {{association}}), and it
+may be able to reactivated, but messages cannot be sent and received
+immediately. Carriers become dormant when the underlying transport protocol
+stack determines that an underlying connection has been lost and there is
+insufficient state in the Association to re-establish it (e.g., in the case of a
+server-side Carrier where the client's address has changed unexpectedly).
+Passive close can be handled by the application via an event on the carrier.
 
 If supported by the underlying transport protocol stack, a Carrier may be
 forked: creating a new Carrier associated with a new Carrier at the same remote
