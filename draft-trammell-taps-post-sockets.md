@@ -280,15 +280,17 @@ reliably or in order, depending on Message properties and the underlying
 transport protocol stack.
 
 A Carrier that is backed by current transport protocol stack state (such as a
-TCP connection; see {{transient}}) is said to be "active": messages can be sent
-and received over it. A Carrier can also be "dormant": there is long-term state
-associated with it (via the underlying Association; see {{association}}), and it
-may be able to reactivated, but messages cannot be sent and received
-immediately. Carriers become dormant when the underlying transport protocol
-stack determines that an underlying connection has been lost and there is
-insufficient state in the Association to re-establish it (e.g., in the case of a
-server-side Carrier where the client's address has changed unexpectedly).
-Passive close can be handled by the application via an event on the carrier.
+TCP connection; see {{transient}}) is said to be "active": messages can be
+sent and received over it. A Carrier can also be "dormant": there is long-term
+state associated with it (via the underlying Association; see
+{{association}}), and it may be able to reactivated, but messages cannot be
+sent and received immediately. Carriers become dormant when the underlying
+transport protocol stack determines that an underlying connection has been
+lost and there is insufficient state in the Association to re-establish it
+(e.g., in the case of a server-side Carrier where the client's address has
+changed unexpectedly). Passive close can be handled by the application via an
+event on the carrier. Attempting to use a carrier after passive close results
+in an error.
 
 If supported by the underlying transport protocol stack, a Carrier may be
 forked: creating a new Carrier associated with a new Carrier at the same remote
@@ -816,7 +818,7 @@ Local and Remote, depending on how it was configured.
 // open a connection to a server using an existing Association and send some data,
 // which will be sent early if possible.
 func sayHelloWithAssociation(association Association) {
-    carrier := association.GetCarrier()
+    carrier := association.Initiate()
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
@@ -838,13 +840,13 @@ the underlying Association is automatically created and managed by the
 underlying API. This underlying Association can be accessed by the Carrier's
 .Association() method. Alternately, an association can be explicitly created
 using NewAssociation(), and a Carrier on the association may be accessed or
-initiated by calling the association's .GetCarrier() method.
+initiated by calling the association's .Initiate() method.
 
-Once a Carrier has been created (via Initiate, NewSource, NewSink,
-Listen/Accept, or implicitly by calling Association.GetCarrier), it may be used
-to send and receive Messages. The existence of a Carrier does not imply the
-existence of an active Transient or associated transport-layer connection; these
-may be created when the carrier is, or may be deferred, depending on the network
+Once a Carrier has been created (via Initiate(), Association.Initiate(),
+NewSource(), NewSink(), or Listen()/Accept()), it may be used to send and
+receive Messages. The existence of a Carrier does not imply the existence of
+an active Transient or associated transport-layer connection; these may be
+created when the carrier is, or may be deferred, depending on the network
 environment, configuration, and protocol stacks available.
 
 ~~~~~~
@@ -857,8 +859,8 @@ environment, configuration, and protocol stacks available.
                          |     ^   |  close    [ Carrier  ]
                          |     |   +- event -> [ (closed) ]
                          |     |          
-              .Association()  .GetCarrier()
-                         |     |
+              .Association()  .Carriers()
+                         |    .Initiate()
                          V     |
                      [Association]   
                            ^
@@ -872,16 +874,18 @@ and Associations, as shown in {{fig-accessors}}. The set of currently active
 Transients can be accessed through the Carrier's .Transients() methods. The
 active path(s) used by a Transient can be accessed through the Transient's
 .Paths() method, and the set of all paths for which properties are cached by
-an Association can be accessed through the Association's Paths() method.
-Access to transients and paths is not necessary in normal operation; these
-accessors are provided primarily for logging and debugging purposes.
+an Association can be accessed through the Association's .Paths() method. The
+set of active carriers on an association can be accessed through the
+Association's .Carriers() method. Access to transients and paths is not
+necessary in normal operation; these accessors are provided primarily for
+logging and debugging purposes.
 
 ~~~~~~~
           [Carrier]---.Transients()--->[Transient]
            |     ^                       |
            |     |                       |
-.Association()  .GetCarrier()          .Paths()
-           |     |                       |
+.Association()  .Carriers()           .Paths()
+           |    .Initiate()              |
            V     |                       V
         [Association]---.Paths()------>[Path]       
 ~~~~~~~
@@ -905,7 +909,6 @@ is not available on Sources. Carriers also provide .OnSent(), .OnAcked(), and
                                   +--- .OnClosed()       
 ~~~~~~~
 {: #fig-message title="Sending and Receiving Messages and Events"}
-
 
 An application may have a global Configuation, as well as more specific
 Configurations to apply to the establishment of a given Association or Carrier.
