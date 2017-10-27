@@ -681,8 +681,6 @@ is provided and supported for these kind of use on both sides.
 
 ## Example Connection Patterns
 
-\[EDITOR'S NOTE: ensure these are in line with the {{sec-dynamics}} below.]
-
 Here, we illustrate the usage of the API for common connection patterns. Note
 that error handling is ignored in these illustrations for ease of reading.
 
@@ -936,18 +934,7 @@ is not available on Sources. Carriers also provide .OnSent(), .OnAcked(), and
 An application may have a global Configuation, as well as more specific
 Configurations to apply to the establishment of a given Association or Carrier.
 These Configurations are optional arguments to the Association and Carrier
-creation calls. 
-
-\[EDITOR'S NOTE (bht): the text below does not belong here, figure out what to
-do with it when
-https://github.com/mami-project/draft-trammell-post-sockets/pull/23 lands:
-Each Configuration is conceptually a key-value store, where information in
-more specific scopes overrides information in less specific scopes:
-application defaults can be overriden by specific Configurations bound to
-Carriers or Associations, all of which may be overriden by system or
-user-scoped configuration parameters. Configurations are also made directly
-available to protocol stack instances (PSIs, see {{sec-psi}}) for fine-grained
-control of implementation-specific configuration parameters.]
+creation calls.
 
 In order to initiate a connection with a remote endpoint, a user of Post Sockets
 must start from a Remote (see {{remote}}). A Remote encapsulates identifying
