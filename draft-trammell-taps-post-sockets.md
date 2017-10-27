@@ -62,6 +62,7 @@ informative:
     RFC4960:
     RFC5245:
     RFC6555:
+    RFC6698:
     RFC6824:
     RFC7258:
     RFC7413:
@@ -278,21 +279,28 @@ corresponding Carrier at the remote endpoint, though not necessarily
 reliably or in order, depending on Message properties and the underlying
 transport protocol stack.
 
-A Carrier that is backed by current transport protocol stack state
-(such as a TCP connection; see {{transient}}) is said to be "active": messages
-can be sent and received over it. A Carrier can also be "dormant":
-there is long-term state associated with it (via the underlying Association;
-see {{association}}), and it may be able to reactivated, but messages cannot
-be sent and received immediately.
+A Carrier that is backed by current transport protocol stack state (such as a
+TCP connection; see {{transient}}) is said to be "active": messages can be
+sent and received over it. A Carrier can also be "dormant": there is long-term
+state associated with it (via the underlying Association; see
+{{association}}), and it may be able to reactivated, but messages cannot be
+sent and received immediately. Carriers become dormant when the underlying
+transport protocol stack determines that an underlying connection has been
+lost and there is insufficient state in the Association to re-establish it
+(e.g., in the case of a server-side Carrier where the client's address has
+changed unexpectedly). Passive close can be handled by the application via an
+event on the carrier. Attempting to use a carrier after passive close results
+in an error.
 
-If supported by the underlying transport protocol stack, a Carrier may
-be forked: creating a new Carrier associated with a new
-Carrier at the same remote endpoint. The semantics of the usage of multiple Carriers based on the same Association are application-specific. When a Carrier is forked, its corresponding Carrier at the remote
-endpoint receives a fork request, which it must accept in order to fully
-establish the new carrier. Multiple Carriers between endpoints are
-implemented differently by different transport protocol stacks, either using
-multiple separate transport-layer connections, or using multiple streams of
-multistreaming transport protocols.
+If supported by the underlying transport protocol stack, a Carrier may be
+forked: creating a new Carrier associated with a new Carrier at the same remote
+endpoint. The semantics of the usage of multiple Carriers based on the same
+Association are application-specific. When a Carrier is forked, its
+corresponding Carrier at the remote endpoint receives a fork request, which it
+must accept in order to fully establish the new carrier. Multiple Carriers
+between endpoints are implemented differently by different transport protocol
+stacks, either using multiple separate transport-layer connections, or using
+multiple streams of multistreaming transport protocols.
 
 To exchange messages with a given remote endpoint, an application may initiate
 a Carrier given its remote (see {{remote}} and local (see {{local}})
@@ -503,10 +511,11 @@ can use it to create a Transient, it is considered fully resolved.
 ## Local
 
 A Local represents all the information about the local endpoint necessary to
-establish an Association or a Listener: interface, port, and transport
-protocol stack information, and, per {{I-D.pauly-taps-transport-security}},
-cryptographic identities (certificates and associated private keys) bound to
-this endpoint.
+establish an Association or a Listener. It encapsulates the Provisioning Domain
+(PvD) of a single interface in the multiple provisioning domain architecture
+{{RFC7556}}, and adds information about the service endpoint (transport protocol
+port), and, per {{I-D.pauly-taps-transport-security}}, cryptographic identities
+(certificates and associated private keys) bound to this endpoint.
 
 ## Configuration {#Configuration}
 
@@ -555,11 +564,11 @@ include certificate anchors and certificate pinning options.
 
 ## Transient
 
-A Transient represents a binding between a Carrier and the instance of
-the transport protocol stack that implements it. As an Association contains
+A Transient represents a binding between a Carrier and the instance of the
+transport protocol stack that implements it. As an Association contains
 long-term state for communications between two endpoints, a Transient contains
-ephemeral state for a single transport protocol over a single Path at a given
-point in time.
+ephemeral state for a single transport protocol over a one or more Paths at a
+given point in time.
 
 A Carrier may be served by multiple Transients at once, e.g. when
 implementing multipath communication such that the separate paths are exposed to
@@ -672,6 +681,8 @@ is provided and supported for these kind of use on both sides.
 
 ## Example Connection Patterns
 
+\[EDITOR'S NOTE: ensure these are in line with the {{sec-dynamics}} below.]
+
 Here, we illustrate the usage of the API for common connection patterns. Note
 that error handling is ignored in these illustrations for ease of reading.
 
@@ -780,7 +791,7 @@ func receiveMulticast() {
 }
 ~~~~~~~~
 
-## Association Bootstrapping
+### Association Bootstrapping
 
 Here, we show how Association state may be initialized without a carrier.
 The goal is to create a long-term Association from which Carriers may be derived
@@ -806,7 +817,7 @@ between a Local and Remote using these parameters.
 ~~~~~~~~
 // create an Association using shared parameters
 func createAssociation(local Local, remote Remote, parameters Parameters) Association {
-    association := AssociationWithParameters(local, remote, parameters)
+    association := NewAssociation(local, remote, parameters)
     return association
 }
 ~~~~~~~~
@@ -816,7 +827,7 @@ We may also create an Association with a pre-shared key configured out-of-band.
 ~~~~~~~~
 // create an Association using a pre-shared key
 func createAssociationWithPSK(local Local, remote Remote, parameters Parameters, preSharedKey []byte) Association {
-    association := AssociationWithParameters(local, remote, parameters)
+    association := NewAssociation(local, remote, parameters)
     association = association.SetPreSharedKey(preSharedKey)
     return association
 }
@@ -830,7 +841,7 @@ Local and Remote, depending on how it was configured.
 // open a connection to a server using an existing Association and send some data,
 // which will be sent early if possible.
 func sayHelloWithAssociation(association Association) {
-    carrier := InitiateWithAssociation(association)
+    carrier := association.Initiate()
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
@@ -841,12 +852,133 @@ func sayHelloWithAssociation(association Association) {
 }
 ~~~~~~~~
 
+## API Dynamics {#sec-dynamics}
+
+As Carriers provide the central entry point to Post, they are key to API
+dynamics. The lifecycle of a carrier is shown in {{fig-carrier-lc}}. Carriers
+are created by active openers by calling Initiate() given a Local and a Remote,
+and by passive openers by calling Listen() given a Local; the .Accept() method
+on the listener Carrier can then be used to create active carriers. By default,
+the underlying Association is automatically created and managed by the
+underlying API. This underlying Association can be accessed by the Carrier's
+.Association() method. Alternately, an association can be explicitly created
+using NewAssociation(), and a Carrier on the association may be accessed or
+initiated by calling the association's .Initiate() method.
+
+Once a Carrier has been created (via Initiate(), Association.Initiate(),
+NewSource(), NewSink(), or Listen()/Accept()), it may be used to send and
+receive Messages. The existence of a Carrier does not imply the existence of
+an active Transient or associated transport-layer connection; these may be
+created when the carrier is, or may be deferred, depending on the network
+environment, configuration, and protocol stacks available.
+
+~~~~~~
+ Listen(local)   Initiate(local,remote)   NewSource(local,remote)
+      |                     |             or NewSink(local)
+  [ Carrier  ]              |                    |
+  [(listener)]              +--------------------+
+      |                     V                    
+  .Accept()-----------> [Carrier] -+----------> .Close()
+                         |     ^   |  close    [ Carrier  ]
+                         |     |   +- event -> [ (closed) ]
+                         |     |          
+              .Association()  .Carriers()
+                         |    .Initiate()
+                         V     |
+                     [Association]   
+                           ^
+                           |
+              NewAssociation(local,remote)
+~~~~~~~
+{: #fig-carrier-lc title="Carrier and Association Life Cycle"}
+
+Access to more detailed information is possible through accessors on Carriers
+and Associations, as shown in {{fig-accessors}}. The set of currently active
+Transients can be accessed through the Carrier's .Transients() methods. The
+active path(s) used by a Transient can be accessed through the Transient's
+.Paths() method, and the set of all paths for which properties are cached by
+an Association can be accessed through the Association's .Paths() method. The
+set of active carriers on an association can be accessed through the
+Association's .Carriers() method. Access to transients and paths is not
+necessary in normal operation; these accessors are provided primarily for
+logging and debugging purposes.
+
+~~~~~~~
+          [Carrier]---.Transients()--->[Transient]
+           |     ^                       |
+           |     |                       |
+.Association()  .Carriers()           .Paths()
+           |    .Initiate()              |
+           V     |                       V
+        [Association]---.Paths()------>[Path]       
+~~~~~~~
+{: #fig-accessors title="Accessors on Carriers and Associations"}
+
+Each Carrier has a .Send() method, by which Messages can be sent with given
+properties, and a .Ready() method, which supplies a callback for reading
+Messages from the remote side. .Send() is not available on Sinks, and .Ready()
+is not available on Sources. Carriers also provide .OnSent(), .OnAcked(), and
+.OnExpired() calls for binding default send event handlers to the Carrier, and
+.OnClosed() for handling passive close notifications.
+
+~~~~~~~
+                                  +---------[incoming]-----------+
+                                  |         [Message ]           V
+[outgoing] ---> .Send() --->  [Carrier] <---- .Ready() <---- [Receiver]
+[Message ]                        |
+                                  +--- .OnSent()
+                                  +--- .OnAcked()
+                                  +--- .OnExpired()
+                                  +--- .OnClosed()       
+~~~~~~~
+{: #fig-message title="Sending and Receiving Messages and Events"}
+
+An application may have a global Configuation, as well as more specific
+Configurations to apply to the establishment of a given Association or Carrier.
+These Configurations are optional arguments to the Association and Carrier
+creation calls. 
+
+\[EDITOR'S NOTE (bht): the text below does not belong here, figure out what to
+do with it when
+https://github.com/mami-project/draft-trammell-post-sockets/pull/23 lands:
+Each Configuration is conceptually a key-value store, where information in
+more specific scopes overrides information in less specific scopes:
+application defaults can be overriden by specific Configurations bound to
+Carriers or Associations, all of which may be overriden by system or
+user-scoped configuration parameters. Configurations are also made directly
+available to protocol stack instances (PSIs, see {{sec-psi}}) for fine-grained
+control of implementation-specific configuration parameters.]
+
+In order to initiate a connection with a remote endpoint, a user of Post Sockets
+must start from a Remote (see {{remote}}). A Remote encapsulates identifying
+information about a remote endpoint at a specific level of resolution. A new
+Remote can be wrapped around some identifying information by via the NewRemote()
+call. A Remote has a .Resolve() method, which can be iteratively revoked to
+increase the level of resolution; a call to Resolve on a given Remote may result
+in one to many Remotes, as shown in {{fig-remote}}.  Remotes at any level of
+resolution may be passed to Post Sockets calls; each call will continue
+resolution to the point necessary to establish or resume a Carrier.
+
+~~~~~~~
+                          +----------------------------+
+                        n |                            | 1
+NewRemote(identifiers) ---+--->[Remote] --.Resolve()---+
+~~~~~~~
+{: #fig-remote title="Recursive resolution of Remotes"}
+
+Information about the local endpoint is also necessary to establish an
+Association, whether explicitly or implicitly through the creation of a
+Carrier or Listener. This is passed in the form of a Local (see {{local}}). A
+Local is created with a NewLocal() call, which takes a Configuration
+(including certificates to present and secret keys associated with them) and
+identifying information (interface(s) and port(s) to use).
+
 # Implementation Considerations
 
 Here we discuss an incomplete list of API implementation considerations that
 have arisen with experimentation with prototype implementations of Post.
 
-## Protocol Stack Instance (PSI)
+## Protocol Stack Instance (PSI) {#sec-psi}
 
 A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over IPv6,
 SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge between the
