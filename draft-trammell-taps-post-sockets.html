@@ -282,7 +282,7 @@ address {
 <link href="#rfc.section.2.3" rel="Chapter" title="2.3 Association">
 <link href="#rfc.section.2.4" rel="Chapter" title="2.4 Remote">
 <link href="#rfc.section.2.5" rel="Chapter" title="2.5 Local">
-<link href="#rfc.section.2.6" rel="Chapter" title="2.6 Policy Context">
+<link href="#rfc.section.2.6" rel="Chapter" title="2.6 Configuration">
 <link href="#rfc.section.2.7" rel="Chapter" title="2.7 Transient">
 <link href="#rfc.section.2.8" rel="Chapter" title="2.8 Path">
 <link href="#rfc.section.3" rel="Chapter" title="3 Abstract Programming Interface">
@@ -291,7 +291,8 @@ address {
 <link href="#rfc.section.3.1.2" rel="Chapter" title="3.1.2 Client-Server with Happy Eyeballs and 0-RTT establishment">
 <link href="#rfc.section.3.1.3" rel="Chapter" title="3.1.3 Peer to Peer with Network Address Translation">
 <link href="#rfc.section.3.1.4" rel="Chapter" title="3.1.4 Multicast Receiver">
-<link href="#rfc.section.3.2" rel="Chapter" title="3.2 Association Bootstrapping">
+<link href="#rfc.section.3.1.5" rel="Chapter" title="3.1.5 Association Bootstrapping">
+<link href="#rfc.section.3.2" rel="Chapter" title="3.2 API Dynamics">
 <link href="#rfc.section.4" rel="Chapter" title="4 Implementation Considerations">
 <link href="#rfc.section.4.1" rel="Chapter" title="4.1 Protocol Stack Instance (PSI)">
 <link href="#rfc.section.4.2" rel="Chapter" title="4.2 Message Framing, Parsing, and Serialization">
@@ -311,7 +312,7 @@ address {
 
   <meta name="dct.creator" content="Trammell, B., Perkins, C., Pauly, T., Kuehlewind, M., and C. Wood" />
   <meta name="dct.identifier" content="urn:ietf:id:draft-trammell-taps-post-sockets-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-9-08" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-10-27" />
   <meta name="dct.abstract" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
   <meta name="description" content="This document describes Post Sockets, an asynchronous abstract programming interface for the atomic transmission of messages in an inherently multipath environment. Post replaces connections with long-lived associations between endpoints, with the possibility to cache cryptographic state in order to reduce amortized connection latency. We present this abstract interface as an illustration of what is possible with present developments in transport protocols when freed from the strictures of the current sockets API." />
 
@@ -335,7 +336,7 @@ address {
 <td class="right">C. Perkins</td>
 </tr>
 <tr>
-<td class="left">Expires: March 12, 2018</td>
+<td class="left">Expires: April 30, 2018</td>
 <td class="right">University of Glasgow</td>
 </tr>
 <tr>
@@ -364,7 +365,7 @@ address {
 </tr>
 <tr>
 <td class="left"></td>
-<td class="right">September 08, 2017</td>
+<td class="right">October 27, 2017</td>
 </tr>
 
     	
@@ -380,7 +381,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on March 12, 2018.</p>
+<p>This Internet-Draft will expire on April 30, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2017 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -404,7 +405,7 @@ address {
 </li>
 <li>2.5.   <a href="#rfc.section.2.5">Local</a>
 </li>
-<li>2.6.   <a href="#rfc.section.2.6">Policy Context</a>
+<li>2.6.   <a href="#rfc.section.2.6">Configuration</a>
 </li>
 <li>2.7.   <a href="#rfc.section.2.7">Transient</a>
 </li>
@@ -422,7 +423,9 @@ address {
 </li>
 <li>3.1.4.   <a href="#rfc.section.3.1.4">Multicast Receiver</a>
 </li>
-</ul><li>3.2.   <a href="#rfc.section.3.2">Association Bootstrapping</a>
+<li>3.1.5.   <a href="#rfc.section.3.1.5">Association Bootstrapping</a>
+</li>
+</ul><li>3.2.   <a href="#rfc.section.3.2">API Dynamics</a>
 </li>
 </ul><li>4.   <a href="#rfc.section.4">Implementation Considerations</a>
 </li>
@@ -485,18 +488,18 @@ address {
                 |    ^         |               |
           send()|    |ready()  |initiate()     |listen()
                 V    |         V               V
-           +=====================+           +============+
-           |                     |  accept() |            |
-           |      Carrier        |&lt;----------|  Listener  |
-           |                     |           |            |
-           +=====================+           +============+
-            |1        |        n|                  |          +=========+
-            |         |         |1                 |      +---|  Local  |
-            |   +=========+   +=======================+   |   +=========+
-            |   | Policy  |n  |                       |---+
-            |   | Context |---|      Association      |       +=========+
-            |   |         |  1|                       |-------|  Remote |
-            |   +=========+   +=======================+       +=========+
+           +=======================+         +============+
+           |                       | accept()|            |
+           |       Carrier         |&lt;--------|  Listener  |
+           |                       |         |            |
+           +=======================+         +============+
+            |1        |          n|                |             +=========+
+            |         |           |1               |         +---|  Local  |
+            | +===============+  +=======================+   |   +=========+
+            | |               |  |                       |---+
+            | | Configuration |--|      Association      |       +=========+
+            | |               |  |                       |-------|  Remote |
+            | +===============+  +=======================+       +=========+
             |         |                1| durable end-to-end
             +-------+ |                 | state via many paths,
                     | |                 | policies, and prefs  
@@ -516,7 +519,7 @@ address {
 <p id="rfc.section.2.1.p.1">A Message Carrier (or simply Carrier) is a transport protocol stack-independent interface for sending and receiving messages between an application and a remote endpoint; it is roughly analogous to a socket in the present sockets API.</p>
 <p id="rfc.section.2.1.p.2">Sending a Message over a Carrier is driven by the application, while receipt is driven by the arrival of the last packet that allows the Message to be assembled, decrypted, and passed to the application. Receipt is therefore asynchronous; given the different models for asynchronous I/O and concurrency supported by different platforms, it may be implemented in any number of ways.  The abstract API provides only for a way for the application to register how it wants to handle incoming messages.</p>
 <p id="rfc.section.2.1.p.3">All the Messages sent to a Carrier will be received on the corresponding Carrier at the remote endpoint, though not necessarily reliably or in order, depending on Message properties and the underlying transport protocol stack.</p>
-<p id="rfc.section.2.1.p.4">A Carrier that is backed by current transport protocol stack state (such as a TCP connection; see <a href="#transient" class="xref">Section 2.7</a>) is said to be &#8220;active&#8221;: messages can be sent and received over it. A Carrier can also be &#8220;dormant&#8221;: there is long-term state associated with it (via the underlying Association; see <a href="#association" class="xref">Section 2.3</a>), and it may be able to reactivated, but messages cannot be sent and received immediately.</p>
+<p id="rfc.section.2.1.p.4">A Carrier that is backed by current transport protocol stack state (such as a TCP connection; see <a href="#transient" class="xref">Section 2.7</a>) is said to be &#8220;active&#8221;: messages can be sent and received over it. A Carrier can also be &#8220;dormant&#8221;: there is long-term state associated with it (via the underlying Association; see <a href="#association" class="xref">Section 2.3</a>), and it may be able to reactivated, but messages cannot be sent and received immediately. Carriers become dormant when the underlying transport protocol stack determines that an underlying connection has been lost and there is insufficient state in the Association to re-establish it (e.g., in the case of a server-side Carrier where the client&#8217;s address has changed unexpectedly). Passive close can be handled by the application via an event on the carrier. Attempting to use a carrier after passive close results in an error.</p>
 <p id="rfc.section.2.1.p.5">If supported by the underlying transport protocol stack, a Carrier may be forked: creating a new Carrier associated with a new Carrier at the same remote endpoint. The semantics of the usage of multiple Carriers based on the same Association are application-specific. When a Carrier is forked, its corresponding Carrier at the remote endpoint receives a fork request, which it must accept in order to fully establish the new carrier. Multiple Carriers between endpoints are implemented differently by different transport protocol stacks, either using multiple separate transport-layer connections, or using multiple streams of multistreaming transport protocols.</p>
 <p id="rfc.section.2.1.p.6">To exchange messages with a given remote endpoint, an application may initiate a Carrier given its remote (see <a href="#remote" class="xref">Section 2.4</a> and local (see <a href="#local" class="xref">Section 2.5</a>) identities; this is an equivalent to an active open. There are four special cases of Carriers, as well, supporting different initiation and interaction patterns, defined in the subsections below.</p>
 <p></p>
@@ -552,7 +555,7 @@ address {
 <h1 id="rfc.section.2.3">
 <a href="#rfc.section.2.3">2.3.</a> <a href="#association" id="association">Association</a>
 </h1>
-<p id="rfc.section.2.3.p.1">An Association contains the long-term state necessary to support communications between a Local (see <a href="#local" class="xref">Section 2.5</a>) and a Remote (see <a href="#remote" class="xref">Section 2.4</a>) endpoint, such as trust model information, including pinned public keys or anchor certificates, cryptographic session resumption parameters, or rendezvous information. It uses information from the Policy Context (see <a href="#PolicyContext" class="xref">Section 2.6</a>) to constrain the selection of transport protocols and local interfaces to create Transients (see <a href="#transient" class="xref">Section 2.7</a>) to carry Messages; and information about the paths through the network available available between them (see <a href="#path" class="xref">Section 2.8</a>).</p>
+<p id="rfc.section.2.3.p.1">An Association contains the long-term state necessary to support communications between a Local (see <a href="#local" class="xref">Section 2.5</a>) and a Remote (see <a href="#remote" class="xref">Section 2.4</a>) endpoint, such as trust model information, including pinned public keys or anchor certificates, cryptographic session resumption parameters, or rendezvous information. It uses information from the Configuration (see <a href="#Configuration" class="xref">Section 2.6</a>) to constrain the selection of transport protocols and local interfaces to create Transients (see <a href="#transient" class="xref">Section 2.7</a>) to carry Messages; and information about the paths through the network available available between them (see <a href="#path" class="xref">Section 2.8</a>).</p>
 <p id="rfc.section.2.3.p.2">All Carriers are bound to an Association. New Carriers will reuse an Association if they can be carried from the same Local to the same Remote over the same Paths; this re-use of an Association may implies the creation of a new Transient.</p>
 <p id="rfc.section.2.3.p.3">Associations may exist and be created without a Carrier. This may be done if peer cryptographic state such as a pre-shared key is established out-of-band.  Thus, Associations may be created without the need to send application data to a peer, that is, without a Carrier. Associations are mutable. Association state may expire over time, after which it is removed from the Association, and Transients may export cryptographic state to store in an Association as needed.  Moreover, this state may be exported directly into the Association or modified before insertion. This may be needed to diversify ephemeral Transient keying material from the longer-term Association keying material.</p>
 <p id="rfc.section.2.3.p.4">A primary use of Association state is to allow new Associations and their derived Carriers to be quickly created without performing in-band cryptographic handshakes.  See <a href="#I-D.kuehlewind-taps-crypto-sep" class="xref">[I-D.kuehlewind-taps-crypto-sep]</a> for more details about this separation.</p>
@@ -564,16 +567,21 @@ address {
 <h1 id="rfc.section.2.5">
 <a href="#rfc.section.2.5">2.5.</a> <a href="#local" id="local">Local</a>
 </h1>
-<p id="rfc.section.2.5.p.1">A Local represents all the information about the local endpoint necessary to establish an Association or a Listener: interface, port, and transport protocol stack information, and, per <a href="#I-D.pauly-taps-transport-security" class="xref">[I-D.pauly-taps-transport-security]</a>, cryptographic identities (certificates and associated private keys) bound to this endpoint.</p>
+<p id="rfc.section.2.5.p.1">A Local represents all the information about the local endpoint necessary to establish an Association or a Listener. It encapsulates the Provisioning Domain (PvD) of a single interface in the multiple provisioning domain architecture <a href="#RFC7556" class="xref">[RFC7556]</a>, and adds information about the service endpoint (transport protocol port), and, per <a href="#I-D.pauly-taps-transport-security" class="xref">[I-D.pauly-taps-transport-security]</a>, cryptographic identities (certificates and associated private keys) bound to this endpoint.</p>
 <h1 id="rfc.section.2.6">
-<a href="#rfc.section.2.6">2.6.</a> <a href="#PolicyContext" id="PolicyContext">Policy Context</a>
+<a href="#rfc.section.2.6">2.6.</a> <a href="#Configuration" id="Configuration">Configuration</a>
 </h1>
-<p id="rfc.section.2.6.p.1">The Policy Context describes preferences for, and restrictions on, how to configure Transients to support communication between a Local and a Remote over one or more Paths between endpoints.  For instance, an application may require, or prefer to use, certain features (see <a href="#I-D.ietf-taps-transports" class="xref">[I-D.ietf-taps-transports]</a>) of the transport protocol stacks used by the Transients underlying the Carrier.  Alternatively, it might also prefer Paths over one interface to those over another (e.g., WiFi access over LTE when roaming on a foreign LTE network, due to cost).</p>
-<p id="rfc.section.2.6.p.2">These policies are expressed in the Policy Context(s) that are bound to the Association.  Multiple policy contexts can be active at once.  For example, a system Policy Context can express the administrative preferences around network interface and protocol selection, while an application Policy Context expresses preferences for use of different transport services.  Expression of policy contexts and the resolution of conflicts among Policy Contexts is currently implementation-specific (the Policy API in the NEAT architecture <a href="#NEAT" class="xref">[NEAT]</a> provides an example of how this can be done).</p>
+<p id="rfc.section.2.6.p.1">A Configuration encapsulates an application&#8217;s preferences around Path selection and protocol options.</p>
+<p id="rfc.section.2.6.p.2">Each Association has exactly one Configuration, and all Carriers belonging to that Association share the same Configuration.</p>
+<p id="rfc.section.2.6.p.3">The application cannot modify the Configuration for a Carrier or Association once it is set. If a new set of options needs to be used, then the application needs a new Carrier or Association instance. This is necessary to ensure that a single Carrier can consistently track the Paths and protocol options it uses, since it is usually not possible to modify these properties without breaking connectivity.</p>
+<p id="rfc.section.2.6.p.4">To influence Path selection, the application can configure a set of requirements, preferences, and restrictions concerning which Paths may be selected by the Association to use for creating Transients between a Local and a Remote. For example, a Configuration can specify that the application prefers Wi-Fi access over LTE when roaming on a foreign LTE network, due to monetary cost to the user.</p>
+<p id="rfc.section.2.6.p.5">The Association uses the Configuration&#8217;s Path preferences as a key part of determining the Paths to use for its Transients. The Configuration is provided as input when examining the complete list of available Paths on the system (to limit the list, or order the Paths by preference). The system&#8217;s policy will further restrict and modify the Path that is ultimately selected, using other aspects of the Configuration (protocol options and originating application) to select the most appropriate Path.</p>
+<p id="rfc.section.2.6.p.6">To influence protocol selection and options, the Configuration contains one or more allowed Protocol Stack Configurations. Each of these is comprised of application- and transport-layer protocols that may be used together to communicate to the Remote, along with any protocol-specific options. For example, a Configuration could specify two alternate, but equivalent, protocol stacks: one using HTTP/2 over TLS over TCP, and the other using QUIC over UDP.  Alternatively, the Configuration could specify two protocol stacks with the same protocols, but different protocol options: one using TLS with TLS 1.3 0-RTT enabled and TCP with TCP Fast-Open enabled, and one using TLS with out 0-RTT and TCP without TCP Fast-Open.</p>
+<p id="rfc.section.2.6.p.7">Protocol-specific options within the Configuration include trust settings and acceptable cryptographic algorithms to be used by security protocols. These may be configured for specific protocols to allow different settings for each (such as between TLS over TCP and TLS for use with QUIC), or set as default security settings on the Configuration to be used by any protocol that needs to evaluate trust. Trust settings may include certificate anchors and certificate pinning options.</p>
 <h1 id="rfc.section.2.7">
 <a href="#rfc.section.2.7">2.7.</a> <a href="#transient" id="transient">Transient</a>
 </h1>
-<p id="rfc.section.2.7.p.1">A Transient represents a binding between a Carrier and the instance of the transport protocol stack that implements it. As an Association contains long-term state for communications between two endpoints, a Transient contains ephemeral state for a single transport protocol over a single Path at a given point in time.</p>
+<p id="rfc.section.2.7.p.1">A Transient represents a binding between a Carrier and the instance of the transport protocol stack that implements it. As an Association contains long-term state for communications between two endpoints, a Transient contains ephemeral state for a single transport protocol over a one or more Paths at a given point in time.</p>
 <p id="rfc.section.2.7.p.2">A Carrier may be served by multiple Transients at once, e.g. when implementing multipath communication such that the separate paths are exposed to the API by the underlying transport protocol stack. Each Transient serves only one Carrier, although multiple Transients may share the same underlying protocol stack; e.g. when multiplexing Carriers over streams in a multistreaming protocol.</p>
 <p id="rfc.section.2.7.p.3">Transients are generally not exposed by the API to the application, though they may be accessible for debugging and logging purposes.</p>
 <h1 id="rfc.section.2.8">
@@ -608,7 +616,8 @@ address {
 <h1 id="rfc.section.3.1">
 <a href="#rfc.section.3.1">3.1.</a> <a href="#example-connection-patterns" id="example-connection-patterns">Example Connection Patterns</a>
 </h1>
-<p id="rfc.section.3.1.p.1">Here, we illustrate the usage of the API for common connection patterns. Note that error handling is ignored in these illustrations for ease of reading.</p>
+<p id="rfc.section.3.1.p.1">[EDITOR&#8217;S NOTE: ensure these are in line with the <a href="#sec-dynamics" class="xref">Section 3.2</a> below.]</p>
+<p id="rfc.section.3.1.p.2">Here, we illustrate the usage of the API for common connection patterns. Note that error handling is ignored in these illustrations for ease of reading.</p>
 <h1 id="rfc.section.3.1.1">
 <a href="#rfc.section.3.1.1">3.1.1.</a> <a href="#client-server" id="client-server">Client-Server</a>
 </h1>
@@ -698,11 +707,11 @@ func receiveMulticast() {
     })
 }
 </pre>
-<h1 id="rfc.section.3.2">
-<a href="#rfc.section.3.2">3.2.</a> <a href="#association-bootstrapping" id="association-bootstrapping">Association Bootstrapping</a>
+<h1 id="rfc.section.3.1.5">
+<a href="#rfc.section.3.1.5">3.1.5.</a> <a href="#association-bootstrapping" id="association-bootstrapping">Association Bootstrapping</a>
 </h1>
-<p id="rfc.section.3.2.p.1">Here, we show how Association state may be initialized without a carrier.  The goal is to create a long-term Association from which Carriers may be derived and, if possible, used immediately. Per <a href="#I-D.pauly-taps-transport-security" class="xref">[I-D.pauly-taps-transport-security]</a>, a first step is to specify trust model constraints, such as pinned public keys and anchor certificates, which are needed to create Remote connections.</p>
-<p id="rfc.section.3.2.p.2">We begin by creating shared security parameters that will be used later for creating a remote connection.</p>
+<p id="rfc.section.3.1.5.p.1">Here, we show how Association state may be initialized without a carrier.  The goal is to create a long-term Association from which Carriers may be derived and, if possible, used immediately. Per <a href="#I-D.pauly-taps-transport-security" class="xref">[I-D.pauly-taps-transport-security]</a>, a first step is to specify trust model constraints, such as pinned public keys and anchor certificates, which are needed to create Remote connections.</p>
+<p id="rfc.section.3.1.5.p.2">We begin by creating shared security parameters that will be used later for creating a remote connection.</p>
 <pre>
 // create security parameters with a set of trusted certificates
 func createParameters(trustedCerts []Certificate) Parameters {
@@ -711,29 +720,29 @@ func createParameters(trustedCerts []Certificate) Parameters {
     return parameters
 }
 </pre>
-<p id="rfc.section.3.2.p.3">Using these statically configured parameters, we now show how to create an Association between a Local and Remote using these parameters.</p>
+<p id="rfc.section.3.1.5.p.3">Using these statically configured parameters, we now show how to create an Association between a Local and Remote using these parameters.</p>
 <pre>
 // create an Association using shared parameters
 func createAssociation(local Local, remote Remote, parameters Parameters) Association {
-    association := AssociationWithParameters(local, remote, parameters)
+    association := NewAssociation(local, remote, parameters)
     return association
 }
 </pre>
-<p id="rfc.section.3.2.p.4">We may also create an Association with a pre-shared key configured out-of-band.</p>
+<p id="rfc.section.3.1.5.p.4">We may also create an Association with a pre-shared key configured out-of-band.</p>
 <pre>
 // create an Association using a pre-shared key
 func createAssociationWithPSK(local Local, remote Remote, parameters Parameters, preSharedKey []byte) Association {
-    association := AssociationWithParameters(local, remote, parameters)
+    association := NewAssociation(local, remote, parameters)
     association = association.SetPreSharedKey(preSharedKey)
     return association
 }
 </pre>
-<p id="rfc.section.3.2.p.5">We now show how to create a Carrier from an existing, pre-configured Association.  This Association may or may not contain shared cryptographic static between the Local and Remote, depending on how it was configured.</p>
+<p id="rfc.section.3.1.5.p.5">We now show how to create a Carrier from an existing, pre-configured Association.  This Association may or may not contain shared cryptographic static between the Local and Remote, depending on how it was configured.</p>
 <pre>
 // open a connection to a server using an existing Association and send some data,
 // which will be sent early if possible.
 func sayHelloWithAssociation(association Association) {
-    carrier := InitiateWithAssociation(association)
+    carrier := association.Initiate()
 
     carrier.SendMsg(OutMessage{Content: []byte("Hello!"), Idempotent: true}, nil, nil, nil)
     carrier.Ready(func (msg InMessage) {
@@ -743,16 +752,81 @@ func sayHelloWithAssociation(association Association) {
     carrier.Close()
 }
 </pre>
+<h1 id="rfc.section.3.2">
+<a href="#rfc.section.3.2">3.2.</a> <a href="#sec-dynamics" id="sec-dynamics">API Dynamics</a>
+</h1>
+<p id="rfc.section.3.2.p.1">As Carriers provide the central entry point to Post, they are key to API dynamics. The lifecycle of a carrier is shown in <a href="#fig-carrier-lc" class="xref">Figure 5</a>. Carriers are created by active openers by calling Initiate() given a Local and a Remote, and by passive openers by calling Listen() given a Local; the .Accept() method on the listener Carrier can then be used to create active carriers. By default, the underlying Association is automatically created and managed by the underlying API. This underlying Association can be accessed by the Carrier&#8217;s .Association() method. Alternately, an association can be explicitly created using NewAssociation(), and a Carrier on the association may be accessed or initiated by calling the association&#8217;s .Initiate() method.</p>
+<p id="rfc.section.3.2.p.2">Once a Carrier has been created (via Initiate(), Association.Initiate(), NewSource(), NewSink(), or Listen()/Accept()), it may be used to send and receive Messages. The existence of a Carrier does not imply the existence of an active Transient or associated transport-layer connection; these may be created when the carrier is, or may be deferred, depending on the network environment, configuration, and protocol stacks available.</p>
+<div id="rfc.figure.5"></div>
+<div id="fig-carrier-lc"></div>
+<pre>
+ Listen(local)   Initiate(local,remote)   NewSource(local,remote)
+      |                     |             or NewSink(local)
+  [ Carrier  ]              |                    |
+  [(listener)]              +--------------------+
+      |                     V                    
+  .Accept()-----------&gt; [Carrier] -+----------&gt; .Close()
+                         |     ^   |  close    [ Carrier  ]
+                         |     |   +- event -&gt; [ (closed) ]
+                         |     |          
+              .Association()  .Carriers()
+                         |    .Initiate()
+                         V     |
+                     [Association]   
+                           ^
+                           |
+              NewAssociation(local,remote)
+</pre>
+<p class="figure">Figure 5: Carrier and Association Life Cycle</p>
+<p id="rfc.section.3.2.p.3">Access to more detailed information is possible through accessors on Carriers and Associations, as shown in <a href="#fig-accessors" class="xref">Figure 6</a>. The set of currently active Transients can be accessed through the Carrier&#8217;s .Transients() methods. The active path(s) used by a Transient can be accessed through the Transient&#8217;s .Paths() method, and the set of all paths for which properties are cached by an Association can be accessed through the Association&#8217;s .Paths() method. The set of active carriers on an association can be accessed through the Association&#8217;s .Carriers() method. Access to transients and paths is not necessary in normal operation; these accessors are provided primarily for logging and debugging purposes.</p>
+<div id="rfc.figure.6"></div>
+<div id="fig-accessors"></div>
+<pre>
+          [Carrier]---.Transients()---&gt;[Transient]
+           |     ^                       |
+           |     |                       |
+.Association()  .Carriers()           .Paths()
+           |    .Initiate()              |
+           V     |                       V
+        [Association]---.Paths()------&gt;[Path]       
+</pre>
+<p class="figure">Figure 6: Accessors on Carriers and Associations</p>
+<p id="rfc.section.3.2.p.4">Each Carrier has a .Send() method, by which Messages can be sent with given properties, and a .Ready() method, which supplies a callback for reading Messages from the remote side. .Send() is not available on Sinks, and .Ready() is not available on Sources. Carriers also provide .OnSent(), .OnAcked(), and .OnExpired() calls for binding default send event handlers to the Carrier, and .OnClosed() for handling passive close notifications.</p>
+<div id="rfc.figure.7"></div>
+<div id="fig-message"></div>
+<pre>
+                                  +---------[incoming]-----------+
+                                  |         [Message ]           V
+[outgoing] ---&gt; .Send() ---&gt;  [Carrier] &lt;---- .Ready() &lt;---- [Receiver]
+[Message ]                        |
+                                  +--- .OnSent()
+                                  +--- .OnAcked()
+                                  +--- .OnExpired()
+                                  +--- .OnClosed()       
+</pre>
+<p class="figure">Figure 7: Sending and Receiving Messages and Events</p>
+<p id="rfc.section.3.2.p.5">An application may have a global Configuation, as well as more specific Configurations to apply to the establishment of a given Association or Carrier.  These Configurations are optional arguments to the Association and Carrier creation calls.</p>
+<p id="rfc.section.3.2.p.6">[EDITOR&#8217;S NOTE (bht): the text below does not belong here, figure out what to do with it when https://github.com/mami-project/draft-trammell-post-sockets/pull/23 lands: Each Configuration is conceptually a key-value store, where information in more specific scopes overrides information in less specific scopes: application defaults can be overriden by specific Configurations bound to Carriers or Associations, all of which may be overriden by system or user-scoped configuration parameters. Configurations are also made directly available to protocol stack instances (PSIs, see <a href="#sec-psi" class="xref">Section 4.1</a>) for fine-grained control of implementation-specific configuration parameters.]</p>
+<p id="rfc.section.3.2.p.7">In order to initiate a connection with a remote endpoint, a user of Post Sockets must start from a Remote (see <a href="#remote" class="xref">Section 2.4</a>). A Remote encapsulates identifying information about a remote endpoint at a specific level of resolution. A new Remote can be wrapped around some identifying information by via the NewRemote() call. A Remote has a .Resolve() method, which can be iteratively revoked to increase the level of resolution; a call to Resolve on a given Remote may result in one to many Remotes, as shown in <a href="#fig-remote" class="xref">Figure 8</a>.  Remotes at any level of resolution may be passed to Post Sockets calls; each call will continue resolution to the point necessary to establish or resume a Carrier.</p>
+<div id="rfc.figure.8"></div>
+<div id="fig-remote"></div>
+<pre>
+                          +----------------------------+
+                        n |                            | 1
+NewRemote(identifiers) ---+---&gt;[Remote] --.Resolve()---+
+</pre>
+<p class="figure">Figure 8: Recursive resolution of Remotes</p>
+<p id="rfc.section.3.2.p.8">Information about the local endpoint is also necessary to establish an Association, whether explicitly or implicitly through the creation of a Carrier or Listener. This is passed in the form of a Local (see <a href="#local" class="xref">Section 2.5</a>). A Local is created with a NewLocal() call, which takes a Configuration (including certificates to present and secret keys associated with them) and identifying information (interface(s) and port(s) to use).</p>
 <h1 id="rfc.section.4">
 <a href="#rfc.section.4">4.</a> <a href="#implementation-considerations" id="implementation-considerations">Implementation Considerations</a>
 </h1>
 <p id="rfc.section.4.p.1">Here we discuss an incomplete list of API implementation considerations that have arisen with experimentation with prototype implementations of Post.</p>
 <h1 id="rfc.section.4.1">
-<a href="#rfc.section.4.1">4.1.</a> <a href="#protocol-stack-instance-psi" id="protocol-stack-instance-psi">Protocol Stack Instance (PSI)</a>
+<a href="#rfc.section.4.1">4.1.</a> <a href="#sec-psi" id="sec-psi">Protocol Stack Instance (PSI)</a>
 </h1>
 <p id="rfc.section.4.1.p.1">A PSI encapsulates an arbitrary stack of protocols (e.g., TCP over IPv6, SCTP over DTLS over UDP over IPv4).  PSIs provide the bridge between the interface (Carrier) plus the current state (Transients) and the implementation of a given set of transport services <a href="#I-D.ietf-taps-transports" class="xref">[I-D.ietf-taps-transports]</a>.</p>
 <p id="rfc.section.4.1.p.2">A given implementation makes one or more possible protocol stacks available to its applications. Selection and configuration among multiple PSIs is based on system-level or application policies, as well as on network conditions in the provisioning domain in which a connection is made.</p>
-<div id="rfc.figure.5"></div>
+<div id="rfc.figure.9"></div>
 <div id="fig-psi"></div>
 <pre>
 +=========+    +=========+   +==========+      +==========+
@@ -776,8 +850,8 @@ func sayHelloWithAssociation(association Association) {
  bound to PSI   over a multi-streaming     racing during session
                 transport protocol         establishment
 </pre>
-<p class="figure">Figure 5: Example Protocol Stack Instances</p>
-<p id="rfc.section.4.1.p.3">For example, <a href="#fig-psi" class="xref">Figure 5</a>(a) shows a TLS over TCP stack, usable on most network connections. Protocols are layered to ensure that the PSI provides all the transport services required by the application.  A single PSI may be bound to multiple Carriers, as shown in <a href="#fig-psi" class="xref">Figure 5</a>(b): a multi-streaming transport protocol like QUIC or SCTP can support one carrier per stream. Where multi-streaming transport is not available, these carriers could be serviced by different PSIs on different flows. On the other hand, multiple PSIs are bound to a single transient during establishment, as shown in <a href="#fig-psi" class="xref">Figure 5</a>(c). Here, the losing PSI in a happy-eyeballs race will be terminated, and the carrier will continue using the winning PSI.</p>
+<p class="figure">Figure 9: Example Protocol Stack Instances</p>
+<p id="rfc.section.4.1.p.3">For example, <a href="#fig-psi" class="xref">Figure 9</a>(a) shows a TLS over TCP stack, usable on most network connections. Protocols are layered to ensure that the PSI provides all the transport services required by the application.  A single PSI may be bound to multiple Carriers, as shown in <a href="#fig-psi" class="xref">Figure 9</a>(b): a multi-streaming transport protocol like QUIC or SCTP can support one carrier per stream. Where multi-streaming transport is not available, these carriers could be serviced by different PSIs on different flows. On the other hand, multiple PSIs are bound to a single transient during establishment, as shown in <a href="#fig-psi" class="xref">Figure 9</a>(c). Here, the losing PSI in a happy-eyeballs race will be terminated, and the carrier will continue using the winning PSI.</p>
 <h1 id="rfc.section.4.2">
 <a href="#rfc.section.4.2">4.2.</a> <a href="#message-framing-parsing-and-serialization" id="message-framing-parsing-and-serialization">Message Framing, Parsing, and Serialization</a>
 </h1>
@@ -796,7 +870,7 @@ func sayHelloWithAssociation(association Association) {
 <h1 id="rfc.section.4.3">
 <a href="#rfc.section.4.3">4.3.</a> <a href="#message-size-limitations" id="message-size-limitations">Message Size Limitations</a>
 </h1>
-<p id="rfc.section.4.3.p.1">Ideally, Messages can be of infinite size. However, protocol stacks and protocol stack implementations may impose their own limits on message sizing; For example, SCTP <a href="#RFC4960" class="xref">[RFC4960]</a> and TLS <a href="#I-D.ietf-tls-tls13" class="xref">[I-D.ietf-tls-tls13]</a> impose record size limitations of 64kB and 16kB, respectively. Message sizes may also be limited by the available buffer at the receiver, since a Message must be fully assembled by the transport layer before it can be passed on to the application layer. Since not every transport protocol stack implements the signaling necessary to negotiate or expose message size limitations, these are currently configured out of band, and are probably best exposed through the policy context.</p>
+<p id="rfc.section.4.3.p.1">Ideally, Messages can be of infinite size. However, protocol stacks and protocol stack implementations may impose their own limits on message sizing; For example, SCTP <a href="#RFC4960" class="xref">[RFC4960]</a> and TLS <a href="#I-D.ietf-tls-tls13" class="xref">[I-D.ietf-tls-tls13]</a> impose record size limitations of 64kB and 16kB, respectively. Message sizes may also be limited by the available buffer at the receiver, since a Message must be fully assembled by the transport layer before it can be passed on to the application layer. Since not every transport protocol stack implements the signaling necessary to negotiate or expose message size limitations, these may need to be defined out of band, and are probably best exposed through the Configuration.</p>
 <p id="rfc.section.4.3.p.2">A truly infinite message service &#8211; e.g. large file transfer where both endpoints have committed persistent storage to the message &#8211; is probably best realized as a layer above Post Sockets, and may be added as a new type of Message Carrier to a future revision of this document.</p>
 <h1 id="rfc.section.4.4">
 <a href="#rfc.section.4.4">4.4.</a> <a href="#back-pressure" id="back-pressure">Back-pressure</a>
@@ -836,7 +910,7 @@ func sayHelloWithAssociation(association Association) {
 <tr>
 <td class="reference"><b id="I-D.ietf-quic-transport">[I-D.ietf-quic-transport]</b></td>
 <td class="top">
-<a>Iyengar, J.</a> and <a>M. Thomson</a>, "<a href="https://tools.ietf.org/html/draft-ietf-quic-transport-05">QUIC: A UDP-Based Multiplexed and Secure Transport</a>", Internet-Draft draft-ietf-quic-transport-05, August 2017.</td>
+<a>Iyengar, J.</a> and <a>M. Thomson</a>, "<a href="https://tools.ietf.org/html/draft-ietf-quic-transport-07">QUIC: A UDP-Based Multiplexed and Secure Transport</a>", Internet-Draft draft-ietf-quic-transport-07, October 2017.</td>
 </tr>
 <tr>
 <td class="reference"><b id="I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</b></td>
@@ -897,6 +971,11 @@ func sayHelloWithAssociation(association Association) {
 <td class="reference"><b id="RFC6555">[RFC6555]</b></td>
 <td class="top">
 <a>Wing, D.</a> and <a>A. Yourtchenko</a>, "<a href="https://tools.ietf.org/html/rfc6555">Happy Eyeballs: Success with Dual-Stack Hosts</a>", RFC 6555, DOI 10.17487/RFC6555, April 2012.</td>
+</tr>
+<tr>
+<td class="reference"><b id="RFC6698">[RFC6698]</b></td>
+<td class="top">
+<a>Hoffman, P.</a> and <a>J. Schlyter</a>, "<a href="https://tools.ietf.org/html/rfc6698">The DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS) Protocol: TLSA</a>", RFC 6698, DOI 10.17487/RFC6698, August 2012.</td>
 </tr>
 <tr>
 <td class="reference"><b id="RFC6824">[RFC6824]</b></td>
