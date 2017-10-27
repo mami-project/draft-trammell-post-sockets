@@ -541,11 +541,11 @@ architecture {{NEAT}} provides an example of how this can be done).
 
 ## Transient
 
-A Transient represents a binding between a Carrier and the instance of
-the transport protocol stack that implements it. As an Association contains
+A Transient represents a binding between a Carrier and the instance of the
+transport protocol stack that implements it. As an Association contains
 long-term state for communications between two endpoints, a Transient contains
-ephemeral state for a single transport protocol over a one or more Paths at a given
-point in time.
+ephemeral state for a single transport protocol over a one or more Paths at a
+given point in time.
 
 A Carrier may be served by multiple Transients at once, e.g. when
 implementing multipath communication such that the separate paths are exposed to
